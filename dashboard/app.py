@@ -394,10 +394,10 @@ def main():
         st.session_state.active_tab = 0
 
     # Tabs for different views
-    tab_names = ["📊 Coverage", "🏷️ Topics", "📰 Events", "⚖️ Source Comparison"]
+    tab_names = ["📊 Coverage", "🏷️ Topics", "📰 Events"]
 
     # Create buttons to switch tabs
-    cols = st.columns(4)
+    cols = st.columns(3)
     for idx, (col, tab_name) in enumerate(zip(cols, tab_names)):
         with col:
             if st.button(tab_name, key=f"tab_{idx}",
@@ -413,8 +413,6 @@ def main():
         render_topics_tab(version_id)
     elif st.session_state.active_tab == 2:
         render_events_tab(version_id)
-    elif st.session_state.active_tab == 3:
-        render_comparison_tab(version_id)
 
 
 def render_coverage_tab(stats):
@@ -457,7 +455,7 @@ def render_coverage_tab(stats):
 
 
 def render_topics_tab(version_id):
-    """Render topics analysis tab."""
+    """Render topics analysis and source comparison tab."""
     st.subheader("Discovered Topics")
 
     topics = load_topics(version_id)
@@ -503,6 +501,82 @@ def render_topics_tab(version_id):
         )
         fig.update_layout(height=500)
         st.plotly_chart(fig, use_container_width=True)
+
+    # Source comparison section
+    st.divider()
+    st.subheader("Source Comparison")
+    st.markdown("Compare how different sources prioritize topics")
+
+    # Topic coverage comparison
+    st.markdown("### Topic Focus by Source")
+    st.markdown("What percentage of each source's coverage goes to each topic?")
+
+    if topic_source_data:
+        # Calculate percentages per source
+        source_totals = ts_df.groupby('source_name')['count'].sum()
+
+        # Get top 10 topics
+        top_topic_names_comparison = [t['name'] for t in topics[:10]]
+
+        comparison_data = []
+        for source in SOURCE_NAMES.values():
+            source_data = ts_df[ts_df['source_name'] == source]
+            total = source_totals.get(source, 1)
+
+            for topic in top_topic_names_comparison:
+                topic_count = source_data[source_data['topic'] == topic]['count'].sum()
+                comparison_data.append({
+                    'Source': source,
+                    'Topic': topic[:30],
+                    'Percentage': (topic_count / total) * 100
+                })
+
+        comp_df = pd.DataFrame(comparison_data)
+
+        fig = px.bar(
+            comp_df,
+            x='Topic',
+            y='Percentage',
+            color='Source',
+            barmode='group',
+            color_discrete_map=SOURCE_COLORS,
+            labels={'Percentage': '% of Coverage'}
+        )
+        fig.update_layout(height=500, xaxis_tickangle=-45)
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Selection bias indicator
+        st.markdown("### Selection Bias Indicators")
+        st.markdown("Topics where sources significantly differ in coverage")
+
+        # Calculate variance in coverage percentage across sources
+        variance_data = []
+        for topic in top_topic_names_comparison:
+            topic_data = comp_df[comp_df['Topic'] == topic[:30]]
+            if len(topic_data) > 1:
+                variance_data.append({
+                    'Topic': topic[:30],
+                    'Coverage Variance': topic_data['Percentage'].var(),
+                    'Max Coverage': topic_data['Percentage'].max(),
+                    'Min Coverage': topic_data['Percentage'].min(),
+                    'Range': topic_data['Percentage'].max() - topic_data['Percentage'].min()
+                })
+
+        var_df = pd.DataFrame(variance_data).sort_values('Range', ascending=False)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("**Highest Variation (potential selection bias)**")
+            st.dataframe(
+                var_df.head(5)[['Topic', 'Range']].rename(columns={'Range': 'Coverage Gap (%)'}),
+                use_container_width=True
+            )
+        with col2:
+            st.markdown("**Most Consistent Coverage**")
+            st.dataframe(
+                var_df.tail(5)[['Topic', 'Range']].rename(columns={'Range': 'Coverage Gap (%)'}),
+                use_container_width=True
+            )
 
     # BERTopic Visualizations
     st.divider()
@@ -609,89 +683,6 @@ def render_events_tab(version_id):
                 display_df = articles_df[['title', 'source_name', 'date_posted']].copy()
                 display_df.columns = ['Title', 'Source', 'Date']
                 st.dataframe(display_df, use_container_width=True, height=300)
-
-
-def render_comparison_tab(version_id):
-    """Render source comparison tab."""
-    st.subheader("Source Comparison")
-    st.markdown("Compare how different sources cover the same topics and events")
-
-    # Topic coverage comparison
-    st.markdown("### Topic Focus by Source")
-    st.markdown("What percentage of each source's coverage goes to each topic?")
-
-    topic_source_data = load_topic_by_source(version_id)
-    if topic_source_data:
-        ts_df = pd.DataFrame(topic_source_data)
-        ts_df['source_name'] = ts_df['source_id'].map(SOURCE_NAMES)
-
-        # Calculate percentages per source
-        source_totals = ts_df.groupby('source_name')['count'].sum()
-
-        # Get top 10 topics
-        topics = load_topics(version_id)
-        top_topic_names = [t['name'] for t in topics[:10]]
-
-        comparison_data = []
-        for source in SOURCE_NAMES.values():
-            source_data = ts_df[ts_df['source_name'] == source]
-            total = source_totals.get(source, 1)
-
-            for topic in top_topic_names:
-                topic_count = source_data[source_data['topic'] == topic]['count'].sum()
-                comparison_data.append({
-                    'Source': source,
-                    'Topic': topic[:30],
-                    'Percentage': (topic_count / total) * 100
-                })
-
-        comp_df = pd.DataFrame(comparison_data)
-
-        fig = px.bar(
-            comp_df,
-            x='Topic',
-            y='Percentage',
-            color='Source',
-            barmode='group',
-            color_discrete_map=SOURCE_COLORS,
-            labels={'Percentage': '% of Coverage'}
-        )
-        fig.update_layout(height=500, xaxis_tickangle=-45)
-        st.plotly_chart(fig, use_container_width=True)
-
-    # Selection bias indicator
-    st.markdown("### Selection Bias Indicators")
-    st.markdown("Topics where sources significantly differ in coverage")
-
-    if topic_source_data:
-        # Calculate variance in coverage percentage across sources
-        variance_data = []
-        for topic in top_topic_names:
-            topic_data = comp_df[comp_df['Topic'] == topic[:30]]
-            if len(topic_data) > 1:
-                variance_data.append({
-                    'Topic': topic[:30],
-                    'Coverage Variance': topic_data['Percentage'].var(),
-                    'Max Coverage': topic_data['Percentage'].max(),
-                    'Min Coverage': topic_data['Percentage'].min(),
-                    'Range': topic_data['Percentage'].max() - topic_data['Percentage'].min()
-                })
-
-        var_df = pd.DataFrame(variance_data).sort_values('Range', ascending=False)
-
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("**Highest Variation (potential selection bias)**")
-            st.dataframe(
-                var_df.head(5)[['Topic', 'Range']].rename(columns={'Range': 'Coverage Gap (%)'}),
-                use_container_width=True
-            )
-        with col2:
-            st.markdown("**Most Consistent Coverage**")
-            st.dataframe(
-                var_df.tail(5)[['Topic', 'Range']].rename(columns={'Range': 'Coverage Gap (%)'}),
-                use_container_width=True
-            )
 
 
 if __name__ == "__main__":

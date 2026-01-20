@@ -1,5 +1,5 @@
 -- Media Bias Analysis Schema Extensions
--- Run with: psql -h localhost -U ai_agent -d taf_media -f schema.sql
+-- Run with: psql -h localhost -U username -d database -f schema.sql
 -- Schema: media_bias
 
 -- Enable pgvector extension
