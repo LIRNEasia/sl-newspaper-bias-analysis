@@ -122,6 +122,27 @@ def get_default_clustering_config() -> Dict[str, Any]:
     }
 
 
+def get_default_word_frequency_config() -> Dict[str, Any]:
+    """
+    Get default configuration for word frequency analysis.
+
+    Returns:
+        Dictionary with configuration for word frequency only.
+    """
+    config = load_config()
+
+    return {
+        "random_seed": 42,
+        "word_frequency": {
+            "ranking_method": config["word_frequency"]["ranking_method"],
+            "tfidf_scope": config["word_frequency"]["tfidf_scope"],
+            "top_n_words": config["word_frequency"]["top_n_words"],
+            "min_word_length": config["word_frequency"].get("min_word_length", 3),
+            "custom_stopwords": config["word_frequency"].get("custom_stopwords", [])
+        }
+    }
+
+
 def create_version(
     name: str,
     description: str = "",
@@ -143,7 +164,7 @@ def create_version(
     Raises:
         ValueError: If version name already exists for the same analysis type
     """
-    valid_types = ['topics', 'clustering', 'combined']
+    valid_types = ['topics', 'clustering', 'word_frequency', 'combined']
     if analysis_type not in valid_types:
         raise ValueError(f"Invalid analysis_type: {analysis_type}. Must be one of {valid_types}")
 
@@ -375,10 +396,10 @@ def update_pipeline_status(
 
     Args:
         version_id: UUID of the version
-        step: Pipeline step name ('embeddings', 'topics', or 'clustering')
+        step: Pipeline step name ('embeddings', 'topics', 'clustering', or 'word_frequency')
         complete: Whether the step is complete
     """
-    valid_steps = ['embeddings', 'topics', 'clustering']
+    valid_steps = ['embeddings', 'topics', 'clustering', 'word_frequency']
     if step not in valid_steps:
         raise ValueError(f"Invalid step: {step}. Must be one of {valid_steps}")
 
@@ -403,6 +424,7 @@ def update_pipeline_status(
             # Check if all relevant steps are complete based on analysis_type and update is_complete
             # For 'topics': check embeddings + topics
             # For 'clustering': check embeddings + clustering
+            # For 'word_frequency': check word_frequency only (no embeddings needed)
             # For 'combined': check all three (backward compatibility)
             cur.execute(
                 f"""
@@ -415,6 +437,8 @@ def update_pipeline_status(
                         WHEN 'clustering' THEN
                             (pipeline_status->>'embeddings')::boolean AND
                             (pipeline_status->>'clustering')::boolean
+                        WHEN 'word_frequency' THEN
+                            (pipeline_status->>'word_frequency')::boolean
                         WHEN 'combined' THEN
                             (pipeline_status->>'embeddings')::boolean AND
                             (pipeline_status->>'topics')::boolean AND

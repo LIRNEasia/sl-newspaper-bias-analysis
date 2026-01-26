@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS media_bias.result_versions (
     configuration JSONB NOT NULL,
     analysis_type VARCHAR(50) NOT NULL DEFAULT 'combined',
     is_complete BOOLEAN DEFAULT false,
-    pipeline_status JSONB DEFAULT '{"embeddings": false, "topics": false, "clustering": false}'::jsonb,
+    pipeline_status JSONB DEFAULT '{"embeddings": false, "topics": false, "clustering": false, "word_frequency": false}'::jsonb,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
     CONSTRAINT result_versions_name_analysis_type_key UNIQUE (name, analysis_type)
@@ -91,6 +91,19 @@ CREATE TABLE IF NOT EXISTS media_bias.article_clusters (
     UNIQUE(article_id, cluster_id, result_version_id)
 );
 
+-- Word frequency analysis results
+CREATE TABLE IF NOT EXISTS media_bias.word_frequencies (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    result_version_id UUID NOT NULL REFERENCES media_bias.result_versions(id) ON DELETE CASCADE,
+    source_id VARCHAR(50) NOT NULL,
+    word VARCHAR(255) NOT NULL,
+    frequency INTEGER NOT NULL,
+    tfidf_score FLOAT,
+    rank INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(result_version_id, source_id, word)
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_embeddings_article ON media_bias.embeddings(article_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_version ON media_bias.embeddings(result_version_id);
@@ -102,6 +115,9 @@ CREATE INDEX IF NOT EXISTS idx_article_clusters_article ON media_bias.article_cl
 CREATE INDEX IF NOT EXISTS idx_article_clusters_cluster ON media_bias.article_clusters(cluster_id);
 CREATE INDEX IF NOT EXISTS idx_article_clusters_version ON media_bias.article_clusters(result_version_id);
 CREATE INDEX IF NOT EXISTS idx_event_clusters_version ON media_bias.event_clusters(result_version_id);
+CREATE INDEX IF NOT EXISTS idx_word_frequencies_version ON media_bias.word_frequencies(result_version_id);
+CREATE INDEX IF NOT EXISTS idx_word_frequencies_source ON media_bias.word_frequencies(result_version_id, source_id);
+CREATE INDEX IF NOT EXISTS idx_word_frequencies_rank ON media_bias.word_frequencies(result_version_id, source_id, rank);
 
 -- HNSW index for similarity search (if pgvector supports it)
 -- CREATE INDEX IF NOT EXISTS idx_embeddings_hnsw ON media_bias.embeddings

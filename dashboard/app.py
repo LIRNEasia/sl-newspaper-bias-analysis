@@ -16,7 +16,8 @@ from src.versions import (
     create_version,
     find_version_by_config,
     get_default_topic_config,
-    get_default_clustering_config
+    get_default_clustering_config,
+    get_default_word_frequency_config
 )
 from bertopic import BERTopic
 
@@ -200,6 +201,34 @@ def load_coverage_timeline():
             return cur.fetchall()
 
 
+@st.cache_data(ttl=300)
+def load_word_frequencies(version_id=None, limit=50):
+    """Load word frequencies for a specific version."""
+    if not version_id:
+        return {}
+
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT source_id, word, frequency, tfidf_score, rank
+                FROM {schema}.word_frequencies
+                WHERE result_version_id = %s
+                  AND rank <= %s
+                ORDER BY source_id, rank
+            """, (version_id, limit))
+            rows = cur.fetchall()
+
+            # Group by source
+            result = {}
+            for row in rows:
+                source = row['source_id']
+                if source not in result:
+                    result[source] = []
+                result[source].append(row)
+            return result
+
+
 @st.cache_resource
 def load_bertopic_model(version_id=None):
     """Load the saved BERTopic model for a specific version."""
@@ -225,7 +254,7 @@ def render_version_selector(analysis_type):
     """Render version selector for a specific analysis type.
 
     Args:
-        analysis_type: 'topics' or 'clustering'
+        analysis_type: 'topics', 'clustering', or 'word_frequency'
 
     Returns:
         version_id of selected version or None
@@ -244,8 +273,11 @@ def render_version_selector(analysis_type):
         for v in versions
     }
 
+    # Format analysis type for display
+    display_name = analysis_type.replace('_', ' ').title()
+
     selected_label = st.selectbox(
-        f"Select {analysis_type.capitalize()} Version",
+        f"Select {display_name} Version",
         options=list(version_options.keys()),
         index=0,
         key=f"{analysis_type}_version_selector"
@@ -264,25 +296,45 @@ def render_version_selector(analysis_type):
         # Pipeline status
         status = version['pipeline_status']
         st.markdown("**Pipeline Status:**")
-        cols = st.columns(2 if analysis_type == 'topics' else 2)
 
-        with cols[0]:
-            st.caption(f"{'✅' if status.get('embeddings') else '⭕'} Embeddings")
-        with cols[1]:
-            if analysis_type == 'topics':
-                st.caption(f"{'✅' if status.get('topics') else '⭕'} Topics")
-            else:
-                st.caption(f"{'✅' if status.get('clustering') else '⭕'} Clustering")
+        if analysis_type == 'word_frequency':
+            # Word frequency only has one pipeline step
+            st.caption(f"{'✅' if status.get('word_frequency') else '⭕'} Word Frequency")
+        else:
+            # Topics and clustering have embeddings + analysis
+            cols = st.columns(2)
+            with cols[0]:
+                st.caption(f"{'✅' if status.get('embeddings') else '⭕'} Embeddings")
+            with cols[1]:
+                if analysis_type == 'topics':
+                    st.caption(f"{'✅' if status.get('topics') else '⭕'} Topics")
+                else:
+                    st.caption(f"{'✅' if status.get('clustering') else '⭕'} Clustering")
 
         # Configuration preview
         config = version['configuration']
         st.markdown("**Configuration:**")
 
-        # General settings
-        st.caption(f"Random Seed: {config.get('random_seed', 42)}")
-        st.caption(f"Embedding Model: {config.get('embeddings', {}).get('model', 'N/A')}")
+        if analysis_type == 'word_frequency':
+            # Word frequency-specific settings
+            wf_config = config.get('word_frequency', {})
+            st.caption(f"Random Seed: {config.get('random_seed', 42)}")
+            st.caption(f"Ranking Method: {wf_config.get('ranking_method', 'N/A')}")
+            if wf_config.get('ranking_method') == 'tfidf':
+                st.caption(f"TF-IDF Scope: {wf_config.get('tfidf_scope', 'N/A')}")
+            st.caption(f"Top N Words: {wf_config.get('top_n_words', 'N/A')}")
+            st.caption(f"Min Word Length: {wf_config.get('min_word_length', 'N/A')}")
 
-        if analysis_type == 'topics':
+            # Custom stopwords
+            stopwords = wf_config.get('custom_stopwords', [])
+            if stopwords:
+                st.caption(f"Custom Stopwords: {', '.join(stopwords[:5])}{'...' if len(stopwords) > 5 else ''}")
+
+        elif analysis_type == 'topics':
+            # General settings
+            st.caption(f"Random Seed: {config.get('random_seed', 42)}")
+            st.caption(f"Embedding Model: {config.get('embeddings', {}).get('model', 'N/A')}")
+
             # Topic-specific settings
             topics_config = config.get('topics', {})
             st.caption(f"Min Topic Size: {topics_config.get('min_topic_size', 'N/A')}")
@@ -314,7 +366,12 @@ def render_version_selector(analysis_type):
                 st.caption(f"HDBSCAN min_cluster_size: {hdbscan_config.get('min_cluster_size', 'N/A')}")
                 st.caption(f"HDBSCAN metric: {hdbscan_config.get('metric', 'N/A')}")
                 st.caption(f"HDBSCAN cluster_selection_method: {hdbscan_config.get('cluster_selection_method', 'N/A')}")
-        else:
+
+        else:  # clustering
+            # General settings
+            st.caption(f"Random Seed: {config.get('random_seed', 42)}")
+            st.caption(f"Embedding Model: {config.get('embeddings', {}).get('model', 'N/A')}")
+
             # Clustering-specific settings
             clustering_config = config.get('clustering', {})
             st.caption(f"Similarity Threshold: {clustering_config.get('similarity_threshold', 'N/A')}")
@@ -328,9 +385,12 @@ def render_create_version_button(analysis_type):
     """Render button to create a new version for a specific analysis type.
 
     Args:
-        analysis_type: 'topics' or 'clustering'
+        analysis_type: 'topics', 'clustering', or 'word_frequency'
     """
-    if st.button(f"➕ Create New {analysis_type.capitalize()} Version", key=f"create_{analysis_type}_btn"):
+    # Format analysis type for display
+    display_name = analysis_type.replace('_', ' ').title()
+
+    if st.button(f"➕ Create New {display_name} Version", key=f"create_{analysis_type}_btn"):
         st.session_state[f'show_create_{analysis_type}'] = True
 
     # Show create dialog if requested
@@ -342,10 +402,13 @@ def render_create_version_form(analysis_type):
     """Render form for creating a new version.
 
     Args:
-        analysis_type: 'topics' or 'clustering'
+        analysis_type: 'topics', 'clustering', or 'word_frequency'
     """
+    # Format analysis type for display
+    display_name = analysis_type.replace('_', ' ').title()
+
     st.markdown("---")
-    st.subheader(f"Create New {analysis_type.capitalize()} Version")
+    st.subheader(f"Create New {display_name} Version")
 
     with st.form(f"create_{analysis_type}_form"):
         name = st.text_input("Version Name", placeholder=f"e.g., baseline-{analysis_type}")
@@ -355,8 +418,12 @@ def render_create_version_form(analysis_type):
         st.markdown("**Configuration (JSON)**")
         if analysis_type == 'topics':
             default_config = get_default_topic_config()
-        else:
+        elif analysis_type == 'clustering':
             default_config = get_default_clustering_config()
+        elif analysis_type == 'word_frequency':
+            default_config = get_default_word_frequency_config()
+        else:
+            default_config = {}
 
         config_str = st.text_area(
             "Edit configuration",
@@ -397,7 +464,11 @@ def render_create_version_form(analysis_type):
 
                         # Show pipeline instructions
                         st.markdown("**Next steps:** Run the pipeline")
-                        st.code(f"""# Generate embeddings
+                        if analysis_type == 'word_frequency':
+                            st.code(f"""# Compute word frequencies
+python3 scripts/word_frequency/01_compute_word_frequency.py --version-id {version_id}""")
+                        else:
+                            st.code(f"""# Generate embeddings
 python3 scripts/{analysis_type}/01_generate_embeddings.py --version-id {version_id}
 
 # Run analysis
@@ -436,10 +507,10 @@ def main():
     st.divider()
 
     # Tabs for different views
-    tab_names = ["📊 Coverage", "🏷️ Topics", "📰 Events"]
+    tab_names = ["📊 Coverage", "🏷️ Topics", "📰 Events", "📝 Word Frequency"]
 
     # Create buttons to switch tabs
-    cols = st.columns(3)
+    cols = st.columns(4)
     for idx, (col, tab_name) in enumerate(zip(cols, tab_names)):
         with col:
             if st.button(tab_name, key=f"tab_{idx}",
@@ -455,6 +526,8 @@ def main():
         render_topics_tab()
     elif st.session_state.active_tab == 2:
         render_events_tab()
+    elif st.session_state.active_tab == 3:
+        render_word_frequency_tab()
 
 
 def render_coverage_tab(stats):
@@ -738,7 +811,7 @@ python3 scripts/clustering/02_cluster_events.py --version-id {version_id}""")
 
     # Event selector
     event_options = {
-        f"{e['cluster_name'][:60]}... ({e['article_count']} articles, {e['sources_count']} sources)": e['id']
+        f"{e['cluster_name']}... ({e['article_count']} articles, {e['sources_count']} sources)": e['id']
         for _, e in multi_source_events.iterrows()
     }
 
@@ -776,6 +849,182 @@ python3 scripts/clustering/02_cluster_events.py --version-id {version_id}""")
                 display_df = articles_df[['title', 'source_name', 'date_posted']].copy()
                 display_df.columns = ['Title', 'Source', 'Date']
                 st.dataframe(display_df, use_container_width=True, height=300)
+
+
+
+def render_word_frequency_tab():
+    """Render word frequency analysis tab."""
+    st.subheader("📝 Word Frequency Analysis")
+
+    # Version selector
+    version_id = render_version_selector('word_frequency')
+
+    # Create version button
+    render_create_version_button('word_frequency')
+
+    if not version_id:
+        st.info("👆 Select or create a word frequency version to view analysis")
+        return
+
+    # st.markdown("---")
+
+    # Get version details
+    version = get_version(version_id)
+    if not version:
+        st.error("Version not found")
+        return
+    
+    config = version['configuration']
+    wf_config = config.get('word_frequency', {})
+
+    # # Show version info
+    # with st.expander("ℹ️ Version Configuration", expanded=False):
+        
+    #     col1, col2, col3 = st.columns(3)
+    #     with col1:
+    #         st.metric("Ranking Method", wf_config.get('ranking_method', 'N/A').upper())
+    #     with col2:
+    #         if wf_config.get('ranking_method') == 'tfidf':
+    #             st.metric("TF-IDF Scope", wf_config.get('tfidf_scope', 'N/A'))
+    #         else:
+    #             st.metric("Top Words", wf_config.get('top_n_words', 50))
+    #     with col3:
+    #         st.metric("Min Word Length", wf_config.get('min_word_length', 3))
+
+    # Load word frequencies
+    word_freqs = load_word_frequencies(version_id)
+
+    if not word_freqs:
+        st.warning("⚠️ No word frequencies found for this version. Run the pipeline first:")
+        st.code(f"python3 scripts/word_frequency/01_compute_word_frequency.py --version-id {version_id}")
+        return
+
+    # Get configuration for display
+    ranking_method = wf_config.get('ranking_method', 'frequency')
+
+    # Top words per source
+    st.subheader("Top Words by Source")
+
+    # Create 2x2 grid for sources
+    sources = list(word_freqs.keys())
+    num_sources = len(sources)
+
+    if num_sources == 0:
+        st.warning("No sources found")
+        return
+
+    # Create columns based on number of sources
+    if num_sources <= 2:
+        cols = st.columns(num_sources)
+    else:
+        # First row
+        cols1 = st.columns(2)
+        # Second row if needed
+        if num_sources > 2:
+            cols2 = st.columns(min(2, num_sources - 2))
+            cols = list(cols1) + list(cols2)
+        else:
+            cols = cols1
+
+    for idx, (source_id, words) in enumerate(word_freqs.items()):
+        if idx >= len(cols):
+            break
+
+        source_name = SOURCE_NAMES.get(source_id, source_id)
+
+        with cols[idx]:
+            st.markdown(f"**{source_name}**")
+
+            # Prepare data
+            df = pd.DataFrame(words)
+
+            # Determine value column
+            if ranking_method == 'frequency':
+                value_col = 'frequency'
+                label = 'Frequency'
+            else:
+                value_col = 'tfidf_score'
+                label = 'TF-IDF Score'
+
+            # Bar chart (top 20)
+            fig = px.bar(
+                df.head(20),
+                x=value_col,
+                y='word',
+                orientation='h',
+                labels={value_col: label, 'word': 'Word'},
+                color_discrete_sequence=[SOURCE_COLORS.get(source_name, '#1f77b4')]
+            )
+            fig.update_layout(
+                height=500,
+                yaxis={'categoryorder': 'total ascending'},
+                showlegend=False
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+    # # Cross-source comparison
+    # st.divider()
+    # st.subheader("Word Comparison Across Sources")
+
+    # # Find common words across sources
+    # word_sets = {source_id: set([w['word'] for w in words[:50]]) for source_id, words in word_freqs.items()}
+
+    # # Calculate overlaps
+    # if len(word_sets) >= 2:
+    #     source_ids = list(word_sets.keys())
+
+    #     # Create comparison matrix
+    #     st.markdown("**Top Word Overlap Between Sources**")
+
+    #     overlap_data = []
+    #     for i, source1 in enumerate(source_ids):
+    #         for source2 in source_ids[i+1:]:
+    #             common = word_sets[source1] & word_sets[source2]
+    #             overlap_pct = len(common) / 50 * 100
+    #             overlap_data.append({
+    #                 'Source 1': SOURCE_NAMES.get(source1, source1),
+    #                 'Source 2': SOURCE_NAMES.get(source2, source2),
+    #                 'Common Words': len(common),
+    #                 'Overlap %': f"{overlap_pct:.1f}%"
+    #             })
+
+    #     if overlap_data:
+    #         overlap_df = pd.DataFrame(overlap_data)
+    #         st.dataframe(overlap_df, use_container_width=True, hide_index=True)
+
+    # # Show unique words per source
+    # st.markdown("**Distinctive Words per Source** (words appearing in top 50 of only one source)")
+
+    # # Find words unique to each source
+    # all_words = set()
+    # for words_set in word_sets.values():
+    #     all_words.update(words_set)
+
+    # unique_words = {}
+    # for source_id, words_set in word_sets.items():
+    #     # Words that appear in this source but not in any other source's top 50
+    #     other_words = set()
+    #     for other_id, other_set in word_sets.items():
+    #         if other_id != source_id:
+    #             other_words.update(other_set)
+
+    #     unique = words_set - other_words
+    #     if unique:
+    #         unique_words[source_id] = unique
+
+    # # Display unique words
+    # if unique_words:
+    #     unique_cols = st.columns(len(unique_words))
+    #     for idx, (source_id, words) in enumerate(unique_words.items()):
+    #         source_name = SOURCE_NAMES.get(source_id, source_id)
+    #         with unique_cols[idx]:
+    #             st.markdown(f"**{source_name}**")
+    #             if words:
+    #                 st.write(", ".join(sorted(list(words)[:15])))
+    #             else:
+    #                 st.write("(none)")
+    # else:
+    #     st.info("No distinctive words found - all sources share similar vocabulary in their top 50 words")
 
 
 if __name__ == "__main__":
