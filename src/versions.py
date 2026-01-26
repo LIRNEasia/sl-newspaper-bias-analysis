@@ -147,6 +147,28 @@ def get_default_word_frequency_config() -> Dict[str, Any]:
     }
 
 
+def get_default_ner_config() -> Dict[str, Any]:
+    """
+    Get default configuration for NER analysis.
+
+    Returns:
+        Dictionary with configuration for NER only.
+    """
+    config = load_config()
+
+    return {
+        "random_seed": 42,
+        "ner": {
+            "provider": config["ner"]["provider"],
+            "model": config["ner"]["model"],
+            "batch_size": config["ner"].get("batch_size", 32),
+            "confidence_threshold": config["ner"].get("confidence_threshold", 0.5),
+            "entity_types": config["ner"].get("entity_types", []),
+            "custom_entity_types": config["ner"].get("custom_entity_types", [])
+        }
+    }
+
+
 def create_version(
     name: str,
     description: str = "",
@@ -168,7 +190,7 @@ def create_version(
     Raises:
         ValueError: If version name already exists for the same analysis type
     """
-    valid_types = ['topics', 'clustering', 'word_frequency', 'combined']
+    valid_types = ['topics', 'clustering', 'word_frequency', 'ner', 'combined']
     if analysis_type not in valid_types:
         raise ValueError(f"Invalid analysis_type: {analysis_type}. Must be one of {valid_types}")
 
@@ -403,7 +425,7 @@ def update_pipeline_status(
         step: Pipeline step name ('embeddings', 'topics', 'clustering', or 'word_frequency')
         complete: Whether the step is complete
     """
-    valid_steps = ['embeddings', 'topics', 'clustering', 'word_frequency']
+    valid_steps = ['embeddings', 'topics', 'clustering', 'word_frequency', 'ner']
     if step not in valid_steps:
         raise ValueError(f"Invalid step: {step}. Must be one of {valid_steps}")
 
@@ -429,6 +451,7 @@ def update_pipeline_status(
             # For 'topics': check embeddings + topics
             # For 'clustering': check embeddings + clustering
             # For 'word_frequency': check word_frequency only (no embeddings needed)
+            # For 'ner': check ner only (no embeddings needed)
             # For 'combined': check all three (backward compatibility)
             cur.execute(
                 f"""
@@ -443,6 +466,8 @@ def update_pipeline_status(
                             (pipeline_status->>'clustering')::boolean
                         WHEN 'word_frequency' THEN
                             (pipeline_status->>'word_frequency')::boolean
+                        WHEN 'ner' THEN
+                            (pipeline_status->>'ner')::boolean
                         WHEN 'combined' THEN
                             (pipeline_status->>'embeddings')::boolean AND
                             (pipeline_status->>'topics')::boolean AND

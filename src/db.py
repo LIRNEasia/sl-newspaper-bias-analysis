@@ -100,6 +100,24 @@ class Database:
             """)
             return cur.fetchone()["count"]
 
+    def get_article_by_url(self, url: str) -> Dict:
+        """Fetch article by URL.
+
+        Args:
+            url: The article URL to search for
+
+        Returns:
+            Article dict with id, url, title, content, source_id, date_posted, or None if not found
+        """
+        schema = self.config["schema"]
+        with self.cursor() as cur:
+            cur.execute(f"""
+                SELECT id, url, title, content, source_id, date_posted
+                FROM {schema}.news_articles
+                WHERE url = %s
+            """, (url,))
+            return cur.fetchone()
+
     def get_articles_without_embeddings(self, result_version_id: str = None, limit: int = None) -> List[Dict]:
         """Get articles that don't have embeddings yet for a specific version."""
         schema = self.config["schema"]
@@ -444,6 +462,153 @@ class Database:
 
         with self.cursor() as cur:
             cur.execute(query, params)
+            return cur.fetchall()
+
+    # Named entity operations
+    def store_named_entities(
+        self,
+        entities: List[Dict[str, Any]],
+        result_version_id: str
+    ) -> None:
+        """
+        Store named entities in the database.
+
+        Args:
+            entities: List of entity dictionaries
+            result_version_id: UUID of the result version
+        """
+        schema = self.config["schema"]
+
+        with self.cursor() as cur:
+            for entity in entities:
+                cur.execute(
+                    f"""
+                    INSERT INTO {schema}.named_entities
+                    (result_version_id, article_id, entity_text, entity_type,
+                     start_char, end_char, confidence, context)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (article_id, result_version_id, entity_text, entity_type, start_char)
+                    DO NOTHING
+                    """,
+                    (
+                        result_version_id,
+                        entity["article_id"],
+                        entity["entity_text"],
+                        entity["entity_type"],
+                        entity["start_char"],
+                        entity["end_char"],
+                        entity["confidence"],
+                        entity.get("context", "")
+                    )
+                )
+
+    def compute_entity_statistics(self, result_version_id: str) -> None:
+        """
+        Compute aggregated entity statistics per source.
+
+        Args:
+            result_version_id: UUID of the result version
+        """
+        schema = self.config["schema"]
+
+        with self.cursor() as cur:
+            cur.execute(
+                f"""
+                INSERT INTO {schema}.entity_statistics
+                (result_version_id, entity_text, entity_type, source_id,
+                 mention_count, article_count, avg_confidence)
+                SELECT
+                    ne.result_version_id,
+                    ne.entity_text,
+                    ne.entity_type,
+                    na.source_id,
+                    COUNT(*) as mention_count,
+                    COUNT(DISTINCT ne.article_id) as article_count,
+                    AVG(ne.confidence) as avg_confidence
+                FROM {schema}.named_entities ne
+                JOIN {schema}.news_articles na ON ne.article_id = na.id
+                WHERE ne.result_version_id = %s
+                GROUP BY ne.result_version_id, ne.entity_text, ne.entity_type, na.source_id
+                ON CONFLICT (result_version_id, entity_text, entity_type, source_id)
+                DO UPDATE SET
+                    mention_count = EXCLUDED.mention_count,
+                    article_count = EXCLUDED.article_count,
+                    avg_confidence = EXCLUDED.avg_confidence
+                """,
+                (result_version_id,)
+            )
+
+    def get_entity_statistics(
+        self,
+        result_version_id: str,
+        entity_type: str = None,
+        source_id: str = None,
+        limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """
+        Get entity statistics for a version.
+
+        Args:
+            result_version_id: UUID of the result version
+            entity_type: Optional filter by entity type
+            source_id: Optional filter by source
+            limit: Maximum number of results
+
+        Returns:
+            List of entity statistics
+        """
+        schema = self.config["schema"]
+
+        query = f"""
+            SELECT entity_text, entity_type, source_id,
+                   mention_count, article_count, avg_confidence
+            FROM {schema}.entity_statistics
+            WHERE result_version_id = %s
+        """
+        params = [result_version_id]
+
+        if entity_type:
+            query += " AND entity_type = %s"
+            params.append(entity_type)
+
+        if source_id:
+            query += " AND source_id = %s"
+            params.append(source_id)
+
+        query += " ORDER BY mention_count DESC LIMIT %s"
+        params.append(limit)
+
+        with self.cursor() as cur:
+            cur.execute(query, params)
+            return cur.fetchall()
+
+    def get_entities_for_article(
+        self,
+        article_id: str,
+        result_version_id: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Get all named entities for a specific article.
+
+        Args:
+            article_id: The article ID
+            result_version_id: UUID of the result version
+
+        Returns:
+            List of entity dicts with entity_text, entity_type, start_char, end_char, confidence
+            Ordered by start_char for sequential processing
+        """
+        schema = self.config["schema"]
+
+        query = f"""
+            SELECT entity_text, entity_type, start_char, end_char, confidence
+            FROM {schema}.named_entities
+            WHERE article_id = %s AND result_version_id = %s
+            ORDER BY start_char
+        """
+
+        with self.cursor() as cur:
+            cur.execute(query, (article_id, result_version_id))
             return cur.fetchall()
 
 

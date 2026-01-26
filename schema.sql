@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS media_bias.result_versions (
     configuration JSONB NOT NULL,
     analysis_type VARCHAR(50) NOT NULL DEFAULT 'combined',
     is_complete BOOLEAN DEFAULT false,
-    pipeline_status JSONB DEFAULT '{"embeddings": false, "topics": false, "clustering": false, "word_frequency": false}'::jsonb,
+    pipeline_status JSONB DEFAULT '{"embeddings": false, "topics": false, "clustering": false, "word_frequency": false, "ner": false}'::jsonb,
     model_data BYTEA,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
@@ -108,6 +108,35 @@ CREATE TABLE IF NOT EXISTS media_bias.word_frequencies (
     UNIQUE(result_version_id, source_id, word)
 );
 
+-- Named entities discovered in articles
+CREATE TABLE IF NOT EXISTS media_bias.named_entities (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    result_version_id UUID NOT NULL REFERENCES media_bias.result_versions(id) ON DELETE CASCADE,
+    article_id UUID NOT NULL REFERENCES media_bias.news_articles(id),
+    entity_text VARCHAR(500) NOT NULL,
+    entity_type VARCHAR(50) NOT NULL,
+    start_char INTEGER NOT NULL,
+    end_char INTEGER NOT NULL,
+    confidence FLOAT,
+    context TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(article_id, result_version_id, entity_text, entity_type, start_char)
+);
+
+-- Entity statistics per source (aggregated view)
+CREATE TABLE IF NOT EXISTS media_bias.entity_statistics (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    result_version_id UUID NOT NULL REFERENCES media_bias.result_versions(id) ON DELETE CASCADE,
+    entity_text VARCHAR(500) NOT NULL,
+    entity_type VARCHAR(50) NOT NULL,
+    source_id VARCHAR(50) NOT NULL,
+    mention_count INTEGER DEFAULT 0,
+    article_count INTEGER DEFAULT 0,
+    avg_confidence FLOAT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(result_version_id, entity_text, entity_type, source_id)
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_embeddings_article ON media_bias.embeddings(article_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_version ON media_bias.embeddings(result_version_id);
@@ -122,6 +151,13 @@ CREATE INDEX IF NOT EXISTS idx_event_clusters_version ON media_bias.event_cluste
 CREATE INDEX IF NOT EXISTS idx_word_frequencies_version ON media_bias.word_frequencies(result_version_id);
 CREATE INDEX IF NOT EXISTS idx_word_frequencies_source ON media_bias.word_frequencies(result_version_id, source_id);
 CREATE INDEX IF NOT EXISTS idx_word_frequencies_rank ON media_bias.word_frequencies(result_version_id, source_id, rank);
+CREATE INDEX IF NOT EXISTS idx_named_entities_version ON media_bias.named_entities(result_version_id);
+CREATE INDEX IF NOT EXISTS idx_named_entities_article ON media_bias.named_entities(article_id);
+CREATE INDEX IF NOT EXISTS idx_named_entities_type ON media_bias.named_entities(result_version_id, entity_type);
+CREATE INDEX IF NOT EXISTS idx_named_entities_text ON media_bias.named_entities(result_version_id, entity_text);
+CREATE INDEX IF NOT EXISTS idx_entity_stats_version ON media_bias.entity_statistics(result_version_id);
+CREATE INDEX IF NOT EXISTS idx_entity_stats_source ON media_bias.entity_statistics(result_version_id, source_id);
+CREATE INDEX IF NOT EXISTS idx_entity_stats_type ON media_bias.entity_statistics(result_version_id, entity_type);
 
 -- HNSW index for similarity search (if pgvector supports it)
 -- CREATE INDEX IF NOT EXISTS idx_embeddings_hnsw ON media_bias.embeddings

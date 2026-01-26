@@ -18,6 +18,8 @@ hdbscan>=0.8.33
 
 # NLP
 nltk>=3.8.1
+spacy>=3.7.0  # For Named Entity Recognition
+# Download model with: python -m spacy download en_core_web_trf
 
 # Data & Viz
 numpy>=1.26.0
