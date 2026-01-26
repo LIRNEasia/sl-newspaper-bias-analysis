@@ -34,11 +34,6 @@ def main():
         default=None,
         help="Target number of topics (default: auto)"
     )
-    parser.add_argument(
-        "--no-save-model",
-        action="store_true",
-        help="Don't save the trained model"
-    )
     args = parser.parse_args()
 
     # Get version and validate it's a topic version
@@ -69,8 +64,7 @@ def main():
     summary = discover_topics(
         result_version_id=args.version_id,
         topic_config=topic_config,
-        nr_topics=args.nr_topics,
-        save_model=not args.no_save_model
+        nr_topics=args.nr_topics
     )
 
     # Print discovered topics

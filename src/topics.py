@@ -202,8 +202,7 @@ def label_topics_from_keywords(topic_modeler: TopicModeler) -> List[Dict]:
 def discover_topics(
     result_version_id: str,
     topic_config: Dict = None,
-    nr_topics: int = None,
-    save_model: bool = True
+    nr_topics: int = None
 ) -> Dict:
     """
     Main function to discover topics from the article corpus for a specific version.
@@ -212,7 +211,6 @@ def discover_topics(
         result_version_id: UUID of the result version
         topic_config: Topic configuration (from version config, or uses defaults from config.yaml)
         nr_topics: Target number of topics (None = auto)
-        save_model: Whether to save the trained model
 
     Returns:
         Summary of discovered topics
@@ -270,13 +268,22 @@ def discover_topics(
         ]
         db.store_article_topics(assignments, result_version_id)
 
-    # Save model
-    if save_model:
-        model_path = f"models/bertopic_model_{result_version_id[:8]}"
-        import os
-        os.makedirs("models", exist_ok=True)
-        modeler.save(model_path)
-        print(f"Model saved to {model_path}")
+    # Save model to database (using temp directory)
+    import tempfile
+    import shutil
+    from src.versions import save_model_to_version
+
+    print("Saving model to database...")
+    with tempfile.TemporaryDirectory(prefix=f"bertopic_{result_version_id[:8]}_") as temp_dir:
+        temp_model_path = f"{temp_dir}/model"
+        modeler.save(temp_model_path)
+
+        try:
+            save_model_to_version(result_version_id, temp_model_path)
+            print("✓ Model saved to database successfully")
+        except Exception as e:
+            print(f"✗ Error saving model to database: {e}")
+            raise
 
     # Summary
     n_topics = len([t for t in labeled_topics if t["topic_id"] != -1])

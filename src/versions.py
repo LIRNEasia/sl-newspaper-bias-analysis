@@ -1,6 +1,10 @@
 """Version management for result configurations."""
 
 import json
+import tarfile
+import tempfile
+import io
+from pathlib import Path
 from typing import Dict, List, Optional, Any
 from src.db import Database, load_config
 
@@ -545,3 +549,172 @@ def get_version_statistics(version_id: str) -> Dict[str, int]:
             stats["article_clusters"] = cur.fetchone()["count"]
 
         return stats
+
+
+def save_model_to_version(version_id: str, model_directory: str) -> None:
+    """
+    Save a BERTopic model directory to the database as a compressed archive.
+
+    This enables team collaboration by storing models in the shared database
+    rather than local filesystems.
+
+    Args:
+        version_id: UUID of the version
+        model_directory: Path to the BERTopic model directory
+
+    Raises:
+        FileNotFoundError: If model_directory doesn't exist
+        Exception: If database operation fails
+    """
+    model_path = Path(model_directory)
+
+    if not model_path.exists():
+        raise FileNotFoundError(f"Model directory not found: {model_directory}")
+
+    # Create tar.gz archive in memory
+    tar_buffer = io.BytesIO()
+
+    with tarfile.open(fileobj=tar_buffer, mode='w:gz') as tar:
+        # Add all files in the model directory
+        for item in model_path.iterdir():
+            tar.add(item, arcname=item.name)
+
+    # Get the compressed bytes
+    model_bytes = tar_buffer.getvalue()
+
+    # Store in database
+    with Database() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(
+                f"""
+                UPDATE {schema}.result_versions
+                SET model_data = %s,
+                    updated_at = NOW()
+                WHERE id = %s
+                """,
+                (model_bytes, version_id)
+            )
+
+    # Report size
+    size_mb = len(model_bytes) / (1024 * 1024)
+    print(f"  Model compressed to {size_mb:.2f} MB and saved to database")
+
+
+def get_model_from_version(version_id: str, extract_to: str) -> Optional[str]:
+    """
+    Retrieve a BERTopic model from the database and extract to filesystem.
+
+    Args:
+        version_id: UUID of the version
+        extract_to: Directory to extract model to
+
+    Returns:
+        Path to extracted model directory, or None if no model stored in database
+
+    Raises:
+        Exception: If extraction or database operation fails
+    """
+    with Database() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(
+                f"SELECT model_data FROM {schema}.result_versions WHERE id = %s",
+                (version_id,)
+            )
+            row = cur.fetchone()
+
+            if not row or not row["model_data"]:
+                return None
+
+            model_bytes = row["model_data"]
+
+    # Extract tar.gz archive
+    extract_path = Path(extract_to)
+    extract_path.mkdir(parents=True, exist_ok=True)
+
+    tar_buffer = io.BytesIO(model_bytes)
+
+    with tarfile.open(fileobj=tar_buffer, mode='r:gz') as tar:
+        tar.extractall(path=extract_path)
+
+    return str(extract_path)
+
+
+def delete_version_interactive(version_id: str) -> bool:
+    """
+    Interactively delete a version with confirmation prompt.
+
+    Shows version details and statistics before asking for confirmation.
+
+    Args:
+        version_id: UUID of the version to delete
+
+    Returns:
+        True if deleted, False if cancelled or version not found
+    """
+    # Get version info
+    version = get_version(version_id)
+    if not version:
+        print(f"❌ Version not found: {version_id}")
+        return False
+
+    # Get statistics
+    stats = get_version_statistics(version_id)
+
+    # Display version info
+    print("\n" + "="*60)
+    print("VERSION DELETION PREVIEW")
+    print("="*60)
+    print(f"\nVersion ID: {version['id']}")
+    print(f"Name: {version['name']}")
+    print(f"Analysis Type: {version['analysis_type']}")
+    print(f"Description: {version['description'] or '(none)'}")
+    print(f"Complete: {'Yes' if version['is_complete'] else 'No'}")
+    print(f"Created: {version['created_at']}")
+
+    # Display what will be deleted
+    print(f"\n{'='*60}")
+    print("DATA TO BE DELETED:")
+    print("="*60)
+    print(f"  Embeddings: {stats['embeddings']:,}")
+    print(f"  Topics: {stats['topics']:,}")
+    print(f"  Article Analyses: {stats['article_analysis']:,}")
+    print(f"  Event Clusters: {stats['event_clusters']:,}")
+    print(f"  Article-Cluster Mappings: {stats['article_clusters']:,}")
+
+    total_records = sum(stats.values())
+    print(f"\n  TOTAL RECORDS: {total_records:,}")
+    print("="*60)
+
+    # Warning message
+    print("\n⚠️  WARNING: This action cannot be undone!")
+    print("⚠️  All analysis results for this version will be permanently deleted.")
+    print("⚠️  Original articles in news_articles table will NOT be affected.")
+
+    # Confirmation prompt
+    print(f"\n{'='*60}")
+    confirmation = input(f"Type the version name '{version['name']}' to confirm deletion: ")
+
+    if confirmation != version['name']:
+        print("\n❌ Deletion cancelled - confirmation text did not match.")
+        return False
+
+    # Final confirmation
+    final = input("\nAre you absolutely sure? Type 'DELETE' to proceed: ")
+
+    if final != 'DELETE':
+        print("\n❌ Deletion cancelled.")
+        return False
+
+    # Perform deletion
+    print(f"\n🗑️  Deleting version '{version['name']}'...")
+    success = delete_version(version_id)
+
+    if success:
+        print(f"✅ Version deleted successfully!")
+        print(f"   Removed {total_records:,} records from the database.")
+        return True
+    else:
+        print("❌ Deletion failed - version not found.")
+        return False

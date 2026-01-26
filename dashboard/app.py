@@ -231,22 +231,47 @@ def load_word_frequencies(version_id=None, limit=50):
 
 @st.cache_resource
 def load_bertopic_model(version_id=None):
-    """Load the saved BERTopic model for a specific version."""
+    """Load the saved BERTopic model for a specific version.
+
+    Tries to load from database first (for team collaboration),
+    then falls back to filesystem for backward compatibility.
+    """
     if not version_id:
         return None
 
-    # Try version-specific model first
+    # Strategy 1: Try loading from database
+    from src.versions import get_model_from_version
+    import tempfile
+
+    try:
+        # Extract model from database to temp directory
+        temp_dir = tempfile.mkdtemp(prefix=f"bertopic_{version_id[:8]}_")
+        model_path = get_model_from_version(version_id, temp_dir)
+
+        if model_path:
+            try:
+                model = BERTopic.load(model_path)
+                return model
+            except Exception as e:
+                st.warning(f"Model found in database but failed to load: {e}")
+    except Exception as e:
+        # Database loading failed, will try filesystem
+        pass
+
+    # Strategy 2: Fallback to filesystem (backward compatibility)
     model_path = Path(__file__).parent.parent / "models" / f"bertopic_model_{version_id[:8]}"
     if not model_path.exists():
-        # Fall back to default model
         model_path = Path(__file__).parent.parent / "models" / "bertopic_model"
 
     if model_path.exists():
         try:
             return BERTopic.load(str(model_path))
         except Exception as e:
-            st.warning(f"Could not load BERTopic model: {e}")
+            st.warning(f"Could not load BERTopic model from filesystem: {e}")
             return None
+
+    # Model not found anywhere
+    st.info("ℹ️ BERTopic model not found. Run the pipeline to generate visualizations.")
     return None
 
 

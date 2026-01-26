@@ -21,7 +21,7 @@ __pycache__/
 dist/
 build/
 
-# Generated models (can be regenerated via pipeline)
+# Temporary model files (models stored in database, not filesystem)
 models/
 
 # Binary tools (not source code)

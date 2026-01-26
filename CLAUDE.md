@@ -126,10 +126,8 @@ database-analysis/
 │   └── clustering/        # Event clustering pipeline
 │       ├── 01_generate_embeddings.py
 │       └── 02_cluster_events.py
-├── dashboard/
-│   └── app.py             # Streamlit dashboard (separate version selectors per tab)
-└── models/
-    └── bertopic_model/    # Saved BERTopic model
+└── dashboard/
+    └── app.py             # Streamlit dashboard (separate version selectors per tab)
 ```
 
 ## Database Schema
@@ -255,6 +253,11 @@ PYTHONHASHSEED=42 python3 scripts/topics/02_discover_topics.py --version-id <ver
 - Generates keyword-based topic labels
 - Takes ~2-3 minutes
 - **Reproducible**: Set `PYTHONHASHSEED=42` to ensure identical results across runs with the same configuration
+- **Model Storage**: Automatically saves model to database for team collaboration
+  - Models stored as compressed archives (~6-8 MB each) in PostgreSQL
+  - No local filesystem storage - keeps your workspace clean
+  - Enables visualizations to work on any machine with database access
+  - See `migrations/README.md` for migration instructions
 
 #### Event Clustering Pipeline
 
@@ -421,6 +424,59 @@ The dashboard automatically detects versions and shows pipeline completion statu
 3. **One parameter at a time**: When experimenting, change one parameter per version for clear comparisons
 4. **Document reasoning**: Use the description field to explain why you're testing these parameters
 5. **Independent experimentation**: Feel free to create multiple topic versions without worrying about clustering (and vice versa)
+
+### Managing Versions
+
+The project includes a CLI tool for managing versions:
+
+**List all versions:**
+```bash
+python3 scripts/manage_versions.py list
+
+# Filter by analysis type
+python3 scripts/manage_versions.py list --type topics
+python3 scripts/manage_versions.py list --type clustering
+```
+
+**View version statistics:**
+```bash
+python3 scripts/manage_versions.py stats <version-id>
+```
+
+**Delete a version (interactive with confirmation):**
+```bash
+python3 scripts/manage_versions.py delete <version-id>
+```
+
+The delete command will:
+1. Show version details and analysis type
+2. Display statistics of what will be deleted (embeddings, topics, clusters, etc.)
+3. Ask you to type the version name to confirm
+4. Ask for final confirmation by typing 'DELETE'
+5. Cascade delete all associated results
+
+**Important Notes:**
+- Deletion is **permanent and cannot be undone**
+- Original articles in `news_articles` table are **never deleted**
+- Only analysis results (embeddings, topics, clusters) are removed
+- Cascade deletion automatically removes all related records from:
+  - `embeddings` table
+  - `topics` table
+  - `article_analysis` table
+  - `event_clusters` table
+  - `article_clusters` table
+  - `word_frequencies` table (if applicable)
+
+**Programmatic deletion (Python):**
+```python
+from src.versions import delete_version_interactive, delete_version
+
+# Interactive deletion with confirmation prompts
+delete_version_interactive(version_id)
+
+# Direct deletion (use with caution - no confirmation)
+success = delete_version(version_id)
+```
 
 ## Dashboard Features
 

@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS media_bias.result_versions (
     analysis_type VARCHAR(50) NOT NULL DEFAULT 'combined',
     is_complete BOOLEAN DEFAULT false,
     pipeline_status JSONB DEFAULT '{"embeddings": false, "topics": false, "clustering": false, "word_frequency": false}'::jsonb,
+    model_data BYTEA,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
     CONSTRAINT result_versions_name_analysis_type_key UNIQUE (name, analysis_type)
@@ -21,6 +22,9 @@ CREATE TABLE IF NOT EXISTS media_bias.result_versions (
 
 COMMENT ON COLUMN media_bias.result_versions.analysis_type IS
   'Type of analysis: ''topics'' for topic discovery, ''clustering'' for event clustering, ''combined'' for legacy versions';
+
+COMMENT ON COLUMN media_bias.result_versions.model_data IS
+  'Compressed tar.gz archive of BERTopic model directory (for visualizations). NULL if model not stored in database.';
 
 -- Topics discovered via BERTopic
 CREATE TABLE IF NOT EXISTS media_bias.topics (

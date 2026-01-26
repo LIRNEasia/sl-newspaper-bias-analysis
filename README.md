@@ -147,6 +147,76 @@ clustering:
   time_window_days: 7
 ```
 
+## Managing Result Versions
+
+The project uses a version management system to track different analysis configurations. This allows you to experiment with different parameters and compare results.
+
+### List Versions
+
+```bash
+# List all versions
+python3 scripts/manage_versions.py list
+
+# Filter by analysis type
+python3 scripts/manage_versions.py list --type topics
+python3 scripts/manage_versions.py list --type clustering
+python3 scripts/manage_versions.py list --type word_frequency
+```
+
+### View Version Statistics
+
+Before deleting, check what data a version contains:
+
+```bash
+python3 scripts/manage_versions.py stats <version-id>
+```
+
+This shows:
+- Version metadata (name, type, description, dates)
+- Data counts (embeddings, topics, clusters, etc.)
+- Total records that would be affected
+
+### Delete a Version
+
+**Interactive deletion with safety prompts:**
+
+```bash
+python3 scripts/manage_versions.py delete <version-id>
+```
+
+This command:
+- ✅ Shows version details and statistics
+- ✅ Displays all data that will be deleted
+- ✅ Requires you to type the version name to confirm
+- ✅ Requires you to type 'DELETE' for final confirmation
+- ✅ Cascade deletes all related records automatically
+- ✅ **Never deletes** original articles in `news_articles` table
+
+**What gets deleted:**
+- Embeddings (embedding vectors)
+- Topics (discovered topics)
+- Article analyses (article-topic assignments)
+- Event clusters (grouped events)
+- Article-cluster mappings
+- Word frequencies (if applicable)
+
+**Programmatic deletion (Python):**
+
+```python
+# Safe interactive deletion
+from src.versions import delete_version_interactive
+delete_version_interactive("version-id-here")
+
+# Direct deletion (no confirmation - use with caution!)
+from src.versions import delete_version
+success = delete_version("version-id-here")
+
+# Preview what will be deleted
+from src.versions import get_version_statistics
+stats = get_version_statistics("version-id-here")
+print(f"Will delete {sum(stats.values())} records")
+```
+
 ## License
 
 MIT License - see LICENSE file for details
