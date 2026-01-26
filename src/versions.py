@@ -1,0 +1,547 @@
+"""Version management for result configurations."""
+
+import json
+from typing import Dict, List, Optional, Any
+from src.db import Database, load_config
+
+
+def get_default_config() -> Dict[str, Any]:
+    """
+    Get default configuration from config.yaml.
+
+    Returns:
+        Dictionary with default configuration for embeddings, topics, and clustering.
+    """
+    config = load_config()
+
+    return {
+        "random_seed": 42,
+        "embeddings": {
+            "provider": config["embeddings"]["provider"],
+            "model": config["embeddings"]["model"],
+            "dimensions": config["embeddings"]["dimensions"]
+        },
+        "topics": {
+            "min_topic_size": config["topics"]["min_topic_size"],
+            "diversity": config["topics"].get("diversity", 0.5),
+            "nr_topics": None,
+            "stop_words": ["sri", "lanka", "lankan"],
+            "embedding_model": config["embeddings"]["model"],
+            "random_seed": 42,
+            "umap": {
+                "n_neighbors": 15,
+                "n_components": 5,
+                "min_dist": 0.0,
+                "metric": "cosine",
+                "random_state": 42
+            },
+            "hdbscan": {
+                "min_cluster_size": config["topics"]["min_topic_size"],
+                "metric": "euclidean",
+                "cluster_selection_method": "eom",
+                "core_dist_n_jobs": 1
+            },
+            "vectorizer": {
+                "ngram_range": [1, 3],
+                "min_df": 5
+            }
+        },
+        "clustering": {
+            "similarity_threshold": config["clustering"]["similarity_threshold"],
+            "time_window_days": config["clustering"]["time_window_days"],
+            "min_cluster_size": config["clustering"]["min_cluster_size"]
+        }
+    }
+
+
+def get_default_topic_config() -> Dict[str, Any]:
+    """
+    Get default configuration for topic analysis.
+
+    Returns:
+        Dictionary with configuration for embeddings and topics only.
+    """
+    config = load_config()
+
+    return {
+        "random_seed": 42,
+        "embeddings": {
+            "provider": config["embeddings"]["provider"],
+            "model": config["embeddings"]["model"],
+            "dimensions": config["embeddings"]["dimensions"]
+        },
+        "topics": {
+            "min_topic_size": config["topics"]["min_topic_size"],
+            "diversity": config["topics"].get("diversity", 0.5),
+            "nr_topics": None,
+            "stop_words": ["sri", "lanka", "lankan"],
+            "embedding_model": config["embeddings"]["model"],
+            "random_seed": 42,
+            "umap": {
+                "n_neighbors": 15,
+                "n_components": 5,
+                "min_dist": 0.0,
+                "metric": "cosine",
+                "random_state": 42
+            },
+            "hdbscan": {
+                "min_cluster_size": config["topics"]["min_topic_size"],
+                "metric": "euclidean",
+                "cluster_selection_method": "eom",
+                "core_dist_n_jobs": 1
+            },
+            "vectorizer": {
+                "ngram_range": [1, 3],
+                "min_df": 5
+            }
+        }
+    }
+
+
+def get_default_clustering_config() -> Dict[str, Any]:
+    """
+    Get default configuration for clustering analysis.
+
+    Returns:
+        Dictionary with configuration for embeddings and clustering only.
+    """
+    config = load_config()
+
+    return {
+        "random_seed": 42,
+        "embeddings": {
+            "provider": config["embeddings"]["provider"],
+            "model": config["embeddings"]["model"],
+            "dimensions": config["embeddings"]["dimensions"]
+        },
+        "clustering": {
+            "similarity_threshold": config["clustering"]["similarity_threshold"],
+            "time_window_days": config["clustering"]["time_window_days"],
+            "min_cluster_size": config["clustering"]["min_cluster_size"]
+        }
+    }
+
+
+def get_default_word_frequency_config() -> Dict[str, Any]:
+    """
+    Get default configuration for word frequency analysis.
+
+    Returns:
+        Dictionary with configuration for word frequency only.
+    """
+    config = load_config()
+
+    return {
+        "random_seed": 42,
+        "word_frequency": {
+            "ranking_method": config["word_frequency"]["ranking_method"],
+            "tfidf_scope": config["word_frequency"]["tfidf_scope"],
+            "top_n_words": config["word_frequency"]["top_n_words"],
+            "min_word_length": config["word_frequency"].get("min_word_length", 3),
+            "custom_stopwords": config["word_frequency"].get("custom_stopwords", [])
+        }
+    }
+
+
+def create_version(
+    name: str,
+    description: str = "",
+    configuration: Optional[Dict[str, Any]] = None,
+    analysis_type: str = 'combined'
+) -> str:
+    """
+    Create a new result version.
+
+    Args:
+        name: Unique name for this version (can be same across different analysis types)
+        description: Optional description of this version
+        configuration: Configuration dictionary (uses default if not provided)
+        analysis_type: Type of analysis ('topics', 'clustering', or 'combined')
+
+    Returns:
+        UUID of the created version
+
+    Raises:
+        ValueError: If version name already exists for the same analysis type
+    """
+    valid_types = ['topics', 'clustering', 'word_frequency', 'combined']
+    if analysis_type not in valid_types:
+        raise ValueError(f"Invalid analysis_type: {analysis_type}. Must be one of {valid_types}")
+
+    if configuration is None:
+        configuration = get_default_config()
+
+    with Database() as db:
+        schema = db.config["schema"]
+
+        # Check if name already exists for this analysis type
+        with db.cursor() as cur:
+            cur.execute(
+                f"SELECT id FROM {schema}.result_versions WHERE name = %s AND analysis_type = %s",
+                (name, analysis_type)
+            )
+            if cur.fetchone():
+                raise ValueError(f"Version with name '{name}' and analysis_type '{analysis_type}' already exists")
+
+        # Insert new version
+        with db.cursor() as cur:
+            cur.execute(
+                f"""
+                INSERT INTO {schema}.result_versions
+                (name, description, configuration, analysis_type)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id
+                """,
+                (name, description, json.dumps(configuration), analysis_type)
+            )
+            result = cur.fetchone()
+            return str(result["id"])
+
+
+def get_version(version_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Get version metadata by ID.
+
+    Args:
+        version_id: UUID of the version
+
+    Returns:
+        Dictionary with version metadata or None if not found
+    """
+    with Database() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT id, name, description, configuration, analysis_type, is_complete,
+                       pipeline_status, created_at, updated_at
+                FROM {schema}.result_versions
+                WHERE id = %s
+                """,
+                (version_id,)
+            )
+            row = cur.fetchone()
+            if row:
+                return {
+                    "id": str(row["id"]),
+                    "name": row["name"],
+                    "description": row["description"],
+                    "configuration": row["configuration"],
+                    "analysis_type": row["analysis_type"],
+                    "is_complete": row["is_complete"],
+                    "pipeline_status": row["pipeline_status"],
+                    "created_at": row["created_at"],
+                    "updated_at": row["updated_at"]
+                }
+            return None
+
+
+def get_version_by_name(name: str, analysis_type: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """
+    Get version metadata by name.
+
+    Args:
+        name: Name of the version
+        analysis_type: Optional filter by analysis type ('topics', 'clustering', 'combined')
+
+    Returns:
+        Dictionary with version metadata or None if not found
+    """
+    with Database() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            if analysis_type:
+                cur.execute(
+                    f"""
+                    SELECT id, name, description, configuration, analysis_type, is_complete,
+                           pipeline_status, created_at, updated_at
+                    FROM {schema}.result_versions
+                    WHERE name = %s AND analysis_type = %s
+                    """,
+                    (name, analysis_type)
+                )
+            else:
+                cur.execute(
+                    f"""
+                    SELECT id, name, description, configuration, analysis_type, is_complete,
+                           pipeline_status, created_at, updated_at
+                    FROM {schema}.result_versions
+                    WHERE name = %s
+                    """,
+                    (name,)
+                )
+            row = cur.fetchone()
+            if row:
+                return {
+                    "id": str(row["id"]),
+                    "name": row["name"],
+                    "description": row["description"],
+                    "configuration": row["configuration"],
+                    "analysis_type": row["analysis_type"],
+                    "is_complete": row["is_complete"],
+                    "pipeline_status": row["pipeline_status"],
+                    "created_at": row["created_at"],
+                    "updated_at": row["updated_at"]
+                }
+            return None
+
+
+def list_versions(analysis_type: Optional[str] = None) -> List[Dict[str, Any]]:
+    """
+    List all versions, optionally filtered by analysis type.
+
+    Args:
+        analysis_type: Optional filter by analysis type ('topics', 'clustering', 'combined')
+
+    Returns:
+        List of dictionaries with version metadata
+    """
+    with Database() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            if analysis_type:
+                cur.execute(
+                    f"""
+                    SELECT id, name, description, configuration, analysis_type, is_complete,
+                           pipeline_status, created_at, updated_at
+                    FROM {schema}.result_versions
+                    WHERE analysis_type = %s
+                    ORDER BY created_at DESC
+                    """,
+                    (analysis_type,)
+                )
+            else:
+                cur.execute(
+                    f"""
+                    SELECT id, name, description, configuration, analysis_type, is_complete,
+                           pipeline_status, created_at, updated_at
+                    FROM {schema}.result_versions
+                    ORDER BY created_at DESC
+                    """
+                )
+            rows = cur.fetchall()
+            return [
+                {
+                    "id": str(row["id"]),
+                    "name": row["name"],
+                    "description": row["description"],
+                    "configuration": row["configuration"],
+                    "analysis_type": row["analysis_type"],
+                    "is_complete": row["is_complete"],
+                    "pipeline_status": row["pipeline_status"],
+                    "created_at": row["created_at"],
+                    "updated_at": row["updated_at"]
+                }
+                for row in rows
+            ]
+
+
+def find_version_by_config(configuration: Dict[str, Any], analysis_type: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """
+    Find a version with matching configuration.
+
+    Args:
+        configuration: Configuration dictionary to match
+        analysis_type: Optional filter by analysis type ('topics', 'clustering', 'combined')
+
+    Returns:
+        Dictionary with version metadata or None if no match found
+    """
+    with Database() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            if analysis_type:
+                cur.execute(
+                    f"""
+                    SELECT id, name, description, configuration, analysis_type, is_complete,
+                           pipeline_status, created_at, updated_at
+                    FROM {schema}.result_versions
+                    WHERE configuration = %s::jsonb AND analysis_type = %s
+                    """,
+                    (json.dumps(configuration), analysis_type)
+                )
+            else:
+                cur.execute(
+                    f"""
+                    SELECT id, name, description, configuration, analysis_type, is_complete,
+                           pipeline_status, created_at, updated_at
+                    FROM {schema}.result_versions
+                    WHERE configuration = %s::jsonb
+                    """,
+                    (json.dumps(configuration),)
+                )
+            row = cur.fetchone()
+            if row:
+                return {
+                    "id": str(row["id"]),
+                    "name": row["name"],
+                    "description": row["description"],
+                    "configuration": row["configuration"],
+                    "analysis_type": row["analysis_type"],
+                    "is_complete": row["is_complete"],
+                    "pipeline_status": row["pipeline_status"],
+                    "created_at": row["created_at"],
+                    "updated_at": row["updated_at"]
+                }
+            return None
+
+
+def update_pipeline_status(
+    version_id: str,
+    step: str,
+    complete: bool
+) -> None:
+    """
+    Update pipeline completion status for a specific step.
+
+    Args:
+        version_id: UUID of the version
+        step: Pipeline step name ('embeddings', 'topics', 'clustering', or 'word_frequency')
+        complete: Whether the step is complete
+    """
+    valid_steps = ['embeddings', 'topics', 'clustering', 'word_frequency']
+    if step not in valid_steps:
+        raise ValueError(f"Invalid step: {step}. Must be one of {valid_steps}")
+
+    with Database() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            # Update the specific step status
+            cur.execute(
+                f"""
+                UPDATE {schema}.result_versions
+                SET pipeline_status = jsonb_set(
+                    pipeline_status,
+                    %s,
+                    %s
+                ),
+                updated_at = NOW()
+                WHERE id = %s
+                """,
+                (f'{{{step}}}', json.dumps(complete), version_id)
+            )
+
+            # Check if all relevant steps are complete based on analysis_type and update is_complete
+            # For 'topics': check embeddings + topics
+            # For 'clustering': check embeddings + clustering
+            # For 'word_frequency': check word_frequency only (no embeddings needed)
+            # For 'combined': check all three (backward compatibility)
+            cur.execute(
+                f"""
+                UPDATE {schema}.result_versions
+                SET is_complete = (
+                    CASE analysis_type
+                        WHEN 'topics' THEN
+                            (pipeline_status->>'embeddings')::boolean AND
+                            (pipeline_status->>'topics')::boolean
+                        WHEN 'clustering' THEN
+                            (pipeline_status->>'embeddings')::boolean AND
+                            (pipeline_status->>'clustering')::boolean
+                        WHEN 'word_frequency' THEN
+                            (pipeline_status->>'word_frequency')::boolean
+                        WHEN 'combined' THEN
+                            (pipeline_status->>'embeddings')::boolean AND
+                            (pipeline_status->>'topics')::boolean AND
+                            (pipeline_status->>'clustering')::boolean
+                        ELSE FALSE
+                    END
+                )
+                WHERE id = %s
+                """,
+                (version_id,)
+            )
+
+
+def get_version_config(version_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Get configuration for a specific version.
+
+    Args:
+        version_id: UUID of the version
+
+    Returns:
+        Configuration dictionary or None if version not found
+    """
+    version = get_version(version_id)
+    return version["configuration"] if version else None
+
+
+def delete_version(version_id: str) -> bool:
+    """
+    Delete a version and all its associated results.
+
+    Args:
+        version_id: UUID of the version to delete
+
+    Returns:
+        True if deleted, False if version not found
+
+    Note:
+        This will cascade delete all associated embeddings, topics,
+        article_analysis, event_clusters, and article_clusters.
+    """
+    with Database() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(
+                f"DELETE FROM {schema}.result_versions WHERE id = %s",
+                (version_id,)
+            )
+            return cur.rowcount > 0
+
+
+def get_version_statistics(version_id: str) -> Dict[str, int]:
+    """
+    Get statistics for a version (counts of embeddings, topics, clusters, etc.).
+
+    Args:
+        version_id: UUID of the version
+
+    Returns:
+        Dictionary with counts for various entities
+    """
+    with Database() as db:
+        schema = db.config["schema"]
+        stats = {}
+
+        # Count embeddings
+        with db.cursor() as cur:
+            cur.execute(
+                f"SELECT COUNT(*) as count FROM {schema}.embeddings WHERE result_version_id = %s",
+                (version_id,)
+            )
+            stats["embeddings"] = cur.fetchone()["count"]
+
+        # Count topics
+        with db.cursor() as cur:
+            cur.execute(
+                f"SELECT COUNT(*) as count FROM {schema}.topics WHERE result_version_id = %s",
+                (version_id,)
+            )
+            stats["topics"] = cur.fetchone()["count"]
+
+        # Count article analyses
+        with db.cursor() as cur:
+            cur.execute(
+                f"SELECT COUNT(*) as count FROM {schema}.article_analysis WHERE result_version_id = %s",
+                (version_id,)
+            )
+            stats["article_analysis"] = cur.fetchone()["count"]
+
+        # Count event clusters
+        with db.cursor() as cur:
+            cur.execute(
+                f"SELECT COUNT(*) as count FROM {schema}.event_clusters WHERE result_version_id = %s",
+                (version_id,)
+            )
+            stats["event_clusters"] = cur.fetchone()["count"]
+
+        # Count article-cluster mappings
+        with db.cursor() as cur:
+            cur.execute(
+                f"SELECT COUNT(*) as count FROM {schema}.article_clusters WHERE result_version_id = %s",
+                (version_id,)
+            )
+            stats["article_clusters"] = cur.fetchone()["count"]
+
+        return stats

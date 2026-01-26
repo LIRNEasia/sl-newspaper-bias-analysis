@@ -1,0 +1,52 @@
+# Configuration with credentials
+config.yaml
+.env
+.claude/
+
+# Internal documentation (not for public repo)
+PLAN.md
+
+# Large files
+2025.mbd.framework.pdf
+
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Generated models (can be regenerated via pipeline)
+models/
+
+# Binary tools (not source code)
+ngrok
+ngrok-v3-stable-linux-amd64.tgz
+cloudflared-linux-amd64
+*.tgz
+*.tar.gz
+
+# Virtual environments
+venv/
+env/
+.venv
+ENV/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Streamlit cache
+.streamlit/

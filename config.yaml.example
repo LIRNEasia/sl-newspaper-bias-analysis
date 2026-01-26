@@ -1,0 +1,42 @@
+# Sri Lanka Media Bias Detector Configuration
+# Copy this file to config.yaml and fill in your credentials
+
+database:
+  host: localhost
+  port: 5432
+  name: your_database
+  schema: your_schema
+  user: your_db_user
+  password: "YOUR_DATABASE_PASSWORD_HERE"  # Replace with your password
+
+# LLM Configuration - supports claude, openai, or local
+llm:
+  provider: claude  # claude | openai | local
+  model: claude-sonnet-4-20250514
+  api_key: "YOUR_API_KEY_HERE"  # Optional: only needed for LLM features
+  temperature: 0.0
+  max_tokens: 4096
+
+# Embeddings (local = free, uses sentence-transformers)
+embeddings:
+  provider: local  # local | openai
+  model: all-mpnet-base-v2  # good quality, 768 dimensions
+  dimensions: 768
+  batch_size: 64
+
+# Topic Modeling
+topics:
+  min_topic_size: 10
+  diversity: 0.5
+
+# Analysis
+analysis:
+  batch_size: 50
+  max_concurrent: 5
+  tone_scale: [-5, 5]
+
+# Clustering
+clustering:
+  similarity_threshold: 0.8
+  min_cluster_size: 2
+  time_window_days: 7
