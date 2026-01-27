@@ -611,6 +611,69 @@ class Database:
             cur.execute(query, (article_id, result_version_id))
             return cur.fetchall()
 
+    def get_unique_entity_texts(
+        self,
+        result_version_id: str = None,
+        entity_types: List[str] = None,
+        normalize: bool = True
+    ) -> List[str]:
+        """
+        Get unique entity texts from NER analysis for use as stop words.
+
+        Args:
+            result_version_id: Optional NER version ID. If None, uses any completed NER version.
+            entity_types: Optional list of entity types to filter (e.g., ['PERSON', 'ORG', 'GPE'])
+            normalize: If True, lowercase and deduplicate entities
+
+        Returns:
+            List of unique entity text strings
+        """
+        schema = self.config["schema"]
+
+        # If no version specified, find first completed NER version
+        if result_version_id is None:
+            with self.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT id FROM {schema}.result_versions
+                    WHERE analysis_type = 'ner'
+                      AND (pipeline_status->>'ner')::boolean = true
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                    """
+                )
+                row = cur.fetchone()
+                if not row:
+                    raise ValueError("No completed NER analysis found. Please run NER pipeline first.")
+                result_version_id = str(row["id"])
+
+        # Build query to get unique entity texts
+        query = f"""
+            SELECT DISTINCT entity_text
+            FROM {schema}.named_entities
+            WHERE result_version_id = %s
+        """
+        params = [result_version_id]
+
+        # Filter by entity types if provided
+        if entity_types:
+            query += " AND entity_type = ANY(%s)"
+            params.append(entity_types)
+
+        with self.cursor() as cur:
+            cur.execute(query, params)
+            rows = cur.fetchall()
+
+        # Extract entity texts
+        entity_texts = [row["entity_text"] for row in rows]
+
+        # Normalize if requested
+        if normalize:
+            # Lowercase and deduplicate
+            entity_texts = list(set(text.lower() for text in entity_texts))
+
+        return sorted(entity_texts)
+
 
 # Convenience function
 def get_db() -> Database:

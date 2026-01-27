@@ -24,6 +24,7 @@ class TopicModeler:
         nr_topics: int = None,
         embedding_model: str = "all-mpnet-base-v2",
         stop_words: List[str] = None,
+        ner_stop_words: List[str] = None,
         random_seed: int = 42,
         umap_params: Dict = None,
         hdbscan_params: Dict = None,
@@ -71,7 +72,7 @@ class TopicModeler:
         if stop_words is None:
             stop_words = []
 
-        custom_stop_words = sorted(set(ENGLISH_STOP_WORDS) | set(stop_words))
+        custom_stop_words = sorted(set(ENGLISH_STOP_WORDS) | set(stop_words) | set(ner_stop_words or []))
 
         vectorizer_defaults = {
             "ngram_range": (1, 3),
@@ -185,8 +186,8 @@ def label_topics_from_keywords(topic_modeler: TopicModeler) -> List[Dict]:
 
         keywords = topic_modeler.get_topic_keywords(topic_id)
 
-        # Create name from top 3 keywords
-        name = ", ".join(keywords[:3]).title()
+        # Create name from top 5 keywords
+        name = ", ".join(keywords[:5]).title()
 
         labeled_topics.append({
             "topic_id": topic_id,
@@ -220,6 +221,24 @@ def discover_topics(
         config = load_config()
         topic_config = config.get("topics", {})
 
+    # Load NER entities as stop words if filtering enabled
+    ner_stop_words = []
+    if topic_config.get("filter_ner_entities", False):
+        print("Loading named entities for filtering...")
+        with get_db() as db:
+            try:
+                ner_version_id = topic_config.get("ner_version_id")  # None = auto-detect
+                entity_types = topic_config.get("ner_entity_types")  # None = all types
+                ner_stop_words = db.get_unique_entity_texts(
+                    result_version_id=ner_version_id,
+                    entity_types=entity_types,
+                    normalize=True
+                )
+                print(f"  Loaded {len(ner_stop_words)} unique entities to filter")
+            except ValueError as e:
+                print(f"  Warning: {e}")
+                print("  Continuing without NER filtering...")
+
     # Load articles with embeddings for this version
     print(f"Loading articles and embeddings for version {result_version_id}...")
     with get_db() as db:
@@ -239,6 +258,7 @@ def discover_topics(
         nr_topics=nr_topics or topic_config.get("nr_topics"),
         embedding_model=topic_config.get("embedding_model", "all-mpnet-base-v2"),
         stop_words=topic_config.get("stop_words"),
+        ner_stop_words=ner_stop_words,
         random_seed=topic_config.get("random_seed", 42),
         umap_params=topic_config.get("umap"),
         hdbscan_params=topic_config.get("hdbscan"),

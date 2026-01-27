@@ -81,6 +81,9 @@ def get_default_topic_config() -> Dict[str, Any]:
             "stop_words": ["sri", "lanka", "lankan"],
             "embedding_model": config["embeddings"]["model"],
             "random_seed": 42,
+            "filter_ner_entities": config["topics"].get("filter_ner_entities", False),
+            "ner_version_id": None,
+            "ner_entity_types": config["topics"].get("ner_entity_types"),
             "umap": {
                 "n_neighbors": 15,
                 "n_components": 5,
