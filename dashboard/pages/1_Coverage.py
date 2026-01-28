@@ -35,7 +35,7 @@ fig = px.bar(
     labels={'count': 'Articles', 'source_name': 'Source'}
 )
 fig.update_layout(showlegend=False, height=400)
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width='stretch')
 
 # Timeline
 st.subheader("Coverage Over Time")
@@ -54,4 +54,4 @@ if timeline_data:
         labels={'count': 'Articles', 'date': 'Date', 'source_name': 'Source'}
     )
     fig.update_layout(height=400)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')

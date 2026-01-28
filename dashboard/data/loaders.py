@@ -16,6 +16,14 @@ def load_overview_stats(version_id=None):
             cur.execute(f"SELECT COUNT(*) as count FROM {schema}.news_articles")
             total_articles = cur.fetchone()["count"]
 
+            # Articles about Ditwah cyclone
+            cur.execute(f"""
+                SELECT COUNT(*) as count
+                FROM {schema}.news_articles
+                WHERE is_ditwah_cyclone = 1
+            """)
+            ditwah_articles = cur.fetchone()["count"]
+
             # Articles by source
             cur.execute(f"""
                 SELECT source_id, COUNT(*) as count
@@ -24,6 +32,16 @@ def load_overview_stats(version_id=None):
                 ORDER BY count DESC
             """)
             by_source = cur.fetchall()
+
+            # Ditwah articles by source
+            cur.execute(f"""
+                SELECT source_id, COUNT(*) as count
+                FROM {schema}.news_articles
+                WHERE is_ditwah_cyclone = 1
+                GROUP BY source_id
+                ORDER BY count DESC
+            """)
+            ditwah_by_source = cur.fetchall()
 
             if version_id:
                 # Total topics for this version
@@ -61,7 +79,9 @@ def load_overview_stats(version_id=None):
 
     return {
         "total_articles": total_articles,
+        "ditwah_articles": ditwah_articles,
         "by_source": by_source,
+        "ditwah_by_source": ditwah_by_source,
         "total_topics": total_topics,
         "total_clusters": total_clusters,
         "multi_source_clusters": multi_source,
@@ -430,6 +450,21 @@ def load_bertopic_model(version_id=None):
         return None
 
     from bertopic import BERTopic
+    from sentence_transformers import SentenceTransformer
+
+    # Get the embedding model from version configuration
+    from src.versions import get_version_config
+    config = get_version_config(version_id)
+    embedding_model_name = "all-mpnet-base-v2"  # default
+    if config and "embeddings" in config and "model" in config["embeddings"]:
+        embedding_model_name = config["embeddings"]["model"]
+
+    # Load the embedding model
+    try:
+        embedding_model = SentenceTransformer(embedding_model_name)
+    except Exception as e:
+        st.warning(f"Failed to load embedding model '{embedding_model_name}': {e}")
+        return None
 
     # Strategy 1: Try loading from database
     from src.versions import get_model_from_version
@@ -442,7 +477,7 @@ def load_bertopic_model(version_id=None):
 
         if model_path:
             try:
-                model = BERTopic.load(model_path)
+                model = BERTopic.load(model_path, embedding_model=embedding_model)
                 return model
             except Exception as e:
                 st.warning(f"Model found in database but failed to load: {e}")
@@ -457,7 +492,7 @@ def load_bertopic_model(version_id=None):
 
     if model_path.exists():
         try:
-            return BERTopic.load(str(model_path))
+            return BERTopic.load(str(model_path), embedding_model=embedding_model)
         except Exception as e:
             st.warning(f"Could not load BERTopic model from filesystem: {e}")
             return None
@@ -479,3 +514,136 @@ def load_entity_statistics(version_id=None, entity_type=None, limit=100):
             entity_type=entity_type,
             limit=limit
         )
+
+
+@st.cache_data(ttl=300)
+def load_summaries(version_id=None, source_id=None, limit=100):
+    """Load article summaries with article metadata for a specific version."""
+    if not version_id:
+        return []
+
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            if source_id:
+                cur.execute(f"""
+                    SELECT
+                        s.id,
+                        s.article_id,
+                        s.summary_text,
+                        s.method,
+                        s.summary_length,
+                        s.sentence_count,
+                        s.word_count,
+                        s.compression_ratio,
+                        s.processing_time_ms,
+                        s.created_at,
+                        a.title,
+                        a.content,
+                        a.source_id,
+                        a.date_posted,
+                        a.url,
+                        LENGTH(a.content) as original_length
+                    FROM {schema}.article_summaries s
+                    JOIN {schema}.news_articles a ON s.article_id = a.id
+                    WHERE s.result_version_id = %s AND a.source_id = %s
+                    ORDER BY a.date_posted DESC
+                    LIMIT %s
+                """, (version_id, source_id, limit))
+            else:
+                cur.execute(f"""
+                    SELECT
+                        s.id,
+                        s.article_id,
+                        s.summary_text,
+                        s.method,
+                        s.summary_length,
+                        s.sentence_count,
+                        s.word_count,
+                        s.compression_ratio,
+                        s.processing_time_ms,
+                        s.created_at,
+                        a.title,
+                        a.content,
+                        a.source_id,
+                        a.date_posted,
+                        a.url,
+                        LENGTH(a.content) as original_length
+                    FROM {schema}.article_summaries s
+                    JOIN {schema}.news_articles a ON s.article_id = a.id
+                    WHERE s.result_version_id = %s
+                    ORDER BY a.date_posted DESC
+                    LIMIT %s
+                """, (version_id, limit))
+            return cur.fetchall()
+
+
+@st.cache_data(ttl=300)
+def load_summary_statistics(version_id=None):
+    """Load aggregate statistics for summaries."""
+    if not version_id:
+        return {}
+
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            # Overall statistics
+            cur.execute(f"""
+                SELECT
+                    COUNT(*) as total_summaries,
+                    AVG(compression_ratio) as avg_compression,
+                    AVG(processing_time_ms) as avg_time_ms,
+                    AVG(word_count) as avg_word_count,
+                    MIN(word_count) as min_word_count,
+                    MAX(word_count) as max_word_count
+                FROM {schema}.article_summaries
+                WHERE result_version_id = %s
+            """, (version_id,))
+            overall = cur.fetchone()
+
+            # Statistics by source
+            cur.execute(f"""
+                SELECT
+                    a.source_id,
+                    COUNT(*) as count,
+                    AVG(s.compression_ratio) as avg_compression,
+                    AVG(s.processing_time_ms) as avg_time_ms,
+                    AVG(s.word_count) as avg_word_count
+                FROM {schema}.article_summaries s
+                JOIN {schema}.news_articles a ON s.article_id = a.id
+                WHERE s.result_version_id = %s
+                GROUP BY a.source_id
+                ORDER BY a.source_id
+            """, (version_id,))
+            by_source = cur.fetchall()
+
+            return {
+                "overall": overall,
+                "by_source": by_source
+            }
+
+
+@st.cache_data(ttl=300)
+def load_summaries_by_source(version_id=None):
+    """Load summary statistics grouped by source."""
+    if not version_id:
+        return []
+
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT
+                    a.source_id,
+                    COUNT(*) as count,
+                    AVG(s.compression_ratio) as avg_compression,
+                    AVG(s.processing_time_ms) as avg_time_ms,
+                    AVG(s.word_count) as avg_word_count,
+                    AVG(s.sentence_count) as avg_sentence_count
+                FROM {schema}.article_summaries s
+                JOIN {schema}.news_articles a ON s.article_id = a.id
+                WHERE s.result_version_id = %s
+                GROUP BY a.source_id
+                ORDER BY a.source_id
+            """, (version_id,))
+            return cur.fetchall()

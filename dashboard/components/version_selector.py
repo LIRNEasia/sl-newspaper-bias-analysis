@@ -11,7 +11,8 @@ from src.versions import (
     get_default_topic_config,
     get_default_clustering_config,
     get_default_word_frequency_config,
-    get_default_ner_config
+    get_default_ner_config,
+    get_default_summarization_config
 )
 
 
@@ -53,95 +54,36 @@ def render_version_selector(analysis_type):
 
     # Display version info in an expander
     with st.expander("Version Details"):
-        st.markdown(f"**Name:** {version['name']}")
-        if version['description']:
-            st.markdown(f"**Description:** {version['description']}")
-        st.markdown(f"**Created:** {version['created_at'].strftime('%Y-%m-%d %H:%M')}")
+        # Basic info in columns
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            st.markdown(f"**{version['name']}**")
+            if version['description']:
+                st.caption(version['description'])
+        with col2:
+            st.caption(f"Created: {version['created_at'].strftime('%Y-%m-%d %H:%M')}")
 
-        # Pipeline status
+        # Pipeline status (compact)
         status = version['pipeline_status']
-        st.markdown("**Pipeline Status:**")
+        status_items = []
 
         if analysis_type == 'word_frequency':
-            # Word frequency only has one pipeline step
-            st.caption(f"{'[OK]' if status.get('word_frequency') else '[ ]'} Word Frequency")
+            status_items.append(f"{'✓' if status.get('word_frequency') else '○'} Word Frequency")
+        elif analysis_type == 'summarization':
+            status_items.append(f"{'✓' if status.get('summarization') else '○'} Summarization")
         else:
-            # Topics and clustering have embeddings + analysis
-            cols = st.columns(2)
-            with cols[0]:
-                st.caption(f"{'[OK]' if status.get('embeddings') else '[ ]'} Embeddings")
-            with cols[1]:
-                if analysis_type == 'topics':
-                    st.caption(f"{'[OK]' if status.get('topics') else '[ ]'} Topics")
-                else:
-                    st.caption(f"{'[OK]' if status.get('clustering') else '[ ]'} Clustering")
+            status_items.append(f"{'✓' if status.get('embeddings') else '○'} Embeddings")
+            if analysis_type == 'topics':
+                status_items.append(f"{'✓' if status.get('topics') else '○'} Topics")
+            else:
+                status_items.append(f"{'✓' if status.get('clustering') else '○'} Clustering")
 
-        # Configuration preview
+        st.caption("Pipeline: " + " • ".join(status_items))
+
+        # Configuration as JSON
         config = version['configuration']
         st.markdown("**Configuration:**")
-
-        if analysis_type == 'word_frequency':
-            # Word frequency-specific settings
-            wf_config = config.get('word_frequency', {})
-            st.caption(f"Random Seed: {config.get('random_seed', 42)}")
-            st.caption(f"Ranking Method: {wf_config.get('ranking_method', 'N/A')}")
-            if wf_config.get('ranking_method') == 'tfidf':
-                st.caption(f"TF-IDF Scope: {wf_config.get('tfidf_scope', 'N/A')}")
-            st.caption(f"Top N Words: {wf_config.get('top_n_words', 'N/A')}")
-            st.caption(f"Min Word Length: {wf_config.get('min_word_length', 'N/A')}")
-
-            # Custom stopwords
-            stopwords = wf_config.get('custom_stopwords', [])
-            if stopwords:
-                st.caption(f"Custom Stopwords: {', '.join(stopwords[:5])}{'...' if len(stopwords) > 5 else ''}")
-
-        elif analysis_type == 'topics':
-            # General settings
-            st.caption(f"Random Seed: {config.get('random_seed', 42)}")
-            st.caption(f"Embedding Model: {config.get('embeddings', {}).get('model', 'N/A')}")
-
-            # Topic-specific settings
-            topics_config = config.get('topics', {})
-            st.caption(f"Min Topic Size: {topics_config.get('min_topic_size', 'N/A')}")
-            st.caption(f"Diversity: {topics_config.get('diversity', 'N/A')}")
-
-            # Stopwords
-            stopwords = topics_config.get('stop_words', [])
-            if stopwords:
-                st.caption(f"Stop Words: {', '.join(stopwords)}")
-
-            # Vectorizer parameters
-            vectorizer_config = topics_config.get('vectorizer', {})
-            if vectorizer_config:
-                ngram_range = vectorizer_config.get('ngram_range', 'N/A')
-                st.caption(f"N-gram Range: {ngram_range}")
-                st.caption(f"Min DF: {vectorizer_config.get('min_df', 'N/A')}")
-
-            # UMAP parameters
-            umap_config = topics_config.get('umap', {})
-            if umap_config:
-                st.caption(f"UMAP n_neighbors: {umap_config.get('n_neighbors', 'N/A')}")
-                st.caption(f"UMAP n_components: {umap_config.get('n_components', 'N/A')}")
-                st.caption(f"UMAP min_dist: {umap_config.get('min_dist', 'N/A')}")
-                st.caption(f"UMAP metric: {umap_config.get('metric', 'N/A')}")
-
-            # HDBSCAN parameters
-            hdbscan_config = topics_config.get('hdbscan', {})
-            if hdbscan_config:
-                st.caption(f"HDBSCAN min_cluster_size: {hdbscan_config.get('min_cluster_size', 'N/A')}")
-                st.caption(f"HDBSCAN metric: {hdbscan_config.get('metric', 'N/A')}")
-                st.caption(f"HDBSCAN cluster_selection_method: {hdbscan_config.get('cluster_selection_method', 'N/A')}")
-
-        else:  # clustering
-            # General settings
-            st.caption(f"Random Seed: {config.get('random_seed', 42)}")
-            st.caption(f"Embedding Model: {config.get('embeddings', {}).get('model', 'N/A')}")
-
-            # Clustering-specific settings
-            clustering_config = config.get('clustering', {})
-            st.caption(f"Similarity Threshold: {clustering_config.get('similarity_threshold', 'N/A')}")
-            st.caption(f"Time Window: {clustering_config.get('time_window_days', 'N/A')} days")
-            st.caption(f"Min Cluster Size: {clustering_config.get('min_cluster_size', 'N/A')}")
+        st.code(json.dumps(config, indent=2), language='json')
 
     return version_id
 
@@ -155,62 +97,107 @@ def render_create_version_button(analysis_type):
     # Format analysis type for display
     display_name = analysis_type.replace('_', ' ').title()
 
-    if st.button(f"Create New {display_name} Version", key=f"create_{analysis_type}_btn"):
-        st.session_state[f'show_create_{analysis_type}'] = True
-
-    # Show create dialog if requested
-    if st.session_state.get(f'show_create_{analysis_type}', False):
-        render_create_version_form(analysis_type)
+    if st.button(f"➕ Create New {display_name} Version", key=f"create_{analysis_type}_btn"):
+        render_create_version_dialog(analysis_type)
 
 
-def render_create_version_form(analysis_type):
-    """Render form for creating a new version.
+@st.dialog("Create New Version")
+def render_create_version_dialog(analysis_type):
+    """Render modal dialog for creating a new version.
 
     Args:
-        analysis_type: 'topics', 'clustering', 'word_frequency', or 'ner'
+        analysis_type: 'topics', 'clustering', 'word_frequency', 'ner', or 'summarization'
     """
+    # Initialize session state for this dialog
+    dialog_key = f"create_{analysis_type}_dialog"
+    if dialog_key not in st.session_state:
+        st.session_state[dialog_key] = {"created": False, "version_id": None, "version_name": None}
+
+    dialog_state = st.session_state[dialog_key]
+
     # Format analysis type for display
     display_name = analysis_type.replace('_', ' ').title()
 
-    st.markdown("---")
-    st.subheader(f"Create New {display_name} Version")
+    # If version was just created, show success message
+    if dialog_state["created"]:
+        st.success(f"✅ Successfully created {analysis_type} version: **{dialog_state['version_name']}**")
 
-    with st.form(f"create_{analysis_type}_form"):
-        name = st.text_input("Version Name", placeholder=f"e.g., baseline-{analysis_type}")
-        description = st.text_area("Description (optional)", placeholder="What makes this version unique?")
+        st.markdown("---")
 
-        # Configuration editor
-        st.markdown("**Configuration (JSON)**")
-        if analysis_type == 'topics':
-            default_config = get_default_topic_config()
-        elif analysis_type == 'clustering':
-            default_config = get_default_clustering_config()
-        elif analysis_type == 'word_frequency':
-            default_config = get_default_word_frequency_config()
+        # Version ID in a nice info box
+        st.markdown("**Version ID:**")
+        st.code(dialog_state['version_id'], language=None)
+
+        st.markdown("---")
+
+        # Pipeline instructions
+        st.markdown("### Next Steps: Run the Pipeline")
+
+        version_id = dialog_state['version_id']
+
+        if analysis_type == 'word_frequency':
+            st.markdown("**Step 1: Compute word frequencies**")
+            st.code(f"python3 scripts/word_frequency/01_compute_word_frequency.py --version-id {version_id}", language="bash")
+
         elif analysis_type == 'ner':
-            default_config = get_default_ner_config()
+            st.markdown("**Step 1: Extract named entities**")
+            st.code(f"python3 scripts/ner/01_extract_entities.py --version-id {version_id}", language="bash")
+
+        elif analysis_type == 'summarization':
+            st.markdown("**Step 1: Generate summaries**")
+            st.code(f"python3 scripts/summarization/01_generate_summaries.py --version-id {version_id}", language="bash")
+
         else:
-            default_config = {}
+            st.markdown("**Step 1: Generate embeddings**")
+            st.code(f"python3 scripts/{analysis_type}/01_generate_embeddings.py --version-id {version_id}", language="bash")
 
-        config_str = st.text_area(
-            "Edit configuration",
-            value=json.dumps(default_config, indent=2),
-            height=300,
-            key=f"{analysis_type}_config_editor"
-        )
+            st.markdown(f"**Step 2: Run {'topic discovery' if analysis_type == 'topics' else 'event clustering'}**")
+            script_name = 'discover_topics' if analysis_type == 'topics' else 'cluster_events'
+            st.code(f"python3 scripts/{analysis_type}/02_{script_name}.py --version-id {version_id}", language="bash")
 
-        col1, col2 = st.columns(2)
+        st.markdown("---")
+        st.info("💡 Close this dialog and the page will automatically refresh to show your new version")
 
-        with col1:
-            submit = st.form_submit_button("Create Version")
-        with col2:
-            cancel = st.form_submit_button("Cancel")
-
-        if cancel:
-            st.session_state[f'show_create_{analysis_type}'] = False
+        # Close button
+        if st.button("Close", type="primary", use_container_width=True):
+            # Reset dialog state
+            st.session_state[dialog_key] = {"created": False, "version_id": None, "version_name": None}
             st.rerun()
 
-        if submit:
+        return
+
+    # Otherwise, show the creation form
+    st.markdown(f"**Analysis Type:** {display_name}")
+
+    name = st.text_input("Version Name", placeholder=f"e.g., baseline-{analysis_type}")
+    description = st.text_area("Description (optional)", placeholder="What makes this version unique?")
+
+    # Configuration editor
+    st.markdown("**Configuration (JSON)**")
+    if analysis_type == 'topics':
+        default_config = get_default_topic_config()
+    elif analysis_type == 'clustering':
+        default_config = get_default_clustering_config()
+    elif analysis_type == 'word_frequency':
+        default_config = get_default_word_frequency_config()
+    elif analysis_type == 'ner':
+        default_config = get_default_ner_config()
+    elif analysis_type == 'summarization':
+        default_config = get_default_summarization_config()
+    else:
+        default_config = {}
+
+    config_str = st.text_area(
+        "Edit configuration",
+        value=json.dumps(default_config, indent=2),
+        height=300,
+        key=f"{analysis_type}_config_editor"
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("Create Version", type="primary", use_container_width=True):
             if not name:
                 st.error("Version name is required")
             else:
@@ -222,32 +209,26 @@ def render_create_version_form(analysis_type):
                     existing = find_version_by_config(config, analysis_type=analysis_type)
                     if existing:
                         st.warning(f"A {analysis_type} version with this configuration already exists: **{existing['name']}**")
-                        st.info(f"Version ID: {existing['id']}")
+                        st.info(f"Version ID: `{existing['id']}`")
                     else:
                         # Create version
                         version_id = create_version(name, description, config, analysis_type=analysis_type)
-                        st.success(f"Created {analysis_type} version: {name}")
-                        st.info(f"Version ID: {version_id}")
 
-                        # Show pipeline instructions
-                        st.markdown("**Next steps:** Run the pipeline")
-                        if analysis_type == 'word_frequency':
-                            st.code(f"""# Compute word frequencies
-python3 scripts/word_frequency/01_compute_word_frequency.py --version-id {version_id}""")
-                        elif analysis_type == 'ner':
-                            st.code(f"""# Extract named entities
-python3 scripts/ner/01_extract_entities.py --version-id {version_id}""")
-                        else:
-                            st.code(f"""# Generate embeddings
-python3 scripts/{analysis_type}/01_generate_embeddings.py --version-id {version_id}
-
-# Run analysis
-python3 scripts/{analysis_type}/02_{'discover_topics' if analysis_type == 'topics' else 'cluster_events'}.py --version-id {version_id}""")
-
-                        # Hide dialog
-                        st.session_state[f'show_create_{analysis_type}'] = False
+                        # Update dialog state
+                        st.session_state[dialog_key] = {
+                            "created": True,
+                            "version_id": version_id,
+                            "version_name": name
+                        }
+                        st.rerun()
 
                 except json.JSONDecodeError as e:
-                    st.error(f"Invalid JSON configuration: {e}")
+                    st.error(f"❌ Invalid JSON configuration: {e}")
                 except Exception as e:
-                    st.error(f"Error creating version: {e}")
+                    st.error(f"❌ Error creating version: {e}")
+
+    with col2:
+        if st.button("Cancel", use_container_width=True):
+            # Reset dialog state
+            st.session_state[dialog_key] = {"created": False, "version_id": None, "version_name": None}
+            st.rerun()

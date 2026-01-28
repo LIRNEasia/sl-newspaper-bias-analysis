@@ -57,13 +57,15 @@ def main():
     print(f"Version ID: {args.version_id}")
     print()
 
-    # Extract topic configuration
+    # Extract topic and embeddings configuration
     topic_config = version_config.get("topics", {})
+    embeddings_config = version_config.get("embeddings", {})
 
     # Discover topics
     summary = discover_topics(
         result_version_id=args.version_id,
         topic_config=topic_config,
+        embeddings_config=embeddings_config,
         nr_topics=args.nr_topics
     )
 

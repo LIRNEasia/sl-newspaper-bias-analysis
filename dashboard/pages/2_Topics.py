@@ -18,16 +18,14 @@ apply_page_style()
 
 st.title("Topic Analysis")
 
-# Version selector at the top
-version_id = render_version_selector('topics')
-
-# Create version button
+# Create version button at the top
 render_create_version_button('topics')
+
+# Version selector
+version_id = render_version_selector('topics')
 
 if not version_id:
     st.stop()
-
-st.markdown("---")
 
 topics = load_topics(version_id)
 if not topics:
@@ -49,7 +47,7 @@ fig = px.bar(
     labels={'article_count': 'Articles', 'name': 'Topic'}
 )
 fig.update_layout(height=600, yaxis={'categoryorder': 'total ascending'})
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width='stretch')
 
 # Topic by source heatmap
 st.subheader("Topic Coverage by Source")
@@ -73,7 +71,7 @@ if topic_source_data:
         aspect='auto'
     )
     fig.update_layout(height=500)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 # Source comparison section
 st.divider()
@@ -113,6 +111,12 @@ if topic_source_data:
     end_idx = start_idx + topics_per_page
     top_topic_names_comparison = [t['name'] for t in topics[start_idx:end_idx]]
 
+    # Helper function to truncate topic names to first 3 n-grams
+    def truncate_topic_name(topic_name, max_ngrams=3):
+        """Truncate topic name to first N n-grams."""
+        parts = topic_name.split()
+        return ' '.join(parts[:max_ngrams])
+
     comparison_data = []
     for source in SOURCE_NAMES.values():
         source_data = ts_df[ts_df['source_name'] == source]
@@ -122,7 +126,7 @@ if topic_source_data:
             topic_count = source_data[source_data['topic'] == topic]['count'].sum()
             comparison_data.append({
                 'Source': source,
-                'Topic': topic,
+                'Topic': truncate_topic_name(topic),  # Use truncated name for display
                 'Percentage': (topic_count / total) * 100
             })
 
@@ -142,7 +146,7 @@ if topic_source_data:
         xaxis_tickangle=-45,
         xaxis=dict(tickfont=dict(size=14))
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 # BERTopic Visualizations
 st.divider()
@@ -165,14 +169,14 @@ if topic_model:
             st.markdown("**Interactive 2D visualization of topic relationships**")
             st.caption("Topics closer together are more semantically similar")
             fig = topic_model.visualize_topics()
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
         elif viz_option == "Topic Bar Charts":
             st.markdown("**Top words per topic**")
             # Show top 20 topics
             top_topics_ids = [t['topic_id'] for t in topics[:20]]
             fig = topic_model.visualize_barchart(top_n_topics=20, topics=top_topics_ids)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
         elif viz_option == "Topic Similarity Heatmap":
             st.markdown("**Similarity matrix between topics**")
@@ -180,13 +184,13 @@ if topic_model:
             # Limit to top 20 topics for readability
             top_topics_ids = [t['topic_id'] for t in topics[:20]]
             fig = topic_model.visualize_heatmap(topics=top_topics_ids)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
         elif viz_option == "Hierarchical Topic Clustering":
             st.markdown("**Hierarchical clustering of topics**")
             st.caption("Shows how topics group into broader categories")
             fig = topic_model.visualize_hierarchy()
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
     except Exception as e:
         st.error(f"Error generating visualization: {e}")

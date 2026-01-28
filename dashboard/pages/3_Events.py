@@ -18,11 +18,11 @@ apply_page_style()
 
 st.title("Event Clustering Analysis")
 
-# Version selector at the top
-version_id = render_version_selector('clustering')
-
-# Create version button
+# Create version button at the top
 render_create_version_button('clustering')
+
+# Version selector
+version_id = render_version_selector('clustering')
 
 if not version_id:
     st.stop()
@@ -74,10 +74,10 @@ if selected_event_label:
                 color_discrete_map=SOURCE_COLORS
             )
             fig.update_layout(height=300)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
         with col2:
             st.markdown("**Articles in this Event**")
             display_df = articles_df[['title', 'source_name', 'date_posted']].copy()
             display_df.columns = ['Title', 'Source', 'Date']
-            st.dataframe(display_df, use_container_width=True, height=300)
+            st.dataframe(display_df, width='stretch', height=300)

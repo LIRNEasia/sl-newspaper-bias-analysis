@@ -156,10 +156,19 @@ class TopicModeler:
         self.model.save(path, serialization="safetensors", save_ctfidf=True)
 
     @classmethod
-    def load(cls, path: str) -> "TopicModeler":
-        """Load a saved model."""
+    def load(cls, path: str, embedding_model: str = "all-mpnet-base-v2") -> "TopicModeler":
+        """Load a saved model.
+
+        Args:
+            path: Path to the saved BERTopic model
+            embedding_model: Name of the embedding model to use (default: all-mpnet-base-v2)
+        """
         instance = cls.__new__(cls)
-        instance.model = BERTopic.load(path)
+        # Load the embedding model
+        sentence_transformer = SentenceTransformer(embedding_model)
+        # Load BERTopic with the embedding model
+        instance.model = BERTopic.load(path, embedding_model=sentence_transformer)
+        instance.embedding_model = sentence_transformer
         instance.topic_info = instance.model.get_topic_info()
         return instance
 
@@ -203,6 +212,7 @@ def label_topics_from_keywords(topic_modeler: TopicModeler) -> List[Dict]:
 def discover_topics(
     result_version_id: str,
     topic_config: Dict = None,
+    embeddings_config: Dict = None,
     nr_topics: int = None
 ) -> Dict:
     """
@@ -211,6 +221,7 @@ def discover_topics(
     Args:
         result_version_id: UUID of the result version
         topic_config: Topic configuration (from version config, or uses defaults from config.yaml)
+        embeddings_config: Embeddings configuration (from version config, or uses defaults from config.yaml)
         nr_topics: Target number of topics (None = auto)
 
     Returns:
@@ -220,6 +231,9 @@ def discover_topics(
     if topic_config is None:
         config = load_config()
         topic_config = config.get("topics", {})
+    if embeddings_config is None:
+        config = load_config()
+        embeddings_config = config.get("embeddings", {})
 
     # Load NER entities as stop words if filtering enabled
     ner_stop_words = []
@@ -256,10 +270,9 @@ def discover_topics(
         min_topic_size=topic_config.get("min_topic_size", 10),
         diversity=topic_config.get("diversity", 0.5),
         nr_topics=nr_topics or topic_config.get("nr_topics"),
-        embedding_model=topic_config.get("embedding_model", "all-mpnet-base-v2"),
+        embedding_model=embeddings_config.get("model", "all-mpnet-base-v2"),
         stop_words=topic_config.get("stop_words"),
         ner_stop_words=ner_stop_words,
-        random_seed=topic_config.get("random_seed", 42),
         umap_params=topic_config.get("umap"),
         hdbscan_params=topic_config.get("hdbscan"),
         vectorizer_params=topic_config.get("vectorizer")

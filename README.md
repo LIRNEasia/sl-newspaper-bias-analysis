@@ -116,7 +116,7 @@ Python 3.11+
 
 6. **Launch dashboard**
    ```bash
-   streamlit run dashboard/app.py
+   streamlit run dashboard/Home.py
    # Access at http://localhost:8501
    ```
 
@@ -151,7 +151,7 @@ sl-newspaper-bias-analysis/
 │   ├── manage_versions.py
 │   └── 04_analyze_sentiment.py
 └── dashboard/
-    └── app.py             # Streamlit dashboard
+    └── Home.py            # Streamlit dashboard
 ```
 
 ## Dashboard Preview

@@ -164,7 +164,7 @@ if view_mode == "Single Model View":
                 x=1
             )
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     # 2. Average Sentiment by Source
     st.markdown("#### Average Sentiment by Source")
@@ -188,7 +188,7 @@ if view_mode == "Single Model View":
         hovermode='x unified'
     )
     fig.add_hline(y=0, line_dash="dash", line_color="gray", annotation_text="Neutral")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     # 3. Sentiment Distribution (Box Plot)
     st.markdown("#### Sentiment Distribution")
@@ -212,7 +212,7 @@ if view_mode == "Single Model View":
             showlegend=True
         )
         fig.add_hline(y=0, line_dash="dash", line_color="gray")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     # 4. Sentiment Timeline
     st.markdown("#### Sentiment Over Time")
@@ -231,7 +231,7 @@ if view_mode == "Single Model View":
         )
         fig.update_layout(height=400, yaxis_range=[-5, 5])
         fig.add_hline(y=0, line_dash="dash", line_color="gray")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     # 5. Topic-Sentiment Heatmap
     st.markdown("#### Topic Sentiment by Source")
@@ -268,7 +268,7 @@ if view_mode == "Single Model View":
             xaxis_title="News Source",
             yaxis_title="Topic"
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 else:
     # Model Comparison View

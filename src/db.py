@@ -73,7 +73,7 @@ class Database:
         query = f"""
             SELECT id, url, title, content, date_posted, source_id, lang
             FROM {schema}.news_articles
-            WHERE content IS NOT NULL AND content != ''
+            WHERE content IS NOT NULL AND content != '' AND is_ditwah_cyclone = 1
         """
         params = []
 
@@ -97,7 +97,7 @@ class Database:
             cur.execute(f"""
                 SELECT COUNT(*) as count
                 FROM {schema}.news_articles
-                WHERE content IS NOT NULL AND content != ''
+                WHERE content IS NOT NULL AND content != '' AND is_ditwah_cyclone = 1
             """)
             return cur.fetchone()["count"]
 
@@ -115,7 +115,7 @@ class Database:
             cur.execute(f"""
                 SELECT id, url, title, content, source_id, date_posted
                 FROM {schema}.news_articles
-                WHERE url = %s
+                WHERE url = %s AND is_ditwah_cyclone = 1
             """, (url,))
             return cur.fetchone()
 
@@ -131,6 +131,7 @@ class Database:
                 WHERE e.id IS NULL
                   AND a.content IS NOT NULL
                   AND a.content != ''
+                  AND a.is_ditwah_cyclone = 1
                 ORDER BY a.date_posted, a.id
             """
             params = [result_version_id]
@@ -142,6 +143,7 @@ class Database:
                 WHERE e.id IS NULL
                   AND a.content IS NOT NULL
                   AND a.content != ''
+                  AND is_ditwah_cyclone = 1
                 ORDER BY a.date_posted, a.id
             """
             params = []
@@ -191,6 +193,7 @@ class Database:
                 FROM {schema}.embeddings e
                 JOIN {schema}.news_articles a ON e.article_id = a.id
                 WHERE e.result_version_id = %s
+                  AND a.is_ditwah_cyclone = 1
                 ORDER BY a.date_posted, a.id
             """
             params = [result_version_id]
@@ -200,6 +203,7 @@ class Database:
                        a.date_posted, a.source_id
                 FROM {schema}.embeddings e
                 JOIN {schema}.news_articles a ON e.article_id = a.id
+                WHERE a.is_ditwah_cyclone = 1
                 ORDER BY a.date_posted, a.id
             """
             params = []
@@ -337,6 +341,7 @@ class Database:
             WHERE (aa.overall_tone IS NULL OR aa.article_type IS NULL)
               AND a.content IS NOT NULL
               AND a.content != ''
+              AND is_ditwah_cyclone = 1
             ORDER BY a.date_posted, a.id
         """
         if limit:
@@ -529,6 +534,7 @@ class Database:
                 FROM {schema}.named_entities ne
                 JOIN {schema}.news_articles na ON ne.article_id = na.id
                 WHERE ne.result_version_id = %s
+                  AND na.is_ditwah_cyclone = 1
                 GROUP BY ne.result_version_id, ne.entity_text, ne.entity_type, na.source_id
                 ON CONFLICT (result_version_id, entity_text, entity_type, source_id)
                 DO UPDATE SET
@@ -740,6 +746,7 @@ class Database:
             WHERE sa.id IS NULL
               AND a.content IS NOT NULL
               AND a.content != ''
+              AND a.is_ditwah_cyclone = 1
             ORDER BY a.date_posted
         """
         if limit:
@@ -767,7 +774,7 @@ class Database:
             SELECT sa.*, a.title, a.source_id, a.date_posted
             FROM {schema}.sentiment_analyses sa
             JOIN {schema}.news_articles a ON sa.article_id = a.id
-            WHERE 1=1
+            WHERE a.is_ditwah_cyclone = 1
         """
         params = []
 
@@ -807,6 +814,7 @@ class Database:
                 MAX(CASE WHEN sa.model_type = 'llm' THEN sa.sentiment_reasoning END) as llm_reasoning
             FROM {schema}.news_articles a
             JOIN {schema}.sentiment_analyses sa ON a.id = sa.article_id
+            WHERE a.is_ditwah_cyclone = 1
             GROUP BY a.id, a.title, a.source_id, a.date_posted
             HAVING COUNT(DISTINCT sa.model_type) >= 2
             ORDER BY a.date_posted DESC

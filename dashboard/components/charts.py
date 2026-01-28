@@ -80,7 +80,7 @@ def render_multi_model_stacked_bars(df, model_colors):
             showlegend=True
         )
 
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 
 def render_source_model_comparison(df, model_colors):
@@ -114,7 +114,7 @@ def render_source_model_comparison(df, model_colors):
     )
     fig.add_hline(y=0, line_dash="dash", line_color="gray", annotation_text="Neutral")
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 
 def render_model_agreement_heatmap(df):
@@ -153,4 +153,4 @@ def render_model_agreement_heatmap(df):
         yaxis_title="Model"
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')

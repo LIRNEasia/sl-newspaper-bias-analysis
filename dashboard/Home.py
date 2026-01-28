@@ -16,7 +16,8 @@ from components.styling import apply_page_style
 st.set_page_config(
     page_title="Sri Lanka Media Bias Detector",
     page_icon="",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 apply_page_style()
@@ -29,28 +30,17 @@ stats = load_overview_stats()
 
 # Overview metrics
 st.header("Overview")
-col1, col2 = st.columns(2)
+col1, col2, col3 = st.columns(3)
 
 with col1:
     st.metric("Total Articles", f"{stats['total_articles']:,}")
 with col2:
+    st.metric("Ditwah Cyclone Articles", f"{stats['ditwah_articles']:,}")
+with col3:
     if stats['date_range']['min_date']:
         st.caption(f"**Date range:** {stats['date_range']['min_date']} to {stats['date_range']['max_date']}")
 
 st.divider()
-
-# Quick navigation guide
-st.subheader("Analysis Pages")
-st.markdown("""
-Use the sidebar to navigate between analysis pages:
-
-- **Coverage** - Article volume and timeline by source
-- **Topics** - Topic modeling and source comparison
-- **Events** - Event clustering and multi-source coverage
-- **Word Frequency** - Most common words by source
-- **Named Entities** - People, organizations, and locations mentioned
-- **Sentiment** - Sentiment analysis with multi-model comparison
-""")
 
 # Show sources summary
 st.subheader("Sources Analyzed")
@@ -60,5 +50,10 @@ for idx, (source_id, source_name) in enumerate(SOURCE_NAMES.items()):
         (s['count'] for s in stats['by_source'] if s['source_id'] == source_id),
         0
     )
+    ditwah_count = next(
+        (s['count'] for s in stats['ditwah_by_source'] if s['source_id'] == source_id),
+        0
+    )
     with cols[idx % 4]:
         st.metric(source_name, f"{source_count:,} articles")
+        st.caption(f"Cyclone Ditwah: {ditwah_count:,} articles")

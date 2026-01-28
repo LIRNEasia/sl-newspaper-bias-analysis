@@ -43,14 +43,12 @@ def main():
 
     # Extract clustering configuration
     cluster_config = version_config.get("clustering", {})
-    random_seed = version_config.get("random_seed", 42)
 
     summary = cluster_articles(
         result_version_id=args.version_id,
         similarity_threshold=cluster_config.get("similarity_threshold", 0.8),
         time_window_days=cluster_config.get("time_window_days", 7),
-        min_cluster_size=cluster_config.get("min_cluster_size", 2),
-        random_seed=random_seed
+        min_cluster_size=cluster_config.get("min_cluster_size", 2)
     )
 
     print("\n" + "=" * 60)

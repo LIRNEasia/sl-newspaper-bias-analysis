@@ -19,25 +19,20 @@ def get_default_config() -> Dict[str, Any]:
     config = load_config()
 
     return {
-        "random_seed": 42,
         "embeddings": {
             "provider": config["embeddings"]["provider"],
-            "model": config["embeddings"]["model"],
-            "dimensions": config["embeddings"]["dimensions"]
+            "model": config["embeddings"]["model"]
         },
         "topics": {
             "min_topic_size": config["topics"]["min_topic_size"],
             "diversity": config["topics"].get("diversity", 0.5),
             "nr_topics": None,
             "stop_words": ["sri", "lanka", "lankan"],
-            "embedding_model": config["embeddings"]["model"],
-            "random_seed": 42,
             "umap": {
                 "n_neighbors": 15,
                 "n_components": 5,
                 "min_dist": 0.0,
-                "metric": "cosine",
-                "random_state": 42
+                "metric": "cosine"
             },
             "hdbscan": {
                 "min_cluster_size": config["topics"]["min_topic_size"],
@@ -68,19 +63,15 @@ def get_default_topic_config() -> Dict[str, Any]:
     config = load_config()
 
     return {
-        "random_seed": 42,
         "embeddings": {
             "provider": config["embeddings"]["provider"],
-            "model": config["embeddings"]["model"],
-            "dimensions": config["embeddings"]["dimensions"]
+            "model": config["embeddings"]["model"]
         },
         "topics": {
             "min_topic_size": config["topics"]["min_topic_size"],
             "diversity": config["topics"].get("diversity", 0.5),
             "nr_topics": None,
             "stop_words": ["sri", "lanka", "lankan"],
-            "embedding_model": config["embeddings"]["model"],
-            "random_seed": 42,
             "filter_ner_entities": config["topics"].get("filter_ner_entities", False),
             "ner_version_id": None,
             "ner_entity_types": config["topics"].get("ner_entity_types"),
@@ -88,8 +79,7 @@ def get_default_topic_config() -> Dict[str, Any]:
                 "n_neighbors": 15,
                 "n_components": 5,
                 "min_dist": 0.0,
-                "metric": "cosine",
-                "random_state": 42
+                "metric": "cosine"
             },
             "hdbscan": {
                 "min_cluster_size": config["topics"]["min_topic_size"],
@@ -115,11 +105,9 @@ def get_default_clustering_config() -> Dict[str, Any]:
     config = load_config()
 
     return {
-        "random_seed": 42,
         "embeddings": {
             "provider": config["embeddings"]["provider"],
-            "model": config["embeddings"]["model"],
-            "dimensions": config["embeddings"]["dimensions"]
+            "model": config["embeddings"]["model"]
         },
         "clustering": {
             "similarity_threshold": config["clustering"]["similarity_threshold"],
@@ -139,7 +127,6 @@ def get_default_word_frequency_config() -> Dict[str, Any]:
     config = load_config()
 
     return {
-        "random_seed": 42,
         "word_frequency": {
             "ranking_method": config["word_frequency"]["ranking_method"],
             "tfidf_scope": config["word_frequency"]["tfidf_scope"],
@@ -160,7 +147,6 @@ def get_default_ner_config() -> Dict[str, Any]:
     config = load_config()
 
     return {
-        "random_seed": 42,
         "ner": {
             "provider": config["ner"]["provider"],
             "model": config["ner"]["model"],
@@ -168,6 +154,33 @@ def get_default_ner_config() -> Dict[str, Any]:
             "confidence_threshold": config["ner"].get("confidence_threshold", 0.5),
             "entity_types": config["ner"].get("entity_types", []),
             "custom_entity_types": config["ner"].get("custom_entity_types", [])
+        }
+    }
+
+
+def get_default_summarization_config() -> Dict[str, Any]:
+    """
+    Get default configuration for summarization analysis.
+
+    Returns:
+        Dictionary with configuration for summarization only.
+    """
+    config = load_config()
+
+    return {
+        "summarization": {
+            "method": config["summarization"]["method"],
+            "summary_length": config["summarization"]["summary_length"],
+            "short_sentences": config["summarization"].get("short_sentences", 3),
+            "short_words": config["summarization"].get("short_words", 50),
+            "medium_sentences": config["summarization"].get("medium_sentences", 5),
+            "medium_words": config["summarization"].get("medium_words", 100),
+            "long_sentences": config["summarization"].get("long_sentences", 8),
+            "long_words": config["summarization"].get("long_words", 150),
+            "max_input_length": config["summarization"].get("max_input_length", 1024),
+            "chunk_long_articles": config["summarization"].get("chunk_long_articles", True),
+            "llm_model": config["summarization"].get("llm_model", "claude-sonnet-4-20250514"),
+            "llm_temperature": config["summarization"].get("llm_temperature", 0.0)
         }
     }
 
@@ -193,7 +206,7 @@ def create_version(
     Raises:
         ValueError: If version name already exists for the same analysis type
     """
-    valid_types = ['topics', 'clustering', 'word_frequency', 'ner', 'combined']
+    valid_types = ['topics', 'clustering', 'word_frequency', 'ner', 'summarization', 'combined']
     if analysis_type not in valid_types:
         raise ValueError(f"Invalid analysis_type: {analysis_type}. Must be one of {valid_types}")
 
@@ -425,10 +438,10 @@ def update_pipeline_status(
 
     Args:
         version_id: UUID of the version
-        step: Pipeline step name ('embeddings', 'topics', 'clustering', or 'word_frequency')
+        step: Pipeline step name ('embeddings', 'topics', 'clustering', 'word_frequency', 'ner', or 'summarization')
         complete: Whether the step is complete
     """
-    valid_steps = ['embeddings', 'topics', 'clustering', 'word_frequency', 'ner']
+    valid_steps = ['embeddings', 'topics', 'clustering', 'word_frequency', 'ner', 'summarization']
     if step not in valid_steps:
         raise ValueError(f"Invalid step: {step}. Must be one of {valid_steps}")
 
@@ -455,6 +468,7 @@ def update_pipeline_status(
             # For 'clustering': check embeddings + clustering
             # For 'word_frequency': check word_frequency only (no embeddings needed)
             # For 'ner': check ner only (no embeddings needed)
+            # For 'summarization': check summarization only (no embeddings needed)
             # For 'combined': check all three (backward compatibility)
             cur.execute(
                 f"""
@@ -471,6 +485,8 @@ def update_pipeline_status(
                             (pipeline_status->>'word_frequency')::boolean
                         WHEN 'ner' THEN
                             (pipeline_status->>'ner')::boolean
+                        WHEN 'summarization' THEN
+                            (pipeline_status->>'summarization')::boolean
                         WHEN 'combined' THEN
                             (pipeline_status->>'embeddings')::boolean AND
                             (pipeline_status->>'topics')::boolean AND

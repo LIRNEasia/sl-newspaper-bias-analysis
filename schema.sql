@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS media_bias.result_versions (
     configuration JSONB NOT NULL,
     analysis_type VARCHAR(50) NOT NULL DEFAULT 'combined',
     is_complete BOOLEAN DEFAULT false,
-    pipeline_status JSONB DEFAULT '{"embeddings": false, "topics": false, "clustering": false, "word_frequency": false, "ner": false}'::jsonb,
+    pipeline_status JSONB DEFAULT '{"embeddings": false, "topics": false, "clustering": false, "word_frequency": false, "ner": false, "summarization": false}'::jsonb,
     model_data BYTEA,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
@@ -236,3 +236,23 @@ BEGIN
     REFRESH MATERIALIZED VIEW media_bias.sentiment_by_topic_model;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Article Summaries
+CREATE TABLE IF NOT EXISTS media_bias.article_summaries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    article_id UUID NOT NULL REFERENCES media_bias.news_articles(id),
+    result_version_id UUID NOT NULL REFERENCES media_bias.result_versions(id) ON DELETE CASCADE,
+    summary_text TEXT NOT NULL,
+    method VARCHAR(50) NOT NULL,  -- textrank, lexrank, bart, t5, pegasus, claude, gpt
+    summary_length VARCHAR(20),  -- short, medium, long
+    sentence_count INTEGER,
+    word_count INTEGER,
+    compression_ratio FLOAT,  -- original_length / summary_length
+    processing_time_ms INTEGER,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(article_id, result_version_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_article_summaries_article ON media_bias.article_summaries(article_id);
+CREATE INDEX IF NOT EXISTS idx_article_summaries_version ON media_bias.article_summaries(result_version_id);
+CREATE INDEX IF NOT EXISTS idx_article_summaries_method ON media_bias.article_summaries(result_version_id, method);

@@ -73,7 +73,7 @@ fig = px.bar(
     color='entity_type'
 )
 fig.update_layout(showlegend=False, height=400)
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width='stretch')
 
 # Filter by entity type
 st.subheader("Top Entities by Source")
@@ -117,7 +117,7 @@ fig = px.imshow(
     color_continuous_scale="Blues"
 )
 fig.update_layout(height=600)
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width='stretch')
 
 # Show detailed table
 st.subheader("Detailed Entity Statistics")
@@ -129,7 +129,7 @@ display_df = display_df.sort_values('Mentions', ascending=False)
 
 st.dataframe(
     display_df.head(100),
-    use_container_width=True,
+    width='stretch',
     hide_index=True
 )
 

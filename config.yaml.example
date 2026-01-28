@@ -20,8 +20,7 @@ llm:
 # Embeddings (local = free, uses sentence-transformers)
 embeddings:
   provider: local  # local | openai
-  model: all-mpnet-base-v2  # good quality, 768 dimensions
-  dimensions: 768
+  model: all-mpnet-base-v2  # good quality, 768 dimensions (auto-detected)
   batch_size: 64
 
 # Topic Modeling
