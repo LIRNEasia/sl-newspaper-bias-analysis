@@ -161,7 +161,6 @@ def extract_entities_from_articles(
         model=ner_config.get("model", "en_core_web_trf"),
         entity_types=ner_config.get("entity_types"),
         confidence_threshold=ner_config.get("confidence_threshold", 0.5),
-        random_seed=ner_config.get("random_seed", 42)
     )
 
     # Load articles

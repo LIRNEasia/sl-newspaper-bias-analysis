@@ -127,7 +127,7 @@ database-analysis/
 │       ├── 01_generate_embeddings.py
 │       └── 02_cluster_events.py
 └── dashboard/
-    └── app.py             # Streamlit dashboard (separate version selectors per tab)
+    └── Home.py            # Streamlit dashboard (separate version selectors per tab)
 ```
 
 ## Database Schema
@@ -159,6 +159,7 @@ Note: All analysis tables are linked to `result_versions` for configuration trac
 | Topic Analysis | ✅ Complete | Independent pipeline with separate versions |
 | Event Clustering | ✅ Complete | Independent pipeline with separate versions |
 | Embeddings | ✅ Complete | Shared across both analyses (can use different models) |
+| Article Summaries | ✅ Complete | Extractive, abstractive, and LLM-based summarization |
 | Tone Analysis | ⏸️ Skipped | Requires LLM API (Claude/OpenAI) |
 | Article Type | ⏸️ Skipped | Requires LLM API |
 | Dashboard | ✅ Running | Streamlit app with per-tab version selectors |
@@ -290,7 +291,7 @@ python3 scripts/clustering/02_cluster_events.py --version-id <version-id>
 
 #### Run Dashboard
 ```bash
-streamlit run dashboard/app.py
+streamlit run dashboard/Home.py
 ```
 - Access at: http://localhost:8501
 - **Topics tab**: Select topic version independently
@@ -404,18 +405,18 @@ The dashboard automatically detects versions and shows pipeline completion statu
 ### Version Configuration
 
 **Topic Versions Track:**
-- `random_seed`: Ensures reproducible topic modeling
 - `embeddings.model`: Embedding model used
 - `topics.min_topic_size`: Minimum articles per topic
 - `topics.diversity`: Keyword diversity in topic labels
 - `topics.umap` & `topics.hdbscan`: UMAP/HDBSCAN parameters
 
 **Clustering Versions Track:**
-- `random_seed`: Ensures reproducible clustering
 - `embeddings.model`: Embedding model used
 - `clustering.similarity_threshold`: Cosine similarity threshold for event clustering
 - `clustering.time_window_days`: Time constraint for clustering
 - `clustering.min_cluster_size`: Minimum articles per cluster
+
+**Note:** The random seed is hardcoded to `42` in the code for reproducibility and is not configurable per version.
 
 ### Best Practices
 
@@ -478,6 +479,140 @@ delete_version_interactive(version_id)
 success = delete_version(version_id)
 ```
 
+## Article Summarization
+
+The project supports multiple summarization methods to generate concise summaries of news articles. Each method runs as an independent version, allowing experimentation with different approaches.
+
+### Supported Methods
+
+**Extractive Methods (Free, Fast):**
+- **TextRank**: Graph-based ranking algorithm that selects important sentences
+- **LexRank**: Similar to TextRank, using sentence similarity for ranking
+
+**Abstractive Methods (Local Models):**
+- **BART** (`facebook/bart-large-cnn`): 1.6GB, excellent quality, handles articles up to ~750 words
+- **T5** (`t5-base`): 890MB, good quality, handles articles up to ~380 words
+- **Pegasus** (`google/pegasus-xsum`): 2.2GB, best quality, handles articles up to ~750 words
+
+**LLM-Based Methods (API):**
+- **Claude Sonnet 4**: Highest quality, handles all article lengths, ~$5-10 for 8,478 articles
+- **GPT-4 Turbo**: Similar quality to Claude, comparable cost
+
+### Creating a Summarization Version
+
+**Via Dashboard:**
+1. Navigate to Summaries tab
+2. Click "➕ Create New Summarization Version"
+3. Enter name (e.g., "textrank-medium")
+4. Edit configuration JSON
+5. Click "Create Version"
+
+**Programmatically:**
+```python
+from src.versions import create_version, get_default_summarization_config
+
+# Create a TextRank version
+config = get_default_summarization_config()
+config['summarization']['method'] = 'textrank'
+config['summarization']['summary_length'] = 'medium'
+
+version_id = create_version(
+    name="textrank-medium",
+    description="Extractive summarization using TextRank",
+    configuration=config,
+    analysis_type='summarization'
+)
+print(f"Created version: {version_id}")
+
+# Create a BART version
+config = get_default_summarization_config()
+config['summarization']['method'] = 'bart'
+config['summarization']['summary_length'] = 'short'
+
+version_id = create_version(
+    name="bart-short",
+    description="Abstractive summarization with BART (short)",
+    configuration=config,
+    analysis_type='summarization'
+)
+
+# Create a Claude version
+config = get_default_summarization_config()
+config['summarization']['method'] = 'claude'
+config['summarization']['summary_length'] = 'medium'
+
+version_id = create_version(
+    name="claude-medium",
+    description="LLM-based summarization with Claude",
+    configuration=config,
+    analysis_type='summarization'
+)
+```
+
+### Running the Pipeline
+
+**Single-step pipeline:**
+```bash
+python3 scripts/summarization/01_generate_summaries.py --version-id <version-id>
+
+# Optional: adjust batch size
+python3 scripts/summarization/01_generate_summaries.py --version-id <version-id> --batch-size 100
+```
+
+**Example workflow:**
+```bash
+# 1. Create versions for comparison
+python3 -c "from src.versions import *; print(create_version('textrank-medium', 'TextRank medium', get_default_summarization_config(), 'summarization'))"
+
+# 2. Run pipeline
+python3 scripts/summarization/01_generate_summaries.py --version-id <version-id>
+
+# 3. View results in dashboard
+streamlit run dashboard/Home.py
+```
+
+### Configuration Options
+
+**Summary Length Targets:**
+- **short**: 3 sentences / 50 words
+- **medium**: 5 sentences / 100 words (default)
+- **long**: 8 sentences / 150 words
+
+**Method-Specific Settings:**
+```yaml
+summarization:
+  method: textrank  # textrank | lexrank | bart | t5 | pegasus | claude | gpt
+  summary_length: medium  # short | medium | long
+
+  # Transformer model settings
+  max_input_length: 1024  # Max tokens for BART/T5/Pegasus
+  chunk_long_articles: true  # Split articles longer than max_input_length
+
+  # LLM settings
+  llm_model: claude-sonnet-4-20250514
+  llm_temperature: 0.0
+```
+
+### Performance Comparison
+
+Based on ~500 word articles:
+
+| Method | Speed | Quality | Cost | Model Size |
+|--------|-------|---------|------|------------|
+| TextRank | 10-50ms | Good | Free | None |
+| LexRank | 10-50ms | Good | Free | None |
+| BART | 500ms-2s (GPU)<br>5-10s (CPU) | High | Free | 1.6GB |
+| T5 | 300ms-1s (GPU)<br>3-8s (CPU) | Good | Free | 890MB |
+| Pegasus | 600ms-2s (GPU)<br>5-12s (CPU) | Excellent | Free | 2.2GB |
+| Claude | 1-3s | Excellent | ~$0.001/article | API |
+| GPT-4 | 1-3s | Excellent | ~$0.001/article | API |
+
+**Recommendations:**
+- **Quick experimentation**: Start with TextRank (fastest, no setup)
+- **Best free quality**: Pegasus (requires GPU for reasonable speed)
+- **Production**: Claude Sonnet 4 (best quality/cost ratio, handles all lengths)
+- **Comparison**: Run all methods on a sample to evaluate for your use case
+
 ## Dashboard Features
 
 ### 📊 Coverage Tab
@@ -502,6 +637,15 @@ success = delete_version(version_id)
 - View all articles in an event cluster
 - Multi-source event analysis
 
+### 📝 Summaries Tab
+- **Independent version selector** - select from summarization versions only
+- Create new summarization versions directly in the tab
+- View article summaries with original text comparison
+- Statistics: compression ratio, word count, processing time
+- Filter by source and search by title
+- Compare summarization methods (TextRank, LexRank, BART, T5, Pegasus, Claude, GPT)
+- Source-level compression and performance metrics
+
 ## Configuration
 
 ### config.yaml
@@ -516,8 +660,7 @@ llm:
 # Embeddings
 embeddings:
   provider: local  # local (free) | openai
-  model: all-mpnet-base-v2
-  dimensions: 768
+  model: all-mpnet-base-v2  # dimensions auto-detected for local models
 
 # Topic Modeling
 topics:
@@ -529,6 +672,21 @@ clustering:
   similarity_threshold: 0.8   # Cosine similarity threshold
   time_window_days: 7         # Only cluster articles within 7 days
   min_cluster_size: 2         # Minimum articles per cluster
+
+# Summarization
+summarization:
+  method: textrank             # textrank | lexrank | bart | t5 | pegasus | claude | gpt
+  summary_length: medium       # short | medium | long
+  short_sentences: 3
+  short_words: 50
+  medium_sentences: 5
+  medium_words: 100
+  long_sentences: 8
+  long_words: 150
+  max_input_length: 1024       # Max tokens for transformer models
+  chunk_long_articles: true    # Split articles longer than max_input_length
+  llm_model: claude-sonnet-4-20250514
+  llm_temperature: 0.0
 ```
 
 ## Future Enhancements
@@ -556,7 +714,7 @@ pgrep -f streamlit
 
 # Restart dashboard
 pkill -f streamlit
-streamlit run dashboard/app.py
+streamlit run dashboard/Home.py
 ```
 
 ### Database connection issues

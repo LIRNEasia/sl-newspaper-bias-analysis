@@ -201,7 +201,7 @@ class EmbeddingClient:
         self,
         provider: str = "local",
         model: str = "all-mpnet-base-v2",
-        dimensions: int = 768
+        dimensions: Optional[int] = None
     ):
         self.provider = provider
         self.model = model
@@ -226,11 +226,14 @@ class EmbeddingClient:
             all_embeddings = []
             for i in range(0, len(texts), batch_size):
                 batch = texts[i:i + batch_size]
-                response = self.client.embeddings.create(
-                    model=self.model,
-                    input=batch,
-                    dimensions=self.dimensions
-                )
+                kwargs = {
+                    "model": self.model,
+                    "input": batch
+                }
+                # Only pass dimensions if explicitly specified
+                if self.dimensions is not None:
+                    kwargs["dimensions"] = self.dimensions
+                response = self.client.embeddings.create(**kwargs)
                 batch_embeddings = [item.embedding for item in response.data]
                 all_embeddings.extend(batch_embeddings)
             return all_embeddings
@@ -278,5 +281,5 @@ def get_embeddings_client(config: dict = None) -> EmbeddingClient:
     return EmbeddingClient(
         provider=config.get("provider", "local"),
         model=config.get("model", "all-mpnet-base-v2"),
-        dimensions=config.get("dimensions", 768)
+        dimensions=config.get("dimensions")  # None if not specified (auto-detect for local models)
     )

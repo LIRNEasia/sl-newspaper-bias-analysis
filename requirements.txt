@@ -23,6 +23,7 @@ torch>=2.1.0
 scipy>=1.11.0
 spacy>=3.7.0  # For Named Entity Recognition
 # Download spacy model with: python -m spacy download en_core_web_trf
+sumy>=0.11.0  # For extractive summarization (TextRank, LexRank)
 
 # Sentiment Analysis Models
 vaderSentiment>=3.3.2

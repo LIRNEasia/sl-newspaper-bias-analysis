@@ -40,19 +40,16 @@ def main():
     # Get version configuration
     version_config = get_version_config(args.version_id)
     embeddings_config = version_config.get("embeddings", {})
-    random_seed = version_config.get("random_seed", 42)
 
     print(f"\nGenerating embeddings for topic analysis version: {version['name']}")
     print(f"  Version ID: {args.version_id}")
     print(f"  Model: {embeddings_config.get('model', 'all-mpnet-base-v2')}")
-    print(f"  Random seed: {random_seed}")
     print(f"  Batch size: {args.batch_size}\n")
 
     # Generate embeddings
     generate_embeddings(
         result_version_id=args.version_id,
-        batch_size=args.batch_size,
-        random_seed=random_seed
+        batch_size=args.batch_size
     )
 
     # Update pipeline status
