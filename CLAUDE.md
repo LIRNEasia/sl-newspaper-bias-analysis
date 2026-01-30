@@ -505,6 +505,11 @@ The project supports multiple summarization methods to generate concise summarie
 - **Claude Sonnet 4**: Highest quality, handles all article lengths, ~$5-10 for 8,478 articles
 - **GPT-4 Turbo**: Similar quality to Claude, comparable cost
 
+**Note on Length Control:**
+- **Extractive methods** (TextRank, LexRank): Use `target_sentences` to select top N sentences
+- **Transformer models** (BART, T5, etc.): Generate naturally without hard limits; target lengths are informational
+- **LLM methods** (Claude, GPT): Use target lengths in prompt; have max_tokens limit for cost control
+
 ### Creating a Summarization Version
 
 **Via Dashboard:**
@@ -591,11 +596,22 @@ summarization:
   method: textrank  # textrank | lexrank | bart | t5 | pegasus | led | longt5 | bigbird-pegasus | claude | gpt
   summary_length: medium  # short | medium | long
 
-  # Transformer model settings
-  max_input_length: 1024  # Max tokens for standard models (BART/T5/Pegasus)
-  chunk_long_articles: true  # Split articles longer than max_input_length
+  # Length targets - how they're used:
+  # - Extractive methods: Controls number of sentences extracted
+  # - Transformers: Informational only (models use natural stopping)
+  # - LLMs: Used in prompt as guidance
+  short_sentences: 3
+  short_words: 50
+  medium_sentences: 5
+  medium_words: 100
+  long_sentences: 8
+  long_words: 150
 
-  # LLM settings
+  # Transformer model settings
+  max_input_length: 1024       # Max tokens for standard models (BART/T5/Pegasus)
+  chunk_long_articles: true    # Split articles longer than max_input_length
+
+  # LLM settings (has hard max_tokens limit for cost control)
   llm_model: claude-sonnet-4-20250514
   llm_temperature: 0.0
 ```
@@ -620,8 +636,9 @@ Based on ~500 word articles (CPU performance):
 **Notes:**
 - GPU speeds are typically 5-10x faster than CPU
 - Long-context models (LED, LongT5, BigBird-Pegasus) excel at articles >1000 words
-- BigBird-Pegasus is slower due to "large" model size (no base variant available)
 - All transformer models run on CPU by default to avoid CUDA tokenization issues
+- **Summary lengths are natural/variable** - transformers decide appropriate length per article
+- LLM methods have cost per article; local transformers are free
 
 **Recommendations:**
 - **Quick experimentation**: Start with TextRank (fastest, no setup)

@@ -67,7 +67,6 @@ class BaseSummarizer(ABC):
 
     def count_sentences(self, text: str) -> int:
         """Count sentences in text."""
-        # Simple sentence splitting
         sentences = re.split(r'[.!?]+', text)
         return len([s for s in sentences if s.strip()])
 
@@ -101,14 +100,11 @@ class TextRankSummarizer(BaseSummarizer):
         target_sentences, _ = self.get_target_length()
 
         try:
-            # Parse the text
             from io import StringIO
             parser = self.parser_class.from_string(text, self.tokenizer)
 
-            # Generate summary
             summary_sentences = self.summarizer(parser.document, target_sentences)
 
-            # Combine sentences
             summary = " ".join(str(sentence) for sentence in summary_sentences)
             return summary.strip()
 
@@ -165,9 +161,6 @@ class TransformerSummarizer(BaseSummarizer):
         super().__init__(config)
         from transformers import pipeline
 
-        # Model mapping
-        # Note: bigbird-pegasus uses "large" variant (2.8GB) as no base version exists
-        # This will be slow on CPU (~10-20s per article). Consider using GPU if available.
         model_map = {
             "bart": "facebook/bart-large-cnn",
             "t5": "t5-base",
@@ -177,7 +170,6 @@ class TransformerSummarizer(BaseSummarizer):
             "longt5": "google/long-t5-tglobal-base",
         }
 
-        # Safe per-model defaults when configs don't expose max_position_embeddings
         model_max_tokens_map = {
             "bart": 1024,
             "t5": 512,
@@ -188,9 +180,8 @@ class TransformerSummarizer(BaseSummarizer):
         }
 
         model_name = model_map.get(self.method, "facebook/bart-large-cnn")
-        model_key = self.method if self.method in model_max_tokens_map else "bart"
+        model_key = self.method if self.method in model_map else "bart"
         self.model_key = model_key
-        self.max_input_length = config.get("max_input_length", 1024)
         self.chunk_long_articles = config.get("chunk_long_articles", True)
 
         try:
@@ -267,23 +258,31 @@ class TransformerSummarizer(BaseSummarizer):
         """
         kwargs: Dict[str, Any] = {}
 
-        if self.model_key == "led":
+        if self.model_key == "bart":
+            # BART's default max_length (142) is too restrictive and causes
+            # mid-sentence truncation. Override it to allow complete sentences.
+            kwargs["max_length"] = 300
+
+        elif self.model_key == "led":
             # LED pipeline automatically handles global attention on the first token
             # Just pass text and let the pipeline handle tokenization
-            return text, kwargs
+            pass
 
         elif self.model_key == "bigbird-pegasus":
-            # BigBird uses block sparse attention by default
-            # Can optionally specify attention_type, but default works well
-            kwargs["attention_type"] = "block_sparse"
-            return text, kwargs
+            pass
 
-        else:
-            # Standard models (BART, T5, Pegasus, LongT5)
-            return text, kwargs
+        # Standard models (T5, Pegasus, LongT5) use their defaults
+
+        return text, kwargs
 
     def summarize(self, text: str) -> str:
-        """Generate transformer-based summary."""
+        """
+        Generate transformer-based summary.
+
+        Note: This method does not enforce hard token limits. The model
+        generates summaries using its natural stopping behavior (EOS token).
+        Target lengths in config are informational only for transformers.
+        """
         if not text or not text.strip():
             return ""
 
@@ -315,13 +314,10 @@ class TransformerSummarizer(BaseSummarizer):
                 inputs, gen_kwargs = self._prepare_inputs_with_kwargs(text)
 
                 # Generate summary using the pipeline
-                # Use both relative parameters (max_new_tokens + min_new_tokens) for consistency
                 summary = self.summarizer(
                     inputs,
-                    max_new_tokens=target_words + 20,
-                    min_new_tokens=max(10, target_words - 20),
                     do_sample=False,
-                    truncation=True,
+                    truncation=True,  # Only truncate INPUT if needed
                     **gen_kwargs,
                 )
                 return summary[0]["summary_text"].strip()
@@ -361,11 +357,8 @@ class TransformerSummarizer(BaseSummarizer):
                 inputs, gen_kwargs = self._prepare_inputs_with_kwargs(chunk)
 
                 # Generate summary using the pipeline
-                # Use both relative parameters (max_new_tokens + min_new_tokens) for consistency
                 summary = self.summarizer(
                     inputs,
-                    max_new_tokens=words_per_chunk + 10,
-                    min_new_tokens=max(10, words_per_chunk - 10),
                     do_sample=False,
                     truncation=True,
                     **gen_kwargs,
