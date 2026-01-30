@@ -196,3 +196,39 @@ if topic_model:
         st.error(f"Error generating visualization: {e}")
 else:
     st.info("BERTopic model not found. Save the model during topic discovery.")
+
+# Browse Articles by Topic
+st.divider()
+st.subheader("Browse Articles by Topic")
+
+# Create dropdown with all topics (including topic_id)
+topic_options = [f"[{t['topic_id']}] {t['name']}" for t in topics]
+topic_name_map = {f"[{t['topic_id']}] {t['name']}": t['name'] for t in topics}
+
+selected_topic_display = st.selectbox(
+    "Select a topic to view articles",
+    options=topic_options,
+    key="topic_selector"
+)
+
+if selected_topic_display:
+    from data.loaders import load_articles_by_topic
+
+    # Get the actual topic name from the display string
+    selected_topic = topic_name_map[selected_topic_display]
+    articles = load_articles_by_topic(version_id, selected_topic)
+
+    if articles:
+        st.markdown(f"**{len(articles)} articles in this topic:**")
+
+        # Display articles
+        for article in articles:
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                # Make title a clickable link
+                st.markdown(f"[{article['title']}]({article['url']})")
+            with col2:
+                # Show source and date
+                st.caption(f"{SOURCE_NAMES.get(article['source_id'], article['source_id'])} • {article['date_posted'].strftime('%Y-%m-%d')}")
+    else:
+        st.info("No articles found for this topic.")

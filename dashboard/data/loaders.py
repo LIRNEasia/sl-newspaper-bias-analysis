@@ -647,3 +647,30 @@ def load_summaries_by_source(version_id=None):
                 ORDER BY a.source_id
             """, (version_id,))
             return cur.fetchall()
+
+
+@st.cache_data(ttl=300)
+def load_articles_by_topic(version_id=None, topic_name=None):
+    """Load articles for a specific topic in a version."""
+    if not version_id or not topic_name:
+        return []
+
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT
+                    n.id,
+                    n.title,
+                    n.source_id,
+                    n.date_posted,
+                    n.url
+                FROM {schema}.article_analysis aa
+                JOIN {schema}.topics t ON aa.primary_topic_id = t.id
+                JOIN {schema}.news_articles n ON aa.article_id = n.id
+                WHERE t.name = %s
+                  AND aa.result_version_id = %s
+                  AND t.result_version_id = %s
+                ORDER BY n.date_posted DESC
+            """, (topic_name, version_id, version_id))
+            return cur.fetchall()
