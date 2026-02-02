@@ -194,6 +194,61 @@ class LocalLLM(BaseLLM):
         )
 
 
+class GeminiLLM(BaseLLM):
+    """Google Gemini client."""
+
+    def __init__(self, model: str = "gemini-2.0-flash", **kwargs):
+        super().__init__(model, **kwargs)
+        from google import genai
+        from google.genai import types
+
+        api_key = os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            raise ValueError("GOOGLE_API_KEY environment variable not set")
+
+        self.client = genai.Client(api_key=api_key)
+        self.types = types
+
+    def generate(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        json_mode: bool = False
+    ) -> LLMResponse:
+        # Combine system prompt and user prompt
+        full_prompt = prompt
+        if system_prompt:
+            full_prompt = f"{system_prompt}\n\n{prompt}"
+
+        if json_mode:
+            full_prompt += "\n\nRespond only with valid JSON, no other text."
+
+        # Configure generation parameters
+        generation_config = self.types.GenerateContentConfig(
+            temperature=self.temperature,
+            max_output_tokens=self.max_tokens,
+        )
+
+        response = self.client.models.generate_content(
+            model=self.model,
+            contents=full_prompt,
+            config=generation_config
+        )
+
+        # Extract usage information
+        usage = {
+            "input_tokens": response.usage_metadata.prompt_token_count if hasattr(response, 'usage_metadata') else 0,
+            "output_tokens": response.usage_metadata.candidates_token_count if hasattr(response, 'usage_metadata') else 0
+        }
+
+        return LLMResponse(
+            content=response.text,
+            usage=usage,
+            model=self.model,
+            provider="gemini"
+        )
+
+
 class EmbeddingClient:
     """Embedding client supporting OpenAI and local models."""
 
@@ -201,11 +256,16 @@ class EmbeddingClient:
         self,
         provider: str = "local",
         model: str = "all-mpnet-base-v2",
-        dimensions: Optional[int] = None
+        dimensions: Optional[int] = None,
+        task: Optional[str] = None,
+        matryoshka_dim: Optional[int] = None
     ):
         self.provider = provider
         self.model = model
         self.dimensions = dimensions
+        self.task = task  # For EmbeddingGemma: "clustering", "classification", "retrieval"
+        self.matryoshka_dim = matryoshka_dim  # 768, 512, 256, or 128
+        self.is_embeddinggemma = "embeddinggemma" in model.lower()
 
         if provider == "openai":
             from openai import OpenAI
@@ -219,6 +279,11 @@ class EmbeddingClient:
             self.client = SentenceTransformer(model)
             self.dimensions = self.client.get_sentence_embedding_dimension()
             print(f"Model loaded. Embedding dimensions: {self.dimensions}")
+
+            if self.is_embeddinggemma and self.task:
+                print(f"Using EmbeddingGemma with task: {self.task}")
+            if self.matryoshka_dim:
+                print(f"Matryoshka truncation enabled: {self.matryoshka_dim} dimensions")
 
     def embed(self, texts: List[str], batch_size: int = 64) -> List[List[float]]:
         """Generate embeddings for a list of texts."""
@@ -239,13 +304,49 @@ class EmbeddingClient:
             return all_embeddings
         else:
             # Local model
-            embeddings = self.client.encode(
-                texts,
-                batch_size=batch_size,
-                show_progress_bar=True,
-                convert_to_numpy=True
-            )
+            if self.is_embeddinggemma and self.task:
+                # Use task-specific prompting for EmbeddingGemma
+                task_prompt = self._get_task_prompt()
+                embeddings = self.client.encode(
+                    texts,
+                    batch_size=batch_size,
+                    show_progress_bar=True,
+                    convert_to_numpy=True,
+                    prompt=task_prompt
+                )
+            else:
+                # Standard encoding for other models
+                embeddings = self.client.encode(
+                    texts,
+                    batch_size=batch_size,
+                    show_progress_bar=True,
+                    convert_to_numpy=True
+                )
+
+            # Apply Matryoshka truncation if specified
+            if self.matryoshka_dim and self.matryoshka_dim < embeddings.shape[1]:
+                embeddings = self._truncate_and_normalize(embeddings, self.matryoshka_dim)
+
             return embeddings.tolist()
+
+    def _get_task_prompt(self) -> str:
+        """Get EmbeddingGemma task prompt based on analysis type."""
+        task_prompts = {
+            "clustering": "task: clustering | query: ",
+            "classification": "task: classification | query: ",
+            "retrieval": "task: search result | query: ",
+            "similarity": "task: sentence similarity | query: "
+        }
+        return task_prompts.get(self.task, "task: classification | query: ")
+
+    def _truncate_and_normalize(self, embeddings, target_dim):
+        """Truncate to target dimension and re-normalize (Matryoshka)."""
+        import numpy as np
+        truncated = embeddings[:, :target_dim]
+        # Re-normalize to unit length
+        norms = np.linalg.norm(truncated, axis=1, keepdims=True)
+        normalized = truncated / (norms + 1e-8)
+        return normalized
 
     def embed_single(self, text: str) -> List[float]:
         """Generate embedding for a single text."""
@@ -266,6 +367,8 @@ def get_llm(config: dict = None) -> BaseLLM:
         return ClaudeLLM(model=model, temperature=temperature, max_tokens=max_tokens)
     elif provider == "openai":
         return OpenAILLM(model=model, temperature=temperature, max_tokens=max_tokens)
+    elif provider == "gemini":
+        return GeminiLLM(model=model, temperature=temperature, max_tokens=max_tokens)
     elif provider == "local":
         base_url = config.get("base_url", "http://localhost:11434")
         return LocalLLM(model=model, base_url=base_url, temperature=temperature, max_tokens=max_tokens)
@@ -273,13 +376,26 @@ def get_llm(config: dict = None) -> BaseLLM:
         raise ValueError(f"Unknown LLM provider: {provider}")
 
 
-def get_embeddings_client(config: dict = None) -> EmbeddingClient:
+def get_embeddings_client(config: dict = None, analysis_type: str = None) -> EmbeddingClient:
     """Factory function to get embedding client."""
     if config is None:
         config = load_config()["embeddings"]
 
+    # Auto-detect task from analysis type if not specified
+    task = config.get("task")
+    if task is None and analysis_type:
+        task_mapping = {
+            "topics": "classification",
+            "clustering": "clustering",
+            "summarization": "retrieval"
+        }
+        task = task_mapping.get(analysis_type, "classification")
+
+    print(f"Creating EmbeddingClient with provider: {config.get('provider', 'local')}, model: {config.get('model', 'all-mpnet-base-v2')}, task: {task}")
     return EmbeddingClient(
         provider=config.get("provider", "local"),
         model=config.get("model", "all-mpnet-base-v2"),
-        dimensions=config.get("dimensions")  # None if not specified (auto-detect for local models)
+        dimensions=config.get("dimensions"),  # None if not specified (auto-detect for local models)
+        task=task,
+        matryoshka_dim=config.get("matryoshka_dim")
     )

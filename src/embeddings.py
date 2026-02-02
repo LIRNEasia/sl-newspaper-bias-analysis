@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 from .db import get_db
 from .llm import get_embeddings_client, load_config
+from .versions import get_version_config
 
 
 def generate_embeddings(
@@ -14,7 +15,8 @@ def generate_embeddings(
     batch_size: int = 50,
     limit: int = None,
     show_progress: bool = True,
-    random_seed: int = 42
+    random_seed: int = 42,
+    analysis_type: str = None
 ):
     """
     Generate embeddings for all articles that don't have them yet for a specific version.
@@ -25,13 +27,22 @@ def generate_embeddings(
         limit: Maximum articles to process (None = all)
         show_progress: Show progress bar
         random_seed: Random seed for reproducibility
+        analysis_type: Type of analysis (topics, clustering, summarization) for task auto-detection
     """
     # Set random seeds for reproducibility
     random.seed(random_seed)
     np.random.seed(random_seed)
 
-    config = load_config()
-    embed_client = get_embeddings_client(config.get("embeddings"))
+    # Get embeddings config from version (falls back to global config if version not found)
+    version_config = get_version_config(result_version_id)
+    if version_config and "embeddings" in version_config:
+        embeddings_config = version_config["embeddings"]
+    else:
+        # Fallback to global config if version config not found
+        config = load_config()
+        embeddings_config = config.get("embeddings", {})
+
+    embed_client = get_embeddings_client(embeddings_config, analysis_type=analysis_type)
 
     with get_db() as db:
         # Get articles without embeddings for this version
