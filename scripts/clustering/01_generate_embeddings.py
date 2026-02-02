@@ -49,7 +49,8 @@ def main():
     # Generate embeddings
     generate_embeddings(
         result_version_id=args.version_id,
-        batch_size=args.batch_size
+        batch_size=args.batch_size,
+        analysis_type='clustering'
     )
 
     # Update pipeline status

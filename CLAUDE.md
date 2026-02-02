@@ -240,9 +240,10 @@ Or create via the dashboard (Topics tab → "➕ Create New Topics Version").
 ```bash
 python3 scripts/topics/01_generate_embeddings.py --version-id <version-id>
 ```
-- Uses local `all-mpnet-base-v2` model (free, no API needed)
+- Uses configured embedding model (default: `all-mpnet-base-v2`)
+- Alternative: `google/embeddinggemma-300m` with task-specific prompts
 - Takes ~30 minutes for 8,365 articles on CPU
-- Stores 768-dimensional vectors in PostgreSQL
+- Stores 768-dimensional vectors in PostgreSQL (or 512/256/128 with Matryoshka)
 
 **3. Discover Topics**
 ```bash
@@ -278,8 +279,9 @@ Or create via the dashboard (Events tab → "➕ Create New Clustering Version")
 ```bash
 python3 scripts/clustering/01_generate_embeddings.py --version-id <version-id>
 ```
-- Same embedding process as topics
-- Can use different embedding models if needed
+- Uses configured embedding model (default: `all-mpnet-base-v2`)
+- Automatically uses "task: clustering" prompt if using EmbeddingGemma
+- Can use different embedding models per version for comparison
 
 **3. Cluster Events**
 ```bash
@@ -503,12 +505,13 @@ The project supports multiple summarization methods to generate concise summarie
 
 **LLM-Based Methods (API):**
 - **Claude Sonnet 4**: Highest quality, handles all article lengths, ~$5-10 for 8,478 articles
-- **GPT-4 Turbo**: Similar quality to Claude, comparable cost
+- **GPT-4o**: Similar quality to Claude, comparable cost
+- **Gemini 2.0 Flash**: Excellent quality, competitive pricing, handles all article lengths
 
 **Note on Length Control:**
 - **Extractive methods** (TextRank, LexRank): Use `target_sentences` to select top N sentences
 - **Transformer models** (BART, T5, etc.): Generate naturally without hard limits; target lengths are informational
-- **LLM methods** (Claude, GPT): Use target lengths in prompt; have max_tokens limit for cost control
+- **LLM methods** (Claude, GPT, Gemini): Use target lengths in prompt; have max_tokens limit for cost control
 
 ### Creating a Summarization Version
 
@@ -559,6 +562,19 @@ version_id = create_version(
     configuration=config,
     analysis_type='summarization'
 )
+
+# Create a Gemini version
+config = get_default_summarization_config()
+config['summarization']['method'] = 'gemini'
+config['summarization']['llm_model'] = 'gemini-2.0-flash'
+config['summarization']['summary_length'] = 'medium'
+
+version_id = create_version(
+    name="gemini-medium",
+    description="LLM-based summarization with Gemini",
+    configuration=config,
+    analysis_type='summarization'
+)
 ```
 
 ### Running the Pipeline
@@ -593,7 +609,7 @@ streamlit run dashboard/Home.py
 **Method-Specific Settings:**
 ```yaml
 summarization:
-  method: textrank  # textrank | lexrank | bart | t5 | pegasus | led | longt5 | bigbird-pegasus | claude | gpt
+  method: textrank  # textrank | lexrank | bart | t5 | pegasus | led | longt5 | bigbird-pegasus | claude | gpt | gemini
   summary_length: medium  # short | medium | long
 
   # Length targets - how they're used:
@@ -632,6 +648,7 @@ Based on ~500 word articles (CPU performance):
 | BigBird-Pegasus | 10-20s | High | Free | 2.8GB | ~3,000 words |
 | Claude | 1-3s | Excellent | ~$0.001/article | API | Unlimited |
 | GPT-4 | 1-3s | Excellent | ~$0.001/article | API | Unlimited |
+| Gemini | 1-3s | Excellent | ~$0.0005/article | API | Unlimited |
 
 **Notes:**
 - GPU speeds are typically 5-10x faster than CPU
@@ -644,7 +661,7 @@ Based on ~500 word articles (CPU performance):
 - **Quick experimentation**: Start with TextRank (fastest, no setup)
 - **Best free quality (short articles)**: Pegasus (up to ~750 words)
 - **Best free quality (long articles)**: LED or LongT5 (handles multi-page documents)
-- **Production**: Claude Sonnet 4 (best quality/cost ratio, handles all lengths)
+- **Production (best quality/cost)**: Gemini Flash (fastest, cheapest) or Claude Sonnet 4 (highest quality)
 - **Comparison**: Run all methods on a sample to evaluate for your use case
 
 ## Dashboard Features
@@ -680,6 +697,100 @@ Based on ~500 word articles (CPU performance):
 - Compare summarization methods (TextRank, LexRank, BART, T5, Pegasus, LED, LongT5, BigBird-Pegasus, Claude, GPT)
 - Source-level compression and performance metrics
 
+## Embedding Models
+
+The project supports multiple embedding models for generating article embeddings used in topic analysis and event clustering.
+
+### Current Default: all-mpnet-base-v2
+- **Dimensions**: 768
+- **Size**: ~420MB
+- **Languages**: English primarily
+- **Quality**: Excellent for English text
+- **Speed**: ~30 minutes for 8,365 articles on CPU
+
+### Alternative: EmbeddingGemma
+- **Model**: `google/embeddinggemma-300m`
+- **Dimensions**: 768 (default), or 512/256/128 with Matryoshka truncation
+- **Size**: ~308MB (can run on <200MB RAM with quantization)
+- **Languages**: 100+ multilingual support
+- **Task-optimized**: Uses task-specific prompts for better clustering/classification
+- **Speed**: Similar to all-mpnet-base-v2
+- **Access**: Gated model - requires HuggingFace authentication (see setup below)
+
+**Key Features of EmbeddingGemma:**
+- **Task Prompts**: Automatically uses task-specific prompts based on analysis type
+  - Topics analysis → "task: classification"
+  - Clustering analysis → "task: clustering"
+  - Summarization → "task: retrieval"
+- **Matryoshka Representation Learning**: Can truncate to 512, 256, or 128 dimensions while maintaining reasonable quality (trade quality for speed/storage)
+- **Multilingual**: Future-proof if analyzing Sinhala/Tamil news articles
+
+**To use EmbeddingGemma:**
+
+0. **Authenticate with HuggingFace** (required for gated model):
+   ```bash
+   # Install huggingface-cli if not already installed
+   pip install huggingface-hub
+
+   # Login to HuggingFace
+   huggingface-cli login
+
+   # Accept the model license at:
+   # https://huggingface.co/google/embeddinggemma-300m
+   ```
+
+1. Update `config.yaml`:
+   ```yaml
+   embeddings:
+     provider: local
+     model: google/embeddinggemma-300m
+     task: null  # auto-detect from analysis type (topics→classification, clustering→clustering)
+     matryoshka_dim: null  # or 512, 256, 128 for smaller dimensions
+   ```
+
+2. Create a new version to test it:
+   ```python
+   from src.versions import create_version, get_default_topic_config
+
+   config = get_default_topic_config()
+   config['embeddings']['model'] = 'google/embeddinggemma-300m'
+
+   version_id = create_version(
+       name="embeddinggemma-topics",
+       description="Testing EmbeddingGemma for topic analysis",
+       configuration=config,
+       analysis_type='topics'
+   )
+   ```
+
+3. Run the pipeline as usual:
+   ```bash
+   python3 scripts/topics/01_generate_embeddings.py --version-id <version-id>
+   PYTHONHASHSEED=42 python3 scripts/topics/02_discover_topics.py --version-id <version-id>
+   ```
+
+**Testing Matryoshka Truncation:**
+```python
+# Create version with 256-dimensional embeddings
+config = get_default_topic_config()
+config['embeddings']['model'] = 'google/embeddinggemma-300m'
+config['embeddings']['matryoshka_dim'] = 256  # Reduce from 768 to 256
+
+version_id = create_version(
+    name="embeddinggemma-256d",
+    description="EmbeddingGemma with 256 dimensions (Matryoshka truncation)",
+    configuration=config,
+    analysis_type='topics'
+)
+```
+
+**Comparison Strategy:**
+The version system makes it easy to A/B test different embedding models:
+1. Keep baseline version with `all-mpnet-base-v2`
+2. Create new version with `google/embeddinggemma-300m`
+3. Run both pipelines and compare results in the dashboard
+4. Evaluate topic quality, coverage, and clustering performance
+
 ## Configuration
 
 ### config.yaml
@@ -687,14 +798,19 @@ Based on ~500 word articles (CPU performance):
 ```yaml
 # LLM Configuration (for future tone/type analysis)
 llm:
-  provider: claude  # claude | openai | local
+  provider: claude  # claude | openai | gemini | local
   model: claude-sonnet-4-20250514
   temperature: 0.0
 
 # Embeddings
 embeddings:
   provider: local  # local (free) | openai
-  model: all-mpnet-base-v2  # dimensions auto-detected for local models
+  model: all-mpnet-base-v2  # all-mpnet-base-v2 | google/embeddinggemma-300m
+  batch_size: 64
+
+  # EmbeddingGemma-specific options (ignored for other models)
+  task: null                 # auto-detect from analysis type, or specify: clustering | classification | retrieval
+  matryoshka_dim: null       # null (use 768) or 512 | 256 | 128 for smaller dimensions
 
 # Topic Modeling
 topics:
@@ -709,7 +825,7 @@ clustering:
 
 # Summarization
 summarization:
-  method: textrank             # textrank | lexrank | bart | t5 | pegasus | led | longt5 | bigbird-pegasus | claude | gpt
+  method: textrank             # textrank | lexrank | bart | t5 | pegasus | led | longt5 | bigbird-pegasus | claude | gpt | gemini
   summary_length: medium       # short | medium | long
   short_sentences: 3
   short_words: 50

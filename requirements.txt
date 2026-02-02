@@ -9,6 +9,7 @@ pgvector>=0.2.4
 # LLM Clients
 anthropic>=0.18.0
 openai>=1.12.0
+google-genai>=0.3.0
 
 # Topic Modeling
 bertopic>=0.16.0

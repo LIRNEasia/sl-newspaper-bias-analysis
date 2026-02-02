@@ -378,7 +378,14 @@ class LLMSummarizer(BaseSummarizer):
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
 
-        llm_model = config.get("llm_model", "claude-sonnet-4-20250514")
+        # Infer model from method if not explicitly specified
+        method = config.get("method", "claude")
+        default_models = {
+            "claude": "claude-sonnet-4-20250514",
+            "gpt": "gpt-4o",
+            "gemini": "gemini-2.0-flash"
+        }
+        llm_model = config.get("llm_model", default_models.get(method, "claude-sonnet-4-20250514"))
         llm_temperature = config.get("llm_temperature", 0.0)
 
         # Determine provider from model name
@@ -386,6 +393,8 @@ class LLMSummarizer(BaseSummarizer):
             provider = "claude"
         elif "gpt" in llm_model.lower():
             provider = "openai"
+        elif "gemini" in llm_model.lower():
+            provider = "gemini"
         else:
             provider = "claude"  # Default
 
@@ -447,7 +456,7 @@ def get_summarizer(config: Dict[str, Any]) -> BaseSummarizer:
         return LexRankSummarizer(config)
     elif method in ["bart", "t5", "pegasus", "led", "bigbird-pegasus", "longt5"]:
         return TransformerSummarizer(config)
-    elif method in ["claude", "gpt"]:
+    elif method in ["claude", "gpt", "gemini"]:
         return LLMSummarizer(config)
     else:
         raise ValueError(f"Unsupported summarization method: {method}")
