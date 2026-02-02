@@ -50,3 +50,9 @@ Thumbs.db
 
 # Streamlit cache
 .streamlit/
+
+# Notebook cache and temporary files
+notebooks/cache/
+*_backup.ipynb
+notebooks/*.png
+notebooks/*_results.csv
