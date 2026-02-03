@@ -9,6 +9,30 @@ This project analyzes 8,365 articles from 4 Sri Lankan newspapers (Daily News, T
 - **Coverage patterns**: How different sources cover the same events
 - **Topic discovery**: Data-driven topic categorization using BERTopic
 
+## ⚠️ Security - READ THIS FIRST
+
+**CRITICAL: Never commit sensitive information to git**
+
+This includes:
+- ❌ API keys (OpenAI, Anthropic, Google, etc.)
+- ❌ Database passwords
+- ❌ Access tokens
+- ❌ Private keys
+- ❌ Any credentials or secrets
+
+**Always use environment variables or .env files (added to .gitignore) for sensitive data.**
+
+If you accidentally commit secrets:
+1. **Immediately rotate/revoke the exposed credentials**
+2. **Rewrite git history** to remove them (see the incident resolution in git history)
+3. **Never assume deletion is enough** - once pushed, consider credentials compromised
+
+**Proper practices:**
+- Use `config.yaml` for non-sensitive configuration (already in .gitignore)
+- Load API keys from environment variables: `os.environ.get("API_KEY")`
+- For notebooks: Check environment variables, never hardcode keys
+- Double-check before committing: `git diff --staged`
+
 ## First-Time Setup
 
 If you're setting up this project for the first time:
