@@ -1,13 +1,15 @@
 # Sri Lanka Media Bias Detector
 
-A dashboard for analyzing media bias in Sri Lankan English newspapers by examining coverage patterns, topic distribution, and event clustering.
+A framework for analyzing media bias in Sri Lankan English newspapers by examining coverage patterns, topic distribution, and event clustering.
 
 ## Overview
 
-This project analyzes 8,365 articles from 4 Sri Lankan newspapers (Daily News, The Morning, Daily FT, The Island) covering November-December 2025 to identify:
+This project provides tools to analyze news articles from Sri Lankan newspapers to identify:
 - **Selection bias**: Which topics each source covers (or ignores)
 - **Coverage patterns**: How different sources cover the same events
 - **Topic discovery**: Data-driven topic categorization using BERTopic
+- **Sentiment analysis**: Emotional tone across sources and topics
+- **Event clustering**: Grouping similar articles across time and sources
 
 ## ⚠️ Security - READ THIS FIRST
 
@@ -163,101 +165,55 @@ database-analysis/
     └── Home.py            # Streamlit dashboard (separate version selectors per tab)
 ```
 
-## Database Schema
+## Architecture
 
-### Original Data
-- `news_articles` - Scraped newspaper articles (8,365 articles)
+### Decoupled Analysis System
 
-### Result Versioning
+The framework uses **independent analysis pipelines** with separate version management:
+
+```
+Topics Analysis              Event Clustering            Sentiment Analysis           Summarization
+└── Topic Versions          └── Clustering Versions     └── Model-based             └── Summarization Versions
+    ├── Embeddings              ├── Embeddings             └── No versioning            ├── Method selection
+    └── Topic Discovery         └── Event Clustering                                     └── Length control
+```
+
+**Key Design Principles:**
+- **Independence**: Change topic parameters without re-running clustering (and vice versa)
+- **Efficiency**: Only re-run what actually changed
+- **Reproducibility**: Each version tracks exact configuration used
+- **Flexibility**: Compare different approaches side-by-side
+
+### Database Schema
+
+**Original Data:**
+- `news_articles` - Scraped newspaper articles with title, content, source, date, URL
+
+**Result Versioning:**
 - `result_versions` - Configuration-based version tracking for reproducible analysis
-  - **NEW:** `analysis_type` column distinguishes between 'topics', 'clustering', and 'combined' versions
-  - Topics and clustering are now **independent analyses** with separate versions
-  - Same version name can exist for both topics and clustering (e.g., "baseline-topics" and "baseline-clustering")
+  - `analysis_type` column: 'topics', 'clustering', 'summarization', or 'combined' (legacy)
+  - Independent versions per analysis type (same name can exist for different types)
 
-### Analysis Tables
-- `embeddings` - Article embeddings (768-dim vectors from all-mpnet-base-v2)
+**Analysis Tables:**
+- `embeddings` - Article embeddings (configurable dimensions, typically 768-dim)
 - `topics` - Discovered topics (linked to topic versions)
 - `article_analysis` - Article-topic assignments
 - `event_clusters` - Event clusters (linked to clustering versions)
 - `article_clusters` - Article-to-cluster mappings
+- `article_summaries` - Generated summaries (linked to summarization versions)
+- `sentiment_scores` - Sentiment analysis results per model
 
-Note: All analysis tables are linked to `result_versions` for configuration tracking and reproducibility. Topics and clustering can now be run independently without interfering with each other.
+All analysis tables link to `result_versions` for configuration tracking and reproducibility.
 
-## Current Status
+## Analysis Pipelines
 
-| Component | Status | Details |
-|-----------|--------|---------|
-| Architecture | ✅ Decoupled | Topics and clustering are independent analyses |
-| Result Versioning | ✅ Complete | Decoupled version management with analysis_type |
-| Topic Analysis | ✅ Complete | Independent pipeline with separate versions |
-| Event Clustering | ✅ Complete | Independent pipeline with separate versions |
-| Embeddings | ✅ Complete | Shared across both analyses (can use different models) |
-| Article Summaries | ✅ Complete | Extractive, abstractive, and LLM-based summarization |
-| Tone Analysis | ⏸️ Skipped | Requires LLM API (Claude/OpenAI) |
-| Article Type | ⏸️ Skipped | Requires LLM API |
-| Dashboard | ✅ Running | Streamlit app with per-tab version selectors |
+All pipelines use **independent version management** - you can experiment with different configurations without affecting other analyses.
 
-## Key Findings
+### 1. Topic Analysis
 
-### Topics Discovered
-- **Top topics**: Sri Lanka politics, flooding/disasters, sports (netball, cricket), education, economy
-- **Coverage**: 77% of articles successfully categorized into topics
-- **Outliers**: 1,910 articles (23%) don't fit into specific topics
+Discover data-driven topics using BERTopic clustering.
 
-### Event Clusters
-- **Total clusters**: 1,717 events
-- **Multi-source coverage**: 87% of clusters covered by 2+ sources
-- **Average cluster size**: 4.4 articles
-- **Top event**: UN allocates $4.5M for Sri Lanka disaster relief (72 articles, 4 sources)
-
-### Major Events (Nov-Dec 2025)
-1. Cyclone Ditwah aftermath - 56 articles across all sources
-2. Economic crisis response - 56 articles
-3. Disaster relief fundraising - 47 articles
-4. Weather warnings and flooding - multiple clusters
-
-## Running the Project
-
-### Prerequisites
-```bash
-# Database
-PostgreSQL 16 with pgvector extension
-
-# Python environment
-Python 3.11+
-pip install -r requirements.txt
-```
-
-### Database Connection
-Update `config.yaml` with your database credentials:
-```yaml
-database:
-  host: localhost
-  port: 5432
-  name: your_database
-  schema: your_schema
-  user: your_db_user
-  password: "YOUR_PASSWORD"
-```
-
-### Running the Pipeline
-
-**Important**: Topics and clustering are now **independent analyses** with separate pipelines. Each has its own version management.
-
-#### Architecture: Two Independent Pipelines
-
-```
-Topics Analysis              Clustering Analysis
-└── Topic Versions           └── Clustering Versions
-    ├── Embeddings               ├── Embeddings
-    └── Topic Discovery          └── Event Clustering
-```
-
-Both analyses depend on embeddings, but not on each other.
-
-#### Topic Analysis Pipeline
-
-**1. Create a Topic Version**
+**Create a topic version:**
 ```bash
 # Via Python
 python3 -c "
@@ -265,38 +221,31 @@ from src.versions import create_version, get_default_topic_config
 version_id = create_version('baseline-topics', 'Initial topic analysis', get_default_topic_config(), analysis_type='topics')
 print(f'Version ID: {version_id}')
 "
+
+# Or via dashboard: Topics tab → "➕ Create New Topics Version"
 ```
 
-Or create via the dashboard (Topics tab → "➕ Create New Topics Version").
-
-**2. Generate Embeddings**
+**Run the pipeline:**
 ```bash
+# Step 1: Generate embeddings
 python3 scripts/topics/01_generate_embeddings.py --version-id <version-id>
-```
-- Uses configured embedding model (default: `all-mpnet-base-v2`)
-- Alternative: `google/embeddinggemma-300m` with task-specific prompts
-- Takes ~30 minutes for 8,365 articles on CPU
-- Stores 768-dimensional vectors in PostgreSQL (or 512/256/128 with Matryoshka)
 
-**3. Discover Topics**
-```bash
-# For reproducible results, set PYTHONHASHSEED
+# Step 2: Discover topics (set PYTHONHASHSEED for reproducibility)
 PYTHONHASHSEED=42 python3 scripts/topics/02_discover_topics.py --version-id <version-id>
 ```
+
+**How it works:**
+- Generates embeddings using configured model (default: `all-mpnet-base-v2`)
 - Uses BERTopic with UMAP + HDBSCAN clustering
-- Discovers topics automatically from data
+- Automatically discovers topics from article content
 - Generates keyword-based topic labels
-- Takes ~2-3 minutes
-- **Reproducible**: Set `PYTHONHASHSEED=42` to ensure identical results across runs with the same configuration
-- **Model Storage**: Automatically saves model to database for team collaboration
-  - Models stored as compressed archives (~6-8 MB each) in PostgreSQL
-  - No local filesystem storage - keeps your workspace clean
-  - Enables visualizations to work on any machine with database access
-  - See `migrations/README.md` for migration instructions
+- Stores BERTopic model in database for visualizations and team sharing
 
-#### Event Clustering Pipeline
+### 2. Event Clustering
 
-**1. Create a Clustering Version**
+Group similar articles across sources to identify shared news events.
+
+**Create a clustering version:**
 ```bash
 # Via Python
 python3 -c "
@@ -304,34 +253,30 @@ from src.versions import create_version, get_default_clustering_config
 version_id = create_version('baseline-clustering', 'Initial clustering analysis', get_default_clustering_config(), analysis_type='clustering')
 print(f'Version ID: {version_id}')
 "
+
+# Or via dashboard: Events tab → "➕ Create New Clustering Version"
 ```
 
-Or create via the dashboard (Events tab → "➕ Create New Clustering Version").
-
-**2. Generate Embeddings**
+**Run the pipeline:**
 ```bash
+# Step 1: Generate embeddings
 python3 scripts/clustering/01_generate_embeddings.py --version-id <version-id>
-```
-- Uses configured embedding model (default: `all-mpnet-base-v2`)
-- Automatically uses "task: clustering" prompt if using EmbeddingGemma
-- Can use different embedding models per version for comparison
 
-**3. Cluster Events**
-```bash
+# Step 2: Cluster events
 python3 scripts/clustering/02_cluster_events.py --version-id <version-id>
 ```
-- Groups similar articles using cosine similarity (threshold: 0.8)
-- Applies 7-day time window constraint
-- Takes ~10 minutes
 
-#### Sentiment Analysis Pipeline
+**How it works:**
+- Generates embeddings with task-specific prompts (if using EmbeddingGemma)
+- Groups similar articles using cosine similarity
+- Applies time window constraint (default: 7 days)
+- Identifies multi-source coverage of same events
 
-**Important**: Sentiment analysis is independent of topics and clustering. It analyzes the emotional tone of articles using multiple models.
+### 3. Sentiment Analysis
 
-**1. Run Sentiment Analysis**
+Analyze emotional tone using multiple sentiment models (no version management needed).
 
-The sentiment analysis pipeline doesn't require version management - it runs on all articles and stores results per model.
-
+**Run sentiment analysis:**
 ```bash
 # Run all enabled models (configured in config.yaml)
 python3 scripts/sentiment/01_analyze_sentiment.py
@@ -339,221 +284,189 @@ python3 scripts/sentiment/01_analyze_sentiment.py
 # Run specific models only
 python3 scripts/sentiment/01_analyze_sentiment.py --models roberta vader
 
-# Limit number of articles (for testing)
+# Test on limited articles
 python3 scripts/sentiment/01_analyze_sentiment.py --limit 100
 ```
 
-**Supported Models:**
-- **RoBERTa** (`roberta`) - Twitter-trained, fast, accurate
-- **DistilBERT** (`distilbert`) - Lightweight, good for general sentiment
-- **FinBERT** (`finbert`) - Optimized for financial/economic news
-- **VADER** (`vader`) - Lexicon-based, very fast, good for social media
-- **TextBlob** (`textblob`) - Pattern-based, simple, fast
+**Available models:**
+- **RoBERTa** - Twitter-trained, accurate
+- **DistilBERT** - Lightweight, general sentiment
+- **FinBERT** - Optimized for financial/economic news
+- **VADER** - Lexicon-based, very fast
+- **TextBlob** - Pattern-based, simple
 
-**Configuration** (in `config.yaml`):
+**Configuration** (`config.yaml`):
 ```yaml
 sentiment:
   enabled_models:
     - roberta
-    - distilbert
-    - finbert
     - vader
-    - textblob
 ```
 
-**Performance**: Processes ~8,000 articles in 30-60 minutes on CPU (varies by model).
+**Output:** Sentiment scores from -5 (very negative) to +5 (very positive) for headlines and full articles.
 
-**Output**: Sentiment scores from -5 (very negative) to +5 (very positive) for both headline and overall article.
+### 4. Article Summarization
 
-#### Run Dashboard
+Generate summaries using extractive, abstractive (transformer), or LLM-based methods.
+
+**Create a summarization version:**
+```bash
+python3 -c "
+from src.versions import create_version, get_default_summarization_config
+config = get_default_summarization_config()
+config['summarization']['method'] = 'textrank'  # or bart, pegasus, claude, gemini, etc.
+version_id = create_version('textrank-medium', 'TextRank summarization', config, 'summarization')
+print(f'Version ID: {version_id}')
+"
+
+# Or via dashboard: Summaries tab → "➕ Create New Summarization Version"
+```
+
+**Run the pipeline:**
+```bash
+python3 scripts/summarization/01_generate_summaries.py --version-id <version-id>
+```
+
+**Available methods:**
+
+**Extractive (Fast, Free):**
+- **TextRank** / **LexRank** - Graph-based sentence selection
+
+**Abstractive - Standard Length (Free, Local):**
+- **BART**, **T5**, **Pegasus** - Transformer models (~500-1000 word articles)
+
+**Abstractive - Long Context (Free, Local):**
+- **LED**, **LongT5**, **BigBird-Pegasus** - Handle multi-page documents
+
+**LLM-Based (API, High Quality):**
+- **Claude Sonnet 4**, **GPT-4o**, **Gemini 2.0 Flash** - Unlimited length, best quality
+
+See "Article Summarization" section below for detailed comparison and configuration options.
+
+## Dashboard
+
+**Launch the dashboard:**
 ```bash
 streamlit run dashboard/Home.py
-```
-- Access at: http://localhost:8501
-- **Topics tab**: Select topic version independently
-- **Events tab**: Select clustering version independently
-- Each tab manages its own versions
-- Auto-refreshes when code changes
-
-### Sharing the Dashboard
-
-**Local access via SSH tunnel:**
-```bash
-# On your local machine
-ssh -L 8501:localhost:8501 amanda@server-ip
-# Then open http://localhost:8501
+# Access at http://localhost:8501
 ```
 
-**Public access via Cloudflare Tunnel:**
+**Features:**
+- **📊 Coverage Tab** - Article volume and timeline (version-independent)
+- **🏷️ Topics Tab** - Topic distribution, source heatmaps, BERTopic visualizations
+- **📰 Events Tab** - Event clusters, multi-source coverage analysis
+- **📝 Summaries Tab** - Article summaries with compression statistics
+- **😊 Sentiment Tab** - Sentiment distribution across sources and models
+
+Each analysis tab has its own **independent version selector** - experiment with different configurations without affecting other analyses.
+
+**Sharing the dashboard:**
+
+*Local access (SSH tunnel):*
 ```bash
-./cloudflared-linux-amd64 tunnel --url http://localhost:8501
+ssh -L 8501:localhost:8501 user@server-ip
+# Then open http://localhost:8501 on your local machine
+```
+
+*Public access (Cloudflare Tunnel):*
+```bash
+cloudflared tunnel --url http://localhost:8501
 # Provides a public https:// URL
 ```
 
-## Result Versioning System
+## Version Management
 
-The project supports **decoupled result versioning** for reproducible analysis. Topics and clustering are now independent analyses with separate version management.
+The framework uses **independent versioning** for each analysis type, enabling reproducible experiments without interference.
 
 ### Key Concepts
 
-- **Analysis Types**: Each version has an `analysis_type` - either 'topics', 'clustering', or 'combined' (legacy)
-- **Independence**: Topic and clustering versions don't interfere with each other
-- **Same Names OK**: You can have "baseline" for topics AND "baseline" for clustering
-- **Separate Configurations**: Topic versions only track topic/embedding config, clustering versions only track clustering/embedding config
+**Analysis Types:**
+- `topics` - Topic discovery versions
+- `clustering` - Event clustering versions
+- `summarization` - Summarization method versions
+- `combined` - Legacy (not recommended)
 
-### Why Decoupled Versions?
-
-- **Independence**: Change topic parameters without re-running clustering (and vice versa)
-- **Efficiency**: No wasted computation - only re-run what actually changed
-- **Clarity**: Each analysis has its own versions, making experiments easier to track
-- **Reproducibility**: Still tracks exactly which configuration produced which results
+**Benefits:**
+- **Independence** - Change topic parameters without re-running clustering
+- **Efficiency** - Only re-run what changed
+- **Clarity** - Each analysis has its own version history
+- **Reproducibility** - Exact configuration tracking per result
+- **Flexibility** - Same version name can exist across different analysis types
 
 ### Creating Versions
 
-**Option 1: Via Dashboard**
-
-**Topics Tab:**
-1. Click "➕ Create New Topics Version"
-2. Enter a name (e.g., "baseline", "small-topics")
-3. Optionally add a description
-4. Edit the JSON configuration (only embeddings + topics)
+**Via Dashboard (Recommended):**
+1. Navigate to the relevant tab (Topics, Events, or Summaries)
+2. Click "➕ Create New Version"
+3. Enter name and description
+4. Edit configuration JSON
 5. Click "Create Version"
 
-**Events Tab:**
-1. Click "➕ Create New Clustering Version"
-2. Enter a name (e.g., "baseline", "high-similarity")
-3. Optionally add a description
-4. Edit the JSON configuration (only embeddings + clustering)
-5. Click "Create Version"
-
-**Option 2: Programmatically**
-
-**For Topics:**
+**Programmatically (Python):**
 ```python
 from src.versions import create_version, get_default_topic_config
 
 config = get_default_topic_config()
-config['topics']['min_topic_size'] = 15  # Modify as needed
+config['topics']['min_topic_size'] = 15  # Customize as needed
 
 version_id = create_version(
     name="small-topics",
-    description="Smaller topic size for more granular categorization",
+    description="Testing smaller minimum topic size",
     configuration=config,
-    analysis_type='topics'
+    analysis_type='topics'  # or 'clustering', 'summarization'
 )
-print(f"Created version: {version_id}")
 ```
 
-**For Clustering:**
-```python
-from src.versions import create_version, get_default_clustering_config
+After creating a version, run the appropriate pipeline scripts (see Analysis Pipelines section above).
 
-config = get_default_clustering_config()
-config['clustering']['similarity_threshold'] = 0.85  # Modify as needed
+### Key Configuration Parameters
 
-version_id = create_version(
-    name="high-similarity",
-    description="Testing stricter clustering with 0.85 threshold",
-    configuration=config,
-    analysis_type='clustering'
-)
-print(f"Created version: {version_id}")
-```
+**Topics:**
+- `embeddings.model` - Embedding model (all-mpnet-base-v2, embeddinggemma-300m)
+- `topics.min_topic_size` - Minimum articles per topic
+- `topics.diversity` - Keyword diversity in labels
+- `topics.umap` / `topics.hdbscan` - Clustering algorithm parameters
 
-### Running Pipeline for a Version
+**Clustering:**
+- `embeddings.model` - Embedding model
+- `clustering.similarity_threshold` - Cosine similarity threshold (0-1)
+- `clustering.time_window_days` - Time constraint for grouping
+- `clustering.min_cluster_size` - Minimum articles per cluster
 
-After creating a version, run the appropriate pipeline:
+**Summarization:**
+- `summarization.method` - Method (textrank, bart, pegasus, claude, gemini, etc.)
+- `summarization.summary_length` - short/medium/long
+- `summarization.llm_model` - LLM model if using API method
 
-**For Topic Versions:**
+*Note: Random seed is fixed at `42` for reproducibility.*
+
+### Managing Versions (CLI)
+
+**List versions:**
 ```bash
-python3 scripts/topics/01_generate_embeddings.py --version-id <version-id>
-python3 scripts/topics/02_discover_topics.py --version-id <version-id>
+python3 scripts/manage_versions.py list                  # All versions
+python3 scripts/manage_versions.py list --type topics    # Filter by type
 ```
 
-**For Clustering Versions:**
-```bash
-python3 scripts/clustering/01_generate_embeddings.py --version-id <version-id>
-python3 scripts/clustering/02_cluster_events.py --version-id <version-id>
-```
-
-The dashboard automatically detects versions and shows pipeline completion status in each tab.
-
-### Version Configuration
-
-**Topic Versions Track:**
-- `embeddings.model`: Embedding model used
-- `topics.min_topic_size`: Minimum articles per topic
-- `topics.diversity`: Keyword diversity in topic labels
-- `topics.umap` & `topics.hdbscan`: UMAP/HDBSCAN parameters
-
-**Clustering Versions Track:**
-- `embeddings.model`: Embedding model used
-- `clustering.similarity_threshold`: Cosine similarity threshold for event clustering
-- `clustering.time_window_days`: Time constraint for clustering
-- `clustering.min_cluster_size`: Minimum articles per cluster
-
-**Note:** The random seed is hardcoded to `42` in the code for reproducibility and is not configurable per version.
-
-### Best Practices
-
-1. **Baseline versions first**: Create a "baseline" version for both topics and clustering with default settings
-2. **Descriptive names**: Use names that explain what changed (e.g., "small-topics", "high-similarity-clustering")
-3. **One parameter at a time**: When experimenting, change one parameter per version for clear comparisons
-4. **Document reasoning**: Use the description field to explain why you're testing these parameters
-5. **Independent experimentation**: Feel free to create multiple topic versions without worrying about clustering (and vice versa)
-
-### Managing Versions
-
-The project includes a CLI tool for managing versions:
-
-**List all versions:**
-```bash
-python3 scripts/manage_versions.py list
-
-# Filter by analysis type
-python3 scripts/manage_versions.py list --type topics
-python3 scripts/manage_versions.py list --type clustering
-```
-
-**View version statistics:**
+**View statistics:**
 ```bash
 python3 scripts/manage_versions.py stats <version-id>
 ```
 
-**Delete a version (interactive with confirmation):**
+**Delete version (interactive):**
 ```bash
 python3 scripts/manage_versions.py delete <version-id>
 ```
 
-The delete command will:
-1. Show version details and analysis type
-2. Display statistics of what will be deleted (embeddings, topics, clusters, etc.)
-3. Ask you to type the version name to confirm
-4. Ask for final confirmation by typing 'DELETE'
-5. Cascade delete all associated results
+⚠️ **Deletion is permanent** - removes all associated results (embeddings, topics, clusters) but **never deletes original articles**.
 
-**Important Notes:**
-- Deletion is **permanent and cannot be undone**
-- Original articles in `news_articles` table are **never deleted**
-- Only analysis results (embeddings, topics, clusters) are removed
-- Cascade deletion automatically removes all related records from:
-  - `embeddings` table
-  - `topics` table
-  - `article_analysis` table
-  - `event_clusters` table
-  - `article_clusters` table
-  - `word_frequencies` table (if applicable)
+### Best Practices
 
-**Programmatic deletion (Python):**
-```python
-from src.versions import delete_version_interactive, delete_version
-
-# Interactive deletion with confirmation prompts
-delete_version_interactive(version_id)
-
-# Direct deletion (use with caution - no confirmation)
-success = delete_version(version_id)
-```
+1. **Start with baselines** - Create default configuration versions first
+2. **Descriptive names** - Use names that explain what changed (e.g., "small-topics", "high-similarity")
+3. **One change at a time** - Modify single parameters for clear A/B comparisons
+4. **Document reasoning** - Explain why you're testing specific parameters
+5. **Independent experiments** - Topic and clustering versions don't affect each other
 
 ## Article Summarization
 
@@ -578,7 +491,7 @@ The project supports multiple summarization methods to generate concise summarie
   - Trained on academic papers, may need fine-tuning for news articles
 
 **LLM-Based Methods (API):**
-- **Claude Sonnet 4**: Highest quality, handles all article lengths, ~$5-10 for 8,478 articles
+- **Claude Sonnet 4**: Highest quality, handles all article lengths
 - **GPT-4o**: Similar quality to Claude, comparable cost
 - **Gemini 2.0 Flash**: Excellent quality, competitive pricing, handles all article lengths
 
@@ -787,15 +700,13 @@ The project supports multiple embedding models for generating article embeddings
 - **Size**: ~420MB
 - **Languages**: English primarily
 - **Quality**: Excellent for English text
-- **Speed**: ~30 minutes for 8,365 articles on CPU
 
 ### Alternative: EmbeddingGemma
 - **Model**: `google/embeddinggemma-300m`
 - **Dimensions**: 768 (default), or 512/256/128 with Matryoshka truncation
-- **Size**: ~308MB (can run on <200MB RAM with quantization)
+- **Size**: ~308MB
 - **Languages**: 100+ multilingual support
 - **Task-optimized**: Uses task-specific prompts for better clustering/classification
-- **Speed**: Similar to all-mpnet-base-v2
 - **Access**: Gated model - requires HuggingFace authentication (see setup below)
 
 **Key Features of EmbeddingGemma:**
