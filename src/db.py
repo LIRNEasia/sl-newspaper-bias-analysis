@@ -1,19 +1,12 @@
 """Database connection and operations for media bias analysis."""
 
 import json
-import yaml
 import psycopg2
 from psycopg2.extras import RealDictCursor, execute_values
-from pathlib import Path
 from typing import List, Dict, Any
 from contextlib import contextmanager
 
-
-def load_config() -> dict:
-    """Load configuration from config.yaml."""
-    config_path = Path(__file__).parent.parent / "config.yaml"
-    with open(config_path) as f:
-        return yaml.safe_load(f)
+from src.config import load_config
 
 
 class Database:

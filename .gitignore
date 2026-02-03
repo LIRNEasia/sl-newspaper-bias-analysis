@@ -1,6 +1,11 @@
 # Configuration with credentials
 config.yaml
+config.yaml.local
 .env
+.env.*
+!.env.example
+*.secret
+*.key
 .claude/
 
 # Internal documentation (not for public repo)

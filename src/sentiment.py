@@ -4,17 +4,10 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Any
-from pathlib import Path
-import yaml
 from tqdm import tqdm
 import numpy as np
 
-
-def load_config() -> dict:
-    """Load configuration from config.yaml."""
-    config_path = Path(__file__).parent.parent / "config.yaml"
-    with open(config_path) as f:
-        return yaml.safe_load(f)
+from src.config import load_config
 
 
 @dataclass

@@ -144,12 +144,21 @@ database-analysis/
 │   ├── clustering.py      # Event clustering using embeddings
 │   └── versions.py        # Result version management (with analysis_type)
 ├── scripts/
+│   ├── clustering/         # Event clustering pipeline
+│   │   ├── 01_generate_embeddings.py
+│   │   └── 02_cluster_events.py
+│   ├── ner/               # Named entity recognition
+│   │   └── 01_extract_entities.py
+│   ├── sentiment/         # Sentiment analysis
+│   │   └── 01_analyze_sentiment.py
+│   ├── summarization/     # Article summarization
+│   │   └── 01_generate_summaries.py
 │   ├── topics/            # Topic analysis pipeline
 │   │   ├── 01_generate_embeddings.py
 │   │   └── 02_discover_topics.py
-│   └── clustering/        # Event clustering pipeline
-│       ├── 01_generate_embeddings.py
-│       └── 02_cluster_events.py
+│   ├── word_frequency/    # Word frequency analysis
+│   │   └── 01_compute_word_frequency.py
+│   └── manage_versions.py # Version management CLI
 └── dashboard/
     └── Home.py            # Streamlit dashboard (separate version selectors per tab)
 ```
@@ -314,6 +323,47 @@ python3 scripts/clustering/02_cluster_events.py --version-id <version-id>
 - Groups similar articles using cosine similarity (threshold: 0.8)
 - Applies 7-day time window constraint
 - Takes ~10 minutes
+
+#### Sentiment Analysis Pipeline
+
+**Important**: Sentiment analysis is independent of topics and clustering. It analyzes the emotional tone of articles using multiple models.
+
+**1. Run Sentiment Analysis**
+
+The sentiment analysis pipeline doesn't require version management - it runs on all articles and stores results per model.
+
+```bash
+# Run all enabled models (configured in config.yaml)
+python3 scripts/sentiment/01_analyze_sentiment.py
+
+# Run specific models only
+python3 scripts/sentiment/01_analyze_sentiment.py --models roberta vader
+
+# Limit number of articles (for testing)
+python3 scripts/sentiment/01_analyze_sentiment.py --limit 100
+```
+
+**Supported Models:**
+- **RoBERTa** (`roberta`) - Twitter-trained, fast, accurate
+- **DistilBERT** (`distilbert`) - Lightweight, good for general sentiment
+- **FinBERT** (`finbert`) - Optimized for financial/economic news
+- **VADER** (`vader`) - Lexicon-based, very fast, good for social media
+- **TextBlob** (`textblob`) - Pattern-based, simple, fast
+
+**Configuration** (in `config.yaml`):
+```yaml
+sentiment:
+  enabled_models:
+    - roberta
+    - distilbert
+    - finbert
+    - vader
+    - textblob
+```
+
+**Performance**: Processes ~8,000 articles in 30-60 minutes on CPU (varies by model).
+
+**Output**: Sentiment scores from -5 (very negative) to +5 (very positive) for both headline and overall article.
 
 #### Run Dashboard
 ```bash
@@ -720,6 +770,13 @@ Based on ~500 word articles (CPU performance):
 - Filter by source and search by title
 - Compare summarization methods (TextRank, LexRank, BART, T5, Pegasus, LED, LongT5, BigBird-Pegasus, Claude, GPT)
 - Source-level compression and performance metrics
+
+### 😊 Sentiment Tab
+- **Multi-model comparison** - compare results from different sentiment models
+- View sentiment distribution by source
+- Article-level sentiment scores with confidence metrics
+- Filter by model type and news source
+- Sentiment trends over time
 
 ## Embedding Models
 

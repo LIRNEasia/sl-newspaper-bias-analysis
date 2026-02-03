@@ -20,13 +20,21 @@ llm:
 # Embeddings (local = free, uses sentence-transformers)
 embeddings:
   provider: local  # local | openai
-  model: all-mpnet-base-v2  # good quality, 768 dimensions (auto-detected)
+  model: all-mpnet-base-v2  # all-mpnet-base-v2 | google/embeddinggemma-300m
   batch_size: 64
+
+  # EmbeddingGemma-specific options (ignored for other models)
+  task: null                 # auto-detect from analysis type, or specify: clustering | classification | retrieval
+  matryoshka_dim: null       # null (use 768) or 512 | 256 | 128 for smaller dimensions
 
 # Topic Modeling
 topics:
   min_topic_size: 10
   diversity: 0.5
+
+  # Named Entity Filtering (requires NER analysis to be run first)
+  filter_ner_entities: false     # Set to true to exclude named entities from topic keywords
+  ner_entity_types: null          # Filter specific types: [PERSON, ORG, GPE] or null for all
 
 # Analysis
 analysis:
@@ -39,6 +47,52 @@ clustering:
   similarity_threshold: 0.8
   min_cluster_size: 2
   time_window_days: 7
+
+# Word Frequency Analysis
+word_frequency:
+  ranking_method: frequency  # frequency | tfidf
+  tfidf_scope: per_source    # per_source | cross_source
+  top_n_words: 50
+  min_word_length: 3
+  custom_stopwords:
+    - sri
+    - lanka
+    - lankan
+    - colombo
+    - yesterday
+    - said
+    - also
+    - according
+
+# Named Entity Recognition
+ner:
+  provider: spacy              # spacy | gliner
+  model: en_core_web_trf      # spaCy: en_core_web_trf | GLiNER: glomr-multi-v2.1
+  batch_size: 32
+  confidence_threshold: 0.5    # Minimum confidence to store entity
+
+  # Entity types to extract (spaCy defaults)
+  entity_types:
+    - PERSON                   # People, including fictional
+    - ORG                      # Organizations, companies, agencies
+    - GPE                      # Geopolitical entities (countries, cities, states)
+    - LOC                      # Non-GPE locations (mountains, rivers)
+    - DATE                     # Dates or periods
+    - TIME                     # Times smaller than a day
+    - MONEY                    # Monetary values
+    - PERCENT                  # Percentages
+    - EVENT                    # Named events (e.g., "World Cup")
+    - PRODUCT                  # Objects, vehicles, foods
+    - NORP                     # Nationalities, religious/political groups
+    - FAC                      # Buildings, airports, highways, bridges
+    - LAW                      # Named documents made into laws
+
+  # For GLiNER (if used)
+  custom_entity_types:
+    - Political Party
+    - Government Agency
+    - Crisis Event
+    - Media Outlet
 
 # Summarization
 summarization:
@@ -54,3 +108,12 @@ summarization:
   chunk_long_articles: true  # Split articles longer than max_input_length
   llm_model: claude-sonnet-4-20250514  # Used when method is 'claude' or 'gpt'
   llm_temperature: 0.0
+
+# Sentiment Analysis
+sentiment:
+  enabled_models:              # Models to run (comment out to disable)
+    - roberta                  # Twitter-trained RoBERTa
+    - distilbert               # General-purpose sentiment
+    - finbert                  # Financial/economic news
+    - vader                    # Lexicon-based, very fast
+    - textblob                 # Pattern-based, simple
