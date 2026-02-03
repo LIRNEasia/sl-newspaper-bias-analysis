@@ -7,54 +7,33 @@ A data-driven analysis framework for detecting media bias in Sri Lankan English 
 
 ## Overview
 
-This project analyzes **8,365 articles** from **4 Sri Lankan newspapers** (Daily News, The Morning, Daily FT, The Island) covering November-December 2025 to identify:
+This project provides a framework for analyzing news articles from Sri Lankan newspapers to identify:
 
 - 📰 **Selection bias**: Which topics each source covers (or ignores)
 - 🔍 **Coverage patterns**: How different sources cover the same events
 - 🏷️ **Topic discovery**: Data-driven topic categorization using BERTopic
 - 📊 **Event clustering**: Grouping articles about the same events across sources
-
-## Key Findings
-
-### Topics Discovered
-- **232 topics** automatically discovered from 8,365 articles
-- **77% coverage**: Successfully categorized 6,455 articles
-- **Top topics**: Sri Lanka politics, flooding/disasters, sports, education, economy
-
-### Event Clusters
-- **1,717 event clusters** identified
-- **87% multi-source coverage**: Most events covered by 2+ sources
-- **Top event**: UN allocates $4.5M for Sri Lanka disaster relief (72 articles across 4 sources)
-
-### Sentiment Analysis
-- **Three analysis models**: Local transformer, LLM (Claude), and Hybrid approach
-- **Sentiment scale**: -5 (very negative) to +5 (very positive)
-- **LLM reasoning**: Detailed explanations for sentiment scores
-- **Topic-sentiment correlation**: Discover how different sources frame the same topics
-
-### Major Events (Nov-Dec 2025)
-1. Cyclone Ditwah aftermath - 56 articles
-2. Economic crisis response - 56 articles
-3. Disaster relief fundraising - 47 articles
-4. Weather warnings and flooding - multiple clusters
+- 😊 **Sentiment analysis**: Emotional tone across sources and topics
+- 📝 **Article summarization**: Generate concise summaries using multiple methods
 
 ## Features
 
-- 🧠 **Semantic embeddings**: 768-dimensional vectors using `all-mpnet-base-v2`
+- 🧠 **Semantic embeddings**: 768-dimensional vectors using local models (no API needed)
 - 🎯 **Topic modeling**: BERTopic with UMAP + HDBSCAN clustering
 - 🔗 **Event clustering**: Cosine similarity with time-window constraints
-- 😊 **Sentiment analysis**: Three-model approach (Local, LLM, Hybrid) with reasoning
-- 📈 **Interactive dashboard**: Streamlit-based visualization with 5 analysis tabs
+- 😊 **Sentiment analysis**: Multiple sentiment models (RoBERTa, VADER, FinBERT, etc.)
+- 📝 **Article summarization**: Extractive, transformer, and LLM-based methods
+- 📈 **Interactive dashboard**: Streamlit-based visualization with version management
 - 🗄️ **Vector database**: PostgreSQL with pgvector extension
+- 🔄 **Version management**: Track and compare different analysis configurations
 
 ## Tech Stack
 
 - **Python 3.11+**: Core language
-- **PostgreSQL 16 + pgvector**: Database with vector similarity search
+- **PostgreSQL 16+ with pgvector**: Database with vector similarity search
 - **Sentence Transformers**: Local embedding generation (no API needed)
 - **BERTopic**: Topic modeling with UMAP/HDBSCAN
-- **Transformers + PyTorch**: Sentiment analysis with RoBERTa model
-- **Claude/OpenAI API**: Optional LLM-based sentiment with reasoning
+- **Transformers**: Multiple sentiment analysis models
 - **Streamlit**: Interactive dashboard
 - **pandas, numpy**: Data processing
 
@@ -99,19 +78,20 @@ Python 3.11+
 
 5. **Run the analysis pipeline**
    ```bash
-   # Generate embeddings
-   python3 scripts/01_generate_embeddings.py
+   # Generate embeddings for topics
+   python3 scripts/topics/01_generate_embeddings.py --version-id <version-id>
 
    # Discover topics
-   python3 scripts/02_discover_topics.py
+   python3 scripts/topics/02_discover_topics.py --version-id <version-id>
+
+   # Generate embeddings for clustering
+   python3 scripts/clustering/01_generate_embeddings.py --version-id <version-id>
 
    # Cluster events
-   python3 scripts/03_cluster_events.py
+   python3 scripts/clustering/02_cluster_events.py --version-id <version-id>
 
-   # Analyze sentiment (optional, choose model)
-   python3 scripts/04_analyze_sentiment.py --model local  # Free, ~15 min
-   # python3 scripts/04_analyze_sentiment.py --model llm    # $31, ~4-6 hours
-   # python3 scripts/04_analyze_sentiment.py --model hybrid # $9, ~1-2 hours
+   # Analyze sentiment
+   python3 scripts/sentiment/01_analyze_sentiment.py
    ```
 
 6. **Launch dashboard**
@@ -156,143 +136,95 @@ sl-newspaper-bias-analysis/
 
 ## Dashboard Preview
 
-The dashboard includes 7 interactive views:
+The dashboard includes multiple interactive tabs:
 
 1. **📊 Coverage Tab**: Article volume and timeline by source
-2. **🏷️ Topics Tab**: Top topics and source-topic heatmap
+2. **🏷️ Topics Tab**: Top topics, source-topic heatmap, BERTopic visualizations
 3. **📰 Events Tab**: Browse event clusters and cross-source coverage
-4. **📝 Word Frequency Tab**: Most distinctive words per source
-5. **👤 Named Entities Tab**: People, organizations, locations mentioned
-6. **⚖️ Source Comparison**: Topic focus and selection bias analysis
-7. **😊 Sentiment Tab**: Sentiment analysis with multiple models and visualizations
+4. **📝 Summaries Tab**: Article summaries with compression statistics
+5. **😊 Sentiment Tab**: Sentiment distribution across sources and models
+
+Each analysis tab has its own independent version selector for experimentation.
 
 ## Database Schema
 
 ### Original Data
-- `news_articles` - Scraped newspaper articles (8,365 articles)
+- `news_articles` - Scraped newspaper articles
 
 ### Result Versioning
 - `result_versions` - Configuration-based version tracking for reproducible analysis
 
 ### Analysis Tables
 - `embeddings` - Article embeddings (768-dim vectors)
-- `topics` - Discovered topics (232 topics)
+- `topics` - Discovered topics
 - `article_analysis` - Article-topic assignments
-- `event_clusters` - Event clusters (1,717 clusters)
+- `event_clusters` - Event clusters
 - `article_clusters` - Article-to-cluster mappings
+- `article_summaries` - Generated summaries
 - `word_frequencies` - Word frequency rankings per source
 - `named_entities` - Extracted entities with positions and confidence
-- `sentiment_analyses` - Sentiment scores for each model (local/llm/hybrid)
-- `sentiment_summary` - Materialized view for performance
+- `sentiment_scores` - Sentiment analysis results per model
 
 ## Sentiment Analysis
 
-The sentiment analysis system uses three different approaches to analyze article sentiment on a scale from -5 (very negative) to +5 (very positive).
+The sentiment analysis system uses multiple sentiment models to analyze article sentiment on a scale from -5 (very negative) to +5 (very positive).
 
-### Three Analysis Models
+### Available Models
 
-#### 1. Local Transformer Model (Free)
-- **Model**: `cardiffnlp/twitter-roberta-base-sentiment-latest`
-- **Runtime**: ~15 minutes for 8,365 articles (CPU)
-- **Cost**: Free
-- **Pros**: Fast, no API needed, works offline
-- **Cons**: No reasoning, less nuanced than LLM
+- **RoBERTa** - Twitter-trained, accurate
+- **DistilBERT** - Lightweight, general sentiment
+- **FinBERT** - Optimized for financial/economic news
+- **VADER** - Lexicon-based, very fast
+- **TextBlob** - Pattern-based, simple
 
-```bash
-python scripts/04_analyze_sentiment.py --model local
-```
-
-#### 2. LLM Model (Claude/OpenAI)
-- **Model**: Claude Sonnet 4 (default)
-- **Runtime**: ~4-6 hours for 8,365 articles
-- **Cost**: ~$31 for full dataset
-- **Pros**: Most accurate, provides reasoning, understands context
-- **Cons**: Requires API key, costs money
+### Running Sentiment Analysis
 
 ```bash
-# Requires ANTHROPIC_API_KEY environment variable
-export ANTHROPIC_API_KEY="your-api-key"
-python scripts/04_analyze_sentiment.py --model llm
-```
+# Run all enabled models (configured in config.yaml)
+python3 scripts/sentiment/01_analyze_sentiment.py
 
-#### 3. Hybrid Model (Best of Both)
-- **Approach**: Local model + LLM fallback for low confidence
-- **Runtime**: ~1-2 hours for 8,365 articles
-- **Cost**: ~$9 (only ~30% use LLM)
-- **Pros**: Balance of speed, cost, and accuracy
-- **Cons**: Requires API key
+# Run specific models only
+python3 scripts/sentiment/01_analyze_sentiment.py --models roberta vader
 
-```bash
-python scripts/04_analyze_sentiment.py --model hybrid
+# Test on limited articles
+python3 scripts/sentiment/01_analyze_sentiment.py --limit 100
 ```
 
 ### Sentiment Scale
 
-- **-5 to -3**: Very negative (disaster, tragedy, severe criticism)
-- **-2 to -1**: Somewhat negative (problems, concerns, mild criticism)
-- **-0.5 to 0.5**: Neutral (factual reporting, balanced)
-- **1 to 2**: Somewhat positive (progress, improvements, praise)
-- **3 to 5**: Very positive (great success, celebration, strong endorsement)
-
-### Dashboard Visualizations
-
-The Sentiment tab in the dashboard provides:
-
-1. **Average Sentiment by Source**: Bar chart showing which sources are more positive/negative
-2. **Sentiment Distribution**: Box plots showing the range and variance
-3. **Sentiment Timeline**: How sentiment changes over time
-4. **Topic-Sentiment Heatmap**: Which topics are covered more positively/negatively by each source
-5. **Model Comparison**: Compare agreement between different models
-6. **LLM Reasoning Examples**: See detailed explanations (for LLM model)
-
-### Cost Estimation
-
-The script automatically estimates LLM costs before running:
-
-```bash
-python scripts/04_analyze_sentiment.py --model llm
-# Shows: Estimated cost: $31.37 for 8,365 articles
-# Asks for confirmation before proceeding
-```
-
-To skip the confirmation prompt:
-
-```bash
-python scripts/04_analyze_sentiment.py --model llm --skip-cost-check
-```
+Sentiment scores range from:
+- **-5 to -3**: Very negative
+- **-2 to -1**: Somewhat negative
+- **-0.5 to 0.5**: Neutral
+- **1 to 2**: Somewhat positive
+- **3 to 5**: Very positive
 
 ## Research Methodology
 
-Based on: **"The Media Bias Detector: A Framework for Annotating and Analyzing the News at Scale"** (University of Pennsylvania, 2025)
+Based on: "The Media Bias Detector: A Framework for Annotating and Analyzing the News at Scale" (UPenn, 2025)
 
-### Adaptations for Sri Lankan Context
-- ✅ Topic hierarchy via data-driven discovery
-- ✅ Event clustering for coverage comparison
-- ✅ Selection bias analysis (topic coverage patterns)
-- ✅ Sentiment analysis with multiple models
-- ✅ Word frequency analysis for distinctive vocabulary
-- ✅ Named entity recognition for key people and organizations
-- ❌ Political lean (Democrat/Republican) - not applicable
-- ⏸️ Framing bias analysis - future work
+### Adapted for Sri Lankan Context
+- ❌ **Skipped**: Political lean (Democrat/Republican) - not applicable to SL politics
+- ✅ **Kept**: Topic hierarchy via data-driven discovery
+- ✅ **Kept**: Event clustering for coverage comparison
+- ✅ **Kept**: Selection bias analysis (topic coverage patterns)
+- ⏸️ **Future**: Framing bias analysis (requires tone scoring via LLM)
 
 ## Future Enhancements
 
-### Planned Improvements
-- **Article type classification**: news/opinion/analysis/editorial
-- **Quote extraction**: Extract speaker information and attributions
-- **Better topic labels**: LLM-generated descriptive topic names
-- **Aspect-based sentiment**: Economic, political, social aspects
-- **Entity sentiment**: Sentiment toward specific people/organizations
-- **Fine-tuned local model**: Train on Sri Lankan news corpus
-- **Real-time analysis**: Sentiment for newly scraped articles
-- **CSV export**: Download analysis results
+### With LLM API (Claude/OpenAI)
+1. **Tone Analysis**: Score articles on -5 to +5 scale
+2. **Article Type Classification**: news/opinion/analysis/editorial
+3. **Sentence-level Analysis**: fact/opinion/quote classification
+4. **Quote Extraction**: Extract speaker information
+5. **Better Topic Labels**: Use LLM to generate descriptive topic names
 
-### Advanced Features
-- Hierarchical topic relationships
-- Time-series sentiment trends
-- Quantified selection bias metrics
-- Framing comparison across sources
-- Sentiment alerts for unusual patterns
+### Other Improvements
+1. **Hierarchical Topics**: Parent-child topic relationships
+2. **Time-series Analysis**: Topic trends over time
+3. **Source Comparison Metrics**: Quantify selection bias
+4. **Framing Analysis**: Compare how sources frame the same events
+5. **Export Functionality**: Download analysis results
 ## Configuration
 
 All configuration is in `config.yaml`:
@@ -303,48 +235,39 @@ database:
   name: your_database
   schema: your_schema
   user: your_db_user
+  password: "YOUR_PASSWORD"
 
 embeddings:
-  provider: local  # Free, no API needed
-  model: all-mpnet-base-v2
+  provider: local  # local (free) | openai
+  model: all-mpnet-base-v2  # all-mpnet-base-v2 | google/embeddinggemma-300m
+
+topics:
+  min_topic_size: 10
+  diversity: 0.5
 
 clustering:
   similarity_threshold: 0.8
   time_window_days: 7
+  min_cluster_size: 2
 
 sentiment:
   enabled_models:
-    - llm
-    - local
-    - hybrid
+    - roberta
+    - vader
 
-  llm_sentiment:
-    provider: claude
-    model: claude-sonnet-4-20250514
-    batch_size: 10
-
-  local_sentiment:
-    model: cardiffnlp/twitter-roberta-base-sentiment-latest
-    batch_size: 32
-    device: cpu  # or cuda
-
-  hybrid_sentiment:
-    local_threshold: 0.7  # Use LLM if confidence < 0.7
+summarization:
+  method: textrank  # textrank | bart | pegasus | claude | gemini
+  summary_length: medium  # short | medium | long
 ```
 
 ## Performance
 
-- **Embedding generation**: ~30 minutes for 8,365 articles (CPU)
-- **Topic discovery**: ~2-3 minutes
-- **Event clustering**: ~10 minutes
-- **Word frequency**: ~5 minutes
-- **Named entity recognition**: ~20 minutes
-- **Sentiment analysis**:
-  - Local model: ~15 minutes (CPU)
-  - LLM model: ~4-6 hours ($31)
-  - Hybrid model: ~1-2 hours ($9)
+- **Embedding generation**: Varies by dataset size (CPU-based)
+- **Topic discovery**: Fast (minutes)
+- **Event clustering**: Fast (minutes)
+- **Sentiment analysis**: Depends on model choice (free local models or API-based)
 - **Memory usage**: ~2GB RAM during embedding generation
-- **Dashboard**: All queries cached, <3 second load times
+- **Dashboard**: Queries cached for fast load times
 
 ## Managing Result Versions
 
