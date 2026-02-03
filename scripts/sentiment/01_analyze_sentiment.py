@@ -10,7 +10,7 @@ Analyzes sentiment of news articles using multiple models:
 - TextBlob - pattern-based, very fast
 
 Usage:
-    python scripts/04_analyze_sentiment.py [--limit LIMIT] [--models MODEL1 MODEL2 ...]
+    python scripts/sentiment/01_analyze_sentiment.py [--limit LIMIT] [--models MODEL1 MODEL2 ...]
 
 Options:
     --limit LIMIT          Limit number of articles to process (default: all)
@@ -22,20 +22,13 @@ import sys
 import argparse
 from pathlib import Path
 import time
-import yaml
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add src to path (parent.parent because we're in scripts/sentiment/)
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.db import Database
 from src.sentiment import get_sentiment_analyzer, get_sentiment_stats
-
-
-def load_config():
-    """Load configuration from config.yaml."""
-    config_path = Path(__file__).parent.parent / "config.yaml"
-    with open(config_path) as f:
-        return yaml.safe_load(f)
+from src.config import load_config
 
 
 def display_status(db: Database, models: list = None):
