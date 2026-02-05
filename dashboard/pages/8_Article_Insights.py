@@ -305,21 +305,25 @@ if ner_versions:
                 entities_by_type[entity_type] = []
             entities_by_type[entity_type].append(entity)
 
-        # Display entities grouped by type
+        # Display entities grouped by type (exclude Date, Money, Time)
+        excluded_types = {'DATE', 'MONEY', 'TIME'}
         for entity_type in sorted(entities_by_type.keys()):
+            if entity_type in excluded_types:
+                continue
             entity_list = entities_by_type[entity_type]
             st.markdown(f"**{entity_type}** ({len(entity_list)})")
 
-            # Create tags for entities
+            # Create tags for entities (deduplicated)
+            unique_entities = set()
             entity_tags = []
             for entity in entity_list:
-                confidence_str = f"{entity['confidence']:.2f}" if entity.get('confidence') else ""
-                tag = f"`{entity['entity_text']}`"
-                if confidence_str:
-                    tag += f" _{confidence_str}_"
-                entity_tags.append(tag)
+                entity_text = entity['entity_text']
+                if entity_text not in unique_entities:
+                    unique_entities.add(entity_text)
+                    tag = f"- `{entity_text}`"
+                    entity_tags.append(tag)
 
-            st.markdown(" • ".join(entity_tags))
+            st.markdown("\n".join(entity_tags))
     else:
         st.info("No entities extracted in this version")
 else:
