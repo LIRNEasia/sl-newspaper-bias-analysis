@@ -20,16 +20,12 @@ from data.loaders import (
     load_article_cluster,
     get_available_sentiment_models
 )
-from components.source_mapping import SOURCE_NAMES, SOURCE_COLORS
+from components.source_mapping import SOURCE_NAMES
 from components.styling import apply_page_style
 
 apply_page_style()
 
 st.title("Article Insights")
-
-st.markdown("""
-View comprehensive analysis for individual articles including sentiment, topics, summaries, entities, and event clustering.
-""")
 
 # Article search and selection
 st.subheader("Search & Select Article")
@@ -97,31 +93,22 @@ if not article:
 
 # Display article metadata
 st.divider()
-st.subheader("📄 Article Metadata")
+st.subheader("Article Metadata")
 
-col1, col2 = st.columns([3, 1])
-
-with col1:
-    st.markdown(f"**Title:** {article['title']}")
-    source_name = SOURCE_NAMES.get(article['source_id'], article['source_id'])
-    st.markdown(f"**Source:** {source_name}")
-
-with col2:
-    if article['date_posted']:
-        st.markdown(f"**Published:** {article['date_posted'].strftime('%Y-%m-%d')}")
-    if article['url']:
-        st.markdown(f"[View original article]({article['url']})")
-
-# Content preview
-with st.expander("📖 View Full Content"):
-    st.write(article['content'])
+st.markdown(f"**Title:** {article['title']}")
+source_name = SOURCE_NAMES.get(article['source_id'], article['source_id'])
+st.markdown(f"**Source:** {source_name}")
+if article['date_posted']:
+    st.markdown(f"**Published:** {article['date_posted'].strftime('%Y-%m-%d')}")
+if article['url']:
+    st.markdown(f"[View original article]({article['url']})")
 
 # Analysis insights section
 st.divider()
-st.subheader("📊 Analysis Insights")
+st.subheader("Analysis Insights")
 
 # Sentiment Analysis Section
-st.markdown("### 😊 Sentiment Analysis")
+st.markdown("### Sentiment Analysis")
 
 available_models = get_available_sentiment_models()
 
@@ -140,30 +127,17 @@ if available_models:
 
         with col1:
             overall = sentiment['overall_sentiment']
-            # Color code sentiment
-            if overall > 0.5:
-                sentiment_color = "🟢"
-            elif overall < -0.5:
-                sentiment_color = "🔴"
-            else:
-                sentiment_color = "🟡"
             st.metric(
                 "Overall Sentiment",
-                f"{sentiment_color} {overall:.2f}",
+                f"{overall:.2f}",
                 help="Range: -5 (very negative) to +5 (very positive)"
             )
 
         with col2:
             headline = sentiment['headline_sentiment']
-            if headline > 0.5:
-                headline_color = "🟢"
-            elif headline < -0.5:
-                headline_color = "🔴"
-            else:
-                headline_color = "🟡"
             st.metric(
                 "Headline Sentiment",
-                f"{headline_color} {headline:.2f}",
+                f"{headline:.2f}",
                 help="Range: -5 (very negative) to +5 (very positive)"
             )
 
@@ -183,7 +157,7 @@ else:
     st.warning("No sentiment models have analyzed articles yet. Run sentiment analysis pipeline first.")
 
 # Tone Analysis Section
-st.markdown("### 🎭 Tone Analysis")
+st.markdown("### Tone Analysis")
 
 # Get available topic versions (tone is stored with topic analysis)
 topic_versions = list_versions(analysis_type='topics')
@@ -218,7 +192,7 @@ else:
     st.info("No topic versions found. Tone analysis requires running the topic pipeline.")
 
 # Topic Assignment Section
-st.markdown("### 🏷️ Topic Assignment")
+st.markdown("### Topic Assignment")
 
 if topic_versions:
     topic_version_options = {
@@ -253,7 +227,7 @@ else:
     st.info("No topic versions found. Create and run a topic analysis version first.")
 
 # Summary Section
-st.markdown("### 📝 Summary")
+st.markdown("### Summary")
 
 summarization_versions = list_versions(analysis_type='summarization')
 
@@ -303,7 +277,7 @@ else:
     st.info("No summarization versions found. Create and run a summarization version first.")
 
 # Named Entities Section
-st.markdown("### 👤 Named Entities / Actors")
+st.markdown("### Named Entities / Actors")
 
 ner_versions = list_versions(analysis_type='ner')
 
@@ -352,7 +326,7 @@ else:
     st.info("No NER versions found. Create and run an NER version first.")
 
 # Event Clustering Section
-st.markdown("### 📰 Event Clustering")
+st.markdown("### Event Clustering")
 
 clustering_versions = list_versions(analysis_type='clustering')
 
@@ -405,4 +379,3 @@ else:
 
 # Footer
 st.divider()
-st.caption("💡 Tip: Use the version selectors to compare different analysis configurations for the same article")
