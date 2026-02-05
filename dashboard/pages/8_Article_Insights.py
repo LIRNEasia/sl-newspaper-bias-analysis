@@ -7,6 +7,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import streamlit as st
 import pandas as pd
+from streamlit_searchbox import st_searchbox
 
 from src.versions import list_versions, get_version
 from data.loaders import (
@@ -33,51 +34,58 @@ View comprehensive analysis for individual articles including sentiment, topics,
 # Article search and selection
 st.subheader("Search & Select Article")
 
-col1, col2 = st.columns([3, 1])
 
-with col1:
-    search_term = st.text_input(
-        "Search by title",
-        placeholder="Enter keywords to search articles...",
-        key="article_search"
-    )
+# Initialize session state for article mapping
+if 'article_mapping' not in st.session_state:
+    st.session_state.article_mapping = {}
 
-with col2:
-    search_limit = st.number_input(
-        "Max results",
-        min_value=10,
-        max_value=200,
-        value=50,
-        step=10,
-        key="search_limit"
-    )
 
-# Perform search
-if search_term and len(search_term) >= 2:
-    with st.spinner("Searching articles..."):
-        search_results = search_articles_by_title(search_term, search_limit)
+# Define search function for autocomplete
+def search_articles(search_term: str) -> list:
+    """Search function for autocomplete that returns article titles with metadata."""
+    if not search_term or len(search_term) < 2:
+        return []
 
-    if not search_results:
-        st.info("No articles found matching your search. Try different keywords.")
-        st.stop()
+    # Get search results
+    results = search_articles_by_title(search_term, limit=50)
 
-    # Create selection options
-    article_options = {}
-    for article in search_results:
+    if not results:
+        return []
+
+    # Format results for display and store mapping
+    suggestions = []
+    for article in results:
         source_name = SOURCE_NAMES.get(article['source_id'], article['source_id'])
         date_str = article['date_posted'].strftime('%Y-%m-%d') if article['date_posted'] else 'Unknown'
+        # Format: "Title - Source (Date)"
         label = f"{article['title']} - {source_name} ({date_str})"
-        article_options[label] = article['id']
+        suggestions.append(label)
+        # Store mapping from label to article_id
+        st.session_state.article_mapping[label] = article['id']
 
-    selected_label = st.selectbox(
-        "Select an article to view insights",
-        options=list(article_options.keys()),
-        key="article_selector"
-    )
+    return suggestions
 
-    article_id = article_options[selected_label]
-else:
-    st.info("👆 Enter at least 2 characters to search for articles")
+
+# Use searchbox with autocomplete
+selected_label = st_searchbox(
+    search_articles,
+    key="article_searchbox",
+    placeholder="Start typing to search articles by title...",
+    label="Search by title",
+    clear_on_submit=False,
+    rerun_on_update=True
+)
+
+# Check if an article was selected
+if not selected_label:
+    st.info("👆 Start typing in the search box to find articles")
+    st.stop()
+
+# Get article_id from the mapping
+article_id = st.session_state.article_mapping.get(selected_label)
+
+if not article_id:
+    st.info("Start typing in the search box to find articles")
     st.stop()
 
 # Load article data
