@@ -28,28 +28,22 @@ apply_page_style()
 
 st.title("Article Insights")
 
-# Article search and selection
 st.subheader("Search & Select Article")
 
-
-# Initialize session state for article mapping
 if 'article_mapping' not in st.session_state:
     st.session_state.article_mapping = {}
 
 
-# Define search function for autocomplete
 def search_articles(search_term: str) -> list:
     """Search function for autocomplete that returns article titles with metadata."""
     if not search_term or len(search_term) < 2:
         return []
 
-    # Get search results
     results = search_articles_by_title(search_term, limit=50)
 
     if not results:
         return []
 
-    # Format results for display and store mapping
     suggestions = []
     for article in results:
         source_name = SOURCE_NAMES.get(article['source_id'], article['source_id'])
@@ -57,13 +51,11 @@ def search_articles(search_term: str) -> list:
         # Format: "Title - Source (Date)"
         label = f"{article['title']} - {source_name} ({date_str})"
         suggestions.append(label)
-        # Store mapping from label to article_id
         st.session_state.article_mapping[label] = article['id']
 
     return suggestions
 
 
-# Use searchbox with autocomplete
 selected_label = st_searchbox(
     search_articles,
     key="article_searchbox",
@@ -73,26 +65,22 @@ selected_label = st_searchbox(
     rerun_on_update=True
 )
 
-# Check if an article was selected
 if not selected_label:
     st.info("👆 Start typing in the search box to find articles")
     st.stop()
 
-# Get article_id from the mapping
 article_id = st.session_state.article_mapping.get(selected_label)
 
 if not article_id:
     st.info("Start typing in the search box to find articles")
     st.stop()
 
-# Load article data
 article = load_article_by_id(article_id)
 
 if not article:
     st.error("Article not found")
     st.stop()
 
-# Display article metadata
 st.divider()
 st.subheader("Article Metadata")
 
@@ -104,11 +92,9 @@ if article['date_posted']:
 if article['url']:
     st.markdown(f"[View original article]({article['url']})")
 
-# Analysis insights section
 st.divider()
 st.subheader("Analysis Insights")
 
-# Sentiment Analysis Section
 st.markdown("### Sentiment Analysis")
 
 available_models = get_available_sentiment_models()
@@ -157,43 +143,9 @@ if available_models:
 else:
     st.warning("No sentiment models have analyzed articles yet. Run sentiment analysis pipeline first.")
 
-# Tone Analysis Section
-st.markdown("### Tone Analysis")
-
-# Get available topic versions (tone is stored with topic analysis)
-topic_versions = list_versions(analysis_type='topics')
-
-if topic_versions:
-    # Default to first version for tone display
-    topic_version_id = topic_versions[0]['id']
-
-    topic_data = load_article_topic(article_id, topic_version_id)
-
-    if topic_data and (topic_data.get('overall_tone') is not None or topic_data.get('headline_tone') is not None):
-        col1, col2 = st.columns(2)
-
-        with col1:
-            if topic_data.get('overall_tone') is not None:
-                st.metric(
-                    "Overall Tone",
-                    f"{topic_data['overall_tone']:.2f}",
-                    help="Range: -5 (very negative) to +5 (very positive)"
-                )
-
-        with col2:
-            if topic_data.get('headline_tone') is not None:
-                st.metric(
-                    "Headline Tone",
-                    f"{topic_data['headline_tone']:.2f}",
-                    help="Range: -5 (very negative) to +5 (very positive)"
-                )
-    else:
-        st.info("Tone analysis not available for this article")
-else:
-    st.info("No topic versions found. Tone analysis requires running the topic pipeline.")
-
-# Topic Assignment Section
 st.markdown("### Topic Assignment")
+
+topic_versions = list_versions(analysis_type='topics')
 
 if topic_versions:
     topic_version_options = {
@@ -223,7 +175,7 @@ if topic_versions:
                     f"{topic_data['topic_confidence']:.2%}"
                 )
     else:
-        st.info(f"Article not analyzed in this topic version")
+        st.info(f"Article does not belong to any topic (outlier).")
 else:
     st.info("No topic versions found. Create and run a topic analysis version first.")
 
@@ -307,7 +259,7 @@ if ner_versions:
             entities_by_type[entity_type].append(entity)
 
         # Display entities grouped by type (exclude Date, Money, Time)
-        excluded_types = {'DATE', 'MONEY', 'TIME'}
+        excluded_types = {'DATE', 'MONEY', 'TIME', 'PERCENT'}
         for entity_type in sorted(entities_by_type.keys()):
             if entity_type in excluded_types:
                 continue
