@@ -845,6 +845,135 @@ class Database:
         with self.cursor() as cur:
             cur.execute(f"REFRESH MATERIALIZED VIEW {schema}.sentiment_summary")
 
+    # Article insights operations
+    def get_article_by_id(self, article_id: int) -> Dict:
+        """Fetch article metadata by ID.
+
+        Args:
+            article_id: The article ID
+
+        Returns:
+            Article dict with metadata or None if not found
+        """
+        schema = self.config["schema"]
+        with self.cursor() as cur:
+            cur.execute(f"""
+                SELECT id, title, content, source_id, date_posted, url, lang, is_ditwah_cyclone
+                FROM {schema}.news_articles
+                WHERE id = %s
+            """, (article_id,))
+            return cur.fetchone()
+
+    def get_sentiment_for_article(self, article_id: int, model_type: str = 'roberta') -> Dict:
+        """Fetch sentiment analysis for article and model.
+
+        Args:
+            article_id: The article ID
+            model_type: The sentiment model type (default: roberta)
+
+        Returns:
+            Sentiment dict or None if not found
+        """
+        schema = self.config["schema"]
+        with self.cursor() as cur:
+            cur.execute(f"""
+                SELECT overall_sentiment, headline_sentiment, overall_confidence,
+                       headline_confidence, sentiment_reasoning, model_type, model_name
+                FROM {schema}.sentiment_analyses
+                WHERE article_id = %s AND model_type = %s
+            """, (article_id, model_type))
+            return cur.fetchone()
+
+    def get_topic_for_article(self, article_id: int, version_id: str) -> Dict:
+        """Fetch topic assignment for article.
+
+        Args:
+            article_id: The article ID
+            version_id: The topic version ID
+
+        Returns:
+            Topic dict with name and confidence or None if not found
+        """
+        schema = self.config["schema"]
+        with self.cursor() as cur:
+            cur.execute(f"""
+                SELECT t.id as topic_id, t.topic_id as bertopic_id, t.name as topic_name,
+                       aa.topic_confidence, aa.overall_tone, aa.headline_tone
+                FROM {schema}.article_analysis aa
+                JOIN {schema}.topics t ON aa.primary_topic_id = t.id
+                WHERE aa.article_id = %s AND aa.result_version_id = %s
+                  AND t.result_version_id = %s
+            """, (article_id, version_id, version_id))
+            return cur.fetchone()
+
+    def get_summary_for_article(self, article_id: int, version_id: str) -> Dict:
+        """Fetch summary for article and version.
+
+        Args:
+            article_id: The article ID
+            version_id: The summarization version ID
+
+        Returns:
+            Summary dict or None if not found
+        """
+        schema = self.config["schema"]
+        with self.cursor() as cur:
+            cur.execute(f"""
+                SELECT summary_text, method, compression_ratio, word_count,
+                       sentence_count, summary_length, processing_time_ms
+                FROM {schema}.article_summaries
+                WHERE article_id = %s AND result_version_id = %s
+            """, (article_id, version_id))
+            return cur.fetchone()
+
+    def get_cluster_for_article(self, article_id: int, version_id: str) -> Dict:
+        """Fetch event cluster for article.
+
+        Args:
+            article_id: The article ID
+            version_id: The clustering version ID
+
+        Returns:
+            Cluster dict with details or None if not in any cluster
+        """
+        schema = self.config["schema"]
+        with self.cursor() as cur:
+            cur.execute(f"""
+                SELECT ec.id as cluster_id, ec.cluster_name, ac.similarity_score,
+                       ec.sources_count, ec.article_count, ec.date_start, ec.date_end,
+                       ARRAY_AGG(DISTINCT n.source_id) as other_sources
+                FROM {schema}.article_clusters ac
+                JOIN {schema}.event_clusters ec ON ac.cluster_id = ec.id
+                LEFT JOIN {schema}.article_clusters ac2 ON ec.id = ac2.cluster_id AND ac2.article_id != %s
+                LEFT JOIN {schema}.news_articles n ON ac2.article_id = n.id
+                WHERE ac.article_id = %s AND ac.result_version_id = %s
+                  AND ec.result_version_id = %s
+                GROUP BY ec.id, ec.cluster_name, ac.similarity_score,
+                         ec.sources_count, ec.article_count, ec.date_start, ec.date_end
+            """, (article_id, article_id, version_id, version_id))
+            return cur.fetchone()
+
+    def search_articles(self, title_search: str, limit: int = 50) -> List[Dict]:
+        """Search articles by title.
+
+        Args:
+            title_search: Search term for title (case-insensitive)
+            limit: Maximum number of results
+
+        Returns:
+            List of article dicts with id, title, source_id, date_posted
+        """
+        schema = self.config["schema"]
+        with self.cursor() as cur:
+            cur.execute(f"""
+                SELECT id, title, source_id, date_posted
+                FROM {schema}.news_articles
+                WHERE title ILIKE %s
+                ORDER BY date_posted DESC
+                LIMIT %s
+            """, (f"%{title_search}%", limit))
+            return cur.fetchall()
+
 
 # Convenience function
 def get_db() -> Database:

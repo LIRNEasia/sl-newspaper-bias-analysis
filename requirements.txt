@@ -36,6 +36,7 @@ numpy>=1.26.0
 pandas>=2.1.0
 plotly>=5.18.0
 streamlit>=1.30.0
+streamlit-searchbox>=0.1.13  # Autocomplete search component
 
 # Utilities
 tqdm>=4.66.0

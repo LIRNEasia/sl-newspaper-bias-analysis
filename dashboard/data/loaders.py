@@ -595,7 +595,7 @@ def load_summaries(version_id=None, source_id=None, limit=100):
                     FROM {schema}.article_summaries s
                     JOIN {schema}.news_articles a ON s.article_id = a.id
                     WHERE s.result_version_id = %s AND a.source_id = %s
-                    ORDER BY a.date_posted DESC
+                    ORDER BY a.id
                     LIMIT %s
                 """, (version_id, source_id, limit))
             else:
@@ -620,7 +620,7 @@ def load_summaries(version_id=None, source_id=None, limit=100):
                     FROM {schema}.article_summaries s
                     JOIN {schema}.news_articles a ON s.article_id = a.id
                     WHERE s.result_version_id = %s
-                    ORDER BY a.date_posted DESC
+                    ORDER BY a.id
                     LIMIT %s
                 """, (version_id, limit))
             return cur.fetchall()
@@ -722,3 +722,95 @@ def load_articles_by_topic(version_id=None, topic_name=None):
                 ORDER BY n.date_posted DESC
             """, (topic_name, version_id, version_id))
             return cur.fetchall()
+
+
+# Article Insights loaders
+@st.cache_data(ttl=60)
+def search_articles_by_title(search_term: str, limit: int = 50):
+    """Search articles by title using LIKE query.
+
+    Returns:
+        List of dicts with columns [id, title, source_id, date_posted]
+    """
+    if not search_term or len(search_term) < 2:
+        return []
+
+    with get_db() as db:
+        return db.search_articles(search_term, limit)
+
+
+@st.cache_data(ttl=300)
+def load_article_by_id(article_id: int):
+    """Load article metadata.
+
+    Returns:
+        Dict with {id, title, content, source_id, date_posted, url, lang, is_ditwah_cyclone}
+    """
+    with get_db() as db:
+        return db.get_article_by_id(article_id)
+
+
+@st.cache_data(ttl=300)
+def load_article_sentiment(article_id: int, model_type: str = 'roberta'):
+    """Load sentiment analysis for article.
+
+    Returns:
+        Dict with {overall_sentiment, headline_sentiment, confidence, reasoning, model_type}
+    """
+    with get_db() as db:
+        return db.get_sentiment_for_article(article_id, model_type)
+
+
+@st.cache_data(ttl=300)
+def load_article_topic(article_id: int, version_id: str):
+    """Load topic assignment for article.
+
+    Returns:
+        Dict with {topic_id, topic_name, confidence, overall_tone, headline_tone}
+    """
+    with get_db() as db:
+        return db.get_topic_for_article(article_id, version_id)
+
+
+@st.cache_data(ttl=300)
+def load_article_summary(article_id: int, version_id: str):
+    """Load summary for article.
+
+    Returns:
+        Dict with {summary_text, method, compression_ratio, word_count, summary_length, processing_time_ms}
+    """
+    with get_db() as db:
+        return db.get_summary_for_article(article_id, version_id)
+
+
+@st.cache_data(ttl=300)
+def load_article_entities(article_id: int, version_id: str):
+    """Load named entities for article.
+
+    Returns:
+        List of dicts with [entity_text, entity_type, confidence, start_char, end_char]
+    """
+    with get_db() as db:
+        return db.get_entities_for_article(article_id, version_id)
+
+
+@st.cache_data(ttl=300)
+def load_article_cluster(article_id: int, version_id: str):
+    """Load event cluster assignment.
+
+    Returns:
+        Dict with {cluster_id, cluster_name, similarity_score, other_sources[], article_count}
+    """
+    with get_db() as db:
+        return db.get_cluster_for_article(article_id, version_id)
+
+
+@st.cache_data(ttl=300)
+def get_available_sentiment_models():
+    """Get list of sentiment models that have analyzed articles.
+
+    Returns:
+        List of model types (e.g., ['roberta', 'vader', 'distilbert'])
+    """
+    models = load_available_models()
+    return [m['model_type'] for m in models] if models else []

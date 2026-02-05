@@ -497,21 +497,40 @@ def generate_summaries(
     with Database() as db:
         schema = db.config["schema"]
 
-        # Get articles
+        # Check how many articles already have summaries for this version
+        with db.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT COUNT(*)
+                FROM {schema}.article_summaries
+                WHERE result_version_id = %s
+                """,
+                (result_version_id,)
+            )
+            already_summarized = cur.fetchone()["count"]
+
+        # Get articles that haven't been summarized yet for this version
         with db.cursor() as cur:
             query = (
-                f"SELECT id, title, content "
-                f"FROM {schema}.news_articles "
-                f"WHERE is_ditwah_cyclone = 1 "
-                f"ORDER BY date_posted"
+                f"SELECT a.id, a.title, a.content "
+                f"FROM {schema}.news_articles a "
+                f"WHERE a.is_ditwah_cyclone = 1 "
+                f"AND NOT EXISTS ("
+                f"  SELECT 1 FROM {schema}.article_summaries s "
+                f"  WHERE s.article_id = a.id "
+                f"  AND s.result_version_id = %s"
+                f") "
+                f"ORDER BY a.date_posted"
             )
             if limit:
                 query += f" LIMIT {int(limit)}"
-            cur.execute(query)
+            cur.execute(query, (result_version_id,))
             articles = cur.fetchall()
             total_articles = len(articles)
 
-        print(f"Processing {total_articles} articles...")
+        if already_summarized > 0:
+            print(f"Found {already_summarized} articles already summarized for this version")
+        print(f"Processing {total_articles} remaining articles...")
 
         # Process articles in batches
         for i in tqdm(range(0, total_articles, batch_size), desc="Summarizing"):
