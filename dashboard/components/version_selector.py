@@ -12,7 +12,8 @@ from src.versions import (
     get_default_clustering_config,
     get_default_word_frequency_config,
     get_default_ner_config,
-    get_default_summarization_config
+    get_default_summarization_config,
+    get_default_ditwah_claims_config
 )
 
 
@@ -72,6 +73,8 @@ def render_version_selector(analysis_type):
             status_items.append(f"{'✓' if status.get('word_frequency') else '○'} Word Frequency")
         elif analysis_type == 'summarization':
             status_items.append(f"{'✓' if status.get('summarization') else '○'} Summarization")
+        elif analysis_type == 'ditwah_claims':
+            status_items.append(f"{'✓' if status.get('ditwah_claims') else '○'} Ditwah Claims")
         else:
             status_items.append(f"{'✓' if status.get('embeddings') else '○'} Embeddings")
             if analysis_type == 'topics':
@@ -193,6 +196,8 @@ def render_create_version_dialog(analysis_type):
         default_config = get_default_ner_config()
     elif analysis_type == 'summarization':
         default_config = get_default_summarization_config()
+    elif analysis_type == 'ditwah_claims':
+        default_config = get_default_ditwah_claims_config()
     else:
         default_config = {}
 
