@@ -1,6 +1,7 @@
 """Data loading functions with Streamlit caching."""
 
 import streamlit as st
+import pandas as pd
 from pathlib import Path
 
 from src.db import get_db
@@ -722,3 +723,390 @@ def load_articles_by_topic(version_id=None, topic_name=None):
                 ORDER BY n.date_posted DESC
             """, (topic_name, version_id, version_id))
             return cur.fetchall()
+
+
+# ============================================================================
+# Ditwah Claims - Data Loading Functions
+# ============================================================================
+
+@st.cache_data(ttl=300)
+def load_ditwah_claims(version_id, keyword=None):
+    """Load claims, optionally filtered by keyword."""
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            if keyword:
+                keyword_pattern = f"%{keyword.lower()}%"
+                cur.execute(f"""
+                    SELECT * FROM {schema}.ditwah_claims
+                    WHERE result_version_id = %s
+                      AND LOWER(claim_text) LIKE %s
+                    ORDER BY claim_order, article_count DESC
+                    LIMIT 50
+                """, (version_id, keyword_pattern))
+            else:
+                cur.execute(f"""
+                    SELECT * FROM {schema}.ditwah_claims
+                    WHERE result_version_id = %s
+                    ORDER BY claim_order, article_count DESC
+                """, (version_id,))
+            return cur.fetchall()
+
+
+@st.cache_data(ttl=300)
+def load_claim_sentiment_by_source(claim_id):
+    """Get average sentiment by source for a claim."""
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT
+                    cs.source_id,
+                    AVG(cs.sentiment_score) as avg_sentiment,
+                    STDDEV(cs.sentiment_score) as stddev_sentiment,
+                    COUNT(*) as article_count
+                FROM {schema}.claim_sentiment cs
+                WHERE cs.claim_id = %s
+                GROUP BY cs.source_id
+                ORDER BY avg_sentiment DESC
+            """, (claim_id,))
+            return cur.fetchall()
+
+
+@st.cache_data(ttl=300)
+def load_claim_stance_by_source(claim_id):
+    """Get average stance by source for a claim."""
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT
+                    cs.source_id,
+                    AVG(cs.stance_score) as avg_stance,
+                    STDDEV(cs.stance_score) as stddev_stance,
+                    AVG(cs.confidence) as avg_confidence,
+                    COUNT(*) as article_count
+                FROM {schema}.claim_stance cs
+                WHERE cs.claim_id = %s
+                GROUP BY cs.source_id
+                ORDER BY avg_stance DESC
+            """, (claim_id,))
+            return cur.fetchall()
+
+
+@st.cache_data(ttl=300)
+def load_claim_sentiment_breakdown(claim_id):
+    """Get sentiment distribution (very negative to very positive percentages) by source."""
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT
+                    source_id,
+                    COUNT(*) as total,
+                    SUM(CASE WHEN sentiment_score <= -3 THEN 1 ELSE 0 END)::int as very_negative_count,
+                    SUM(CASE WHEN sentiment_score <= -3 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as very_negative_pct,
+                    SUM(CASE WHEN sentiment_score > -3 AND sentiment_score <= -1 THEN 1 ELSE 0 END)::int as negative_count,
+                    SUM(CASE WHEN sentiment_score > -3 AND sentiment_score <= -1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as negative_pct,
+                    SUM(CASE WHEN sentiment_score > -1 AND sentiment_score < 1 THEN 1 ELSE 0 END)::int as neutral_count,
+                    SUM(CASE WHEN sentiment_score > -1 AND sentiment_score < 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as neutral_pct,
+                    SUM(CASE WHEN sentiment_score >= 1 AND sentiment_score < 3 THEN 1 ELSE 0 END)::int as positive_count,
+                    SUM(CASE WHEN sentiment_score >= 1 AND sentiment_score < 3 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as positive_pct,
+                    SUM(CASE WHEN sentiment_score >= 3 THEN 1 ELSE 0 END)::int as very_positive_count,
+                    SUM(CASE WHEN sentiment_score >= 3 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as very_positive_pct
+                FROM {schema}.claim_sentiment
+                WHERE claim_id = %s
+                GROUP BY source_id
+            """, (claim_id,))
+            return cur.fetchall()
+
+
+@st.cache_data(ttl=300)
+def load_claim_stance_breakdown(claim_id):
+    """Get stance distribution (agree/neutral/disagree percentages) by source."""
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT
+                    source_id,
+                    COUNT(*) as total,
+                    SUM(CASE WHEN stance_score > 0.2 THEN 1 ELSE 0 END)::int as agree_count,
+                    SUM(CASE WHEN stance_score > 0.2 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as agree_pct,
+                    SUM(CASE WHEN stance_score BETWEEN -0.2 AND 0.2 THEN 1 ELSE 0 END)::int as neutral_count,
+                    SUM(CASE WHEN stance_score BETWEEN -0.2 AND 0.2 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as neutral_pct,
+                    SUM(CASE WHEN stance_score < -0.2 THEN 1 ELSE 0 END)::int as disagree_count,
+                    SUM(CASE WHEN stance_score < -0.2 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as disagree_pct
+                FROM {schema}.claim_stance
+                WHERE claim_id = %s
+                GROUP BY source_id
+            """, (claim_id,))
+            return cur.fetchall()
+
+
+@st.cache_data(ttl=300)
+def load_claim_articles(claim_id, limit=10):
+    """Get sample articles for a claim with sentiment/stance scores."""
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT
+                    n.id,
+                    n.title,
+                    n.content,
+                    n.date_posted,
+                    n.url,
+                    n.source_id,
+                    cs_sentiment.sentiment_score,
+                    cs_stance.stance_score,
+                    cs_stance.stance_label,
+                    cs_stance.supporting_quotes
+                FROM {schema}.claim_sentiment cs_sentiment
+                JOIN {schema}.claim_stance cs_stance
+                    ON cs_sentiment.article_id = cs_stance.article_id
+                    AND cs_sentiment.claim_id = cs_stance.claim_id
+                JOIN {schema}.news_articles n ON n.id = cs_sentiment.article_id
+                WHERE cs_sentiment.claim_id = %s
+                ORDER BY n.date_posted DESC
+                LIMIT %s
+            """, (claim_id, limit))
+            return cur.fetchall()
+
+
+# ============================================================================
+# Stance Distribution - Data Loading Functions
+# ============================================================================
+
+@st.cache_data(ttl=300)
+def load_stance_overview(version_id):
+    """Get high-level stance statistics."""
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            # Total claims with stance data
+            cur.execute(f"""
+                SELECT COUNT(DISTINCT claim_id) as total_claims
+                FROM {schema}.claim_stance cs
+                JOIN {schema}.ditwah_claims dc ON cs.claim_id = dc.id
+                WHERE dc.result_version_id = %s
+            """, (version_id,))
+            total_claims = cur.fetchone()['total_claims']
+
+            # Most controversial claim (highest stddev in stance_score)
+            cur.execute(f"""
+                SELECT
+                    dc.id,
+                    dc.claim_text,
+                    STDDEV(cs.stance_score) as controversy
+                FROM {schema}.claim_stance cs
+                JOIN {schema}.ditwah_claims dc ON cs.claim_id = dc.id
+                WHERE dc.result_version_id = %s
+                GROUP BY dc.id, dc.claim_text
+                ORDER BY controversy DESC
+                LIMIT 1
+            """, (version_id,))
+            most_controversial = cur.fetchone()
+
+            # Strongest consensus claim (lowest stddev)
+            cur.execute(f"""
+                SELECT
+                    dc.id,
+                    dc.claim_text,
+                    AVG(cs.stance_score) as avg_stance,
+                    STDDEV(cs.stance_score) as controversy
+                FROM {schema}.claim_stance cs
+                JOIN {schema}.ditwah_claims dc ON cs.claim_id = dc.id
+                WHERE dc.result_version_id = %s
+                GROUP BY dc.id, dc.claim_text
+                HAVING COUNT(DISTINCT cs.source_id) >= 2
+                ORDER BY controversy ASC
+                LIMIT 1
+            """, (version_id,))
+            strongest_consensus = cur.fetchone()
+
+            # Average confidence
+            cur.execute(f"""
+                SELECT AVG(cs.confidence) as avg_confidence
+                FROM {schema}.claim_stance cs
+                JOIN {schema}.ditwah_claims dc ON cs.claim_id = dc.id
+                WHERE dc.result_version_id = %s
+            """, (version_id,))
+            avg_confidence = cur.fetchone()['avg_confidence']
+
+            return {
+                'total_claims': total_claims,
+                'most_controversial': most_controversial,
+                'strongest_consensus': strongest_consensus,
+                'avg_confidence': avg_confidence
+            }
+
+
+@st.cache_data(ttl=300)
+def load_stance_polarization_matrix(version_id, category_filter=None):
+    """Get claim × source heatmap data."""
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            category_clause = "AND dc.category = %s" if category_filter else ""
+            params = [version_id, category_filter] if category_filter else [version_id]
+
+            cur.execute(f"""
+                SELECT
+                    dc.id as claim_id,
+                    dc.claim_text,
+                    dc.category,
+                    cs.source_id,
+                    AVG(cs.stance_score) as avg_stance,
+                    AVG(cs.confidence) as avg_confidence,
+                    STDDEV(cs.stance_score) OVER (PARTITION BY dc.id) as controversy_index,
+                    COUNT(cs.id) as article_count
+                FROM {schema}.claim_stance cs
+                JOIN {schema}.ditwah_claims dc ON cs.claim_id = dc.id
+                WHERE dc.result_version_id = %s {category_clause}
+                GROUP BY dc.id, dc.claim_text, dc.category, cs.source_id
+                ORDER BY controversy_index DESC, dc.claim_text, cs.source_id
+            """, params)
+
+            rows = cur.fetchall()
+            return pd.DataFrame(rows)
+
+
+@st.cache_data(ttl=300)
+def load_source_alignment_matrix(version_id):
+    """Calculate source-to-source alignment scores."""
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                WITH source_stances AS (
+                    SELECT
+                        cs.claim_id,
+                        cs.source_id,
+                        CASE
+                            WHEN cs.stance_score > 0.2 THEN 'agree'
+                            WHEN cs.stance_score < -0.2 THEN 'disagree'
+                            ELSE 'neutral'
+                        END as stance_category
+                    FROM {schema}.claim_stance cs
+                    JOIN {schema}.ditwah_claims dc ON cs.claim_id = dc.id
+                    WHERE dc.result_version_id = %s
+                )
+                SELECT
+                    s1.source_id as source1,
+                    s2.source_id as source2,
+                    COUNT(*) as total_claims,
+                    SUM(CASE WHEN s1.stance_category = s2.stance_category THEN 1 ELSE 0 END) as agree_count,
+                    SUM(CASE WHEN s1.stance_category != s2.stance_category THEN 1 ELSE 0 END) as disagree_count,
+                    ROUND(SUM(CASE WHEN s1.stance_category = s2.stance_category THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as alignment_pct
+                FROM source_stances s1
+                JOIN source_stances s2 ON s1.claim_id = s2.claim_id AND s1.source_id < s2.source_id
+                GROUP BY s1.source_id, s2.source_id
+                ORDER BY alignment_pct DESC
+            """, (version_id,))
+
+            rows = cur.fetchall()
+            return pd.DataFrame(rows)
+
+
+@st.cache_data(ttl=300)
+def load_confidence_weighted_stances(version_id):
+    """Get bubble chart data."""
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT
+                    dc.id as claim_id,
+                    dc.claim_text,
+                    dc.category,
+                    AVG(cs.stance_score) as avg_stance,
+                    STDDEV(cs.stance_score) as stddev_stance,
+                    AVG(cs.confidence) as avg_confidence,
+                    COUNT(DISTINCT cs.article_id) as article_count,
+                    COUNT(DISTINCT cs.source_id) as source_count
+                FROM {schema}.claim_stance cs
+                JOIN {schema}.ditwah_claims dc ON cs.claim_id = dc.id
+                WHERE dc.result_version_id = %s
+                GROUP BY dc.id, dc.claim_text, dc.category
+                HAVING COUNT(DISTINCT cs.article_id) >= 2
+                ORDER BY stddev_stance DESC
+            """, (version_id,))
+
+            rows = cur.fetchall()
+            return pd.DataFrame(rows)
+
+
+@st.cache_data(ttl=300)
+def load_claim_source_comparison(claim_id):
+    """Get detailed comparison for a single claim across all sources."""
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT
+                    cs.source_id,
+                    AVG(cs.stance_score) as avg_stance,
+                    cs.stance_label,
+                    AVG(cs.confidence) as avg_confidence,
+                    COUNT(cs.article_id) as article_count,
+                    (ARRAY_AGG(cs.supporting_quotes ORDER BY cs.processed_at DESC))[1] as sample_quotes
+                FROM {schema}.claim_stance cs
+                WHERE cs.claim_id = %s
+                GROUP BY cs.source_id, cs.stance_label
+                ORDER BY avg_stance DESC
+            """, (claim_id,))
+
+            rows = cur.fetchall()
+            return pd.DataFrame(rows)
+
+
+@st.cache_data(ttl=300)
+def load_claim_quotes_by_stance(claim_id):
+    """Get supporting quotes grouped by stance."""
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT
+                    cs.stance_label,
+                    cs.stance_score,
+                    cs.supporting_quotes,
+                    cs.source_id,
+                    n.title as article_title,
+                    n.id as article_id,
+                    n.date_posted
+                FROM {schema}.claim_stance cs
+                JOIN {schema}.news_articles n ON cs.article_id = n.id
+                WHERE cs.claim_id = %s
+                  AND cs.supporting_quotes IS NOT NULL
+                  AND jsonb_array_length(cs.supporting_quotes) > 0
+                ORDER BY cs.stance_score DESC, n.date_posted DESC
+            """, (claim_id,))
+
+            rows = cur.fetchall()
+            return pd.DataFrame(rows)
+
+
+@st.cache_data(ttl=300)
+def load_stance_by_category(version_id):
+    """Get stance patterns grouped by claim category."""
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT
+                    dc.category,
+                    cs.source_id,
+                    AVG(cs.stance_score) as avg_stance,
+                    COUNT(DISTINCT dc.id) as claim_count,
+                    COUNT(cs.article_id) as article_count
+                FROM {schema}.claim_stance cs
+                JOIN {schema}.ditwah_claims dc ON cs.claim_id = dc.id
+                WHERE dc.result_version_id = %s
+                GROUP BY dc.category, cs.source_id
+                ORDER BY dc.category, cs.source_id
+            """, (version_id,))
+
+            rows = cur.fetchall()
+            return pd.DataFrame(rows)
