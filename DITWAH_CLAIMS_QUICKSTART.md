@@ -23,7 +23,7 @@ The DITWAH claims analysis now uses a **two-step process** with **zero-cost loca
 
 ```bash
 # Apply the new schema changes
-PGPASSWORD='AFYpwE%0sZNg@W' psql -h localhost -U ai_agent -d taf_media -f migrations/001_add_article_claims_table.sql
+PGPASSWORD='<YOUR_PASSWORD>' psql -h localhost -U ai_agent -d taf_media -f migrations/001_add_article_claims_table.sql
 ```
 
 **Verify migration succeeded:**
