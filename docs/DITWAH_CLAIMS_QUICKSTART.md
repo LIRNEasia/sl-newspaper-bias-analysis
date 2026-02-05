@@ -23,7 +23,7 @@ The DITWAH claims analysis now uses a **two-step process** with **zero-cost loca
 
 ```bash
 # Apply the new schema changes
-PGPASSWORD='<YOUR_PASSWORD>' psql -h localhost -U ai_agent -d taf_media -f migrations/001_add_article_claims_table.sql
+PGPASSWORD='<YOUR_PASSWORD>' psql -h localhost -U your_db_username -d taf_media -f migrations/001_add_article_claims_table.sql
 ```
 
 **Verify migration succeeded:**
@@ -53,7 +53,7 @@ ollama pull llama3.1:latest
 
 ```bash
 # Check if DITWAH articles are marked
-psql -h localhost -U ai_agent -d taf_media -c "SELECT COUNT(*) FROM media_bias.news_articles WHERE is_ditwah_cyclone = TRUE;"
+psql -h localhost -U your_db_username -d taf_media -c "SELECT COUNT(*) FROM media_bias.news_articles WHERE is_ditwah_cyclone = TRUE;"
 
 # If count is 0, run the marking script
 python3 scripts/ditwah_claims/01_mark_ditwah_articles.py
@@ -185,7 +185,7 @@ streamlit run dashboard/app.py
 **Solution:**
 ```bash
 # Check if step 1 was completed
-psql -h localhost -U ai_agent -d taf_media -c "
+psql -h localhost -U your_db_username -d taf_media -c "
 SELECT COUNT(*) FROM media_bias.ditwah_article_claims WHERE result_version_id = '<version-id>';
 "
 

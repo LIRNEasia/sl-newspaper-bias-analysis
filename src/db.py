@@ -292,58 +292,6 @@ class Database:
                  for a in assignments]
             )
 
-    # Analysis operations
-    def store_article_analysis(self, analyses: List[Dict]):
-        """Store article analysis results (tone, type)."""
-        schema = self.config["schema"]
-        with self.cursor(dict_cursor=False) as cur:
-            for a in analyses:
-                cur.execute(f"""
-                    INSERT INTO {schema}.article_analysis
-                    (article_id, article_type, article_type_confidence,
-                     overall_tone, headline_tone, tone_reasoning,
-                     llm_provider, llm_model)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (article_id) DO UPDATE SET
-                        article_type = EXCLUDED.article_type,
-                        article_type_confidence = EXCLUDED.article_type_confidence,
-                        overall_tone = EXCLUDED.overall_tone,
-                        headline_tone = EXCLUDED.headline_tone,
-                        tone_reasoning = EXCLUDED.tone_reasoning,
-                        llm_provider = EXCLUDED.llm_provider,
-                        llm_model = EXCLUDED.llm_model,
-                        processed_at = NOW()
-                """, (
-                    a["article_id"],
-                    a.get("article_type"),
-                    a.get("article_type_confidence"),
-                    a.get("overall_tone"),
-                    a.get("headline_tone"),
-                    a.get("tone_reasoning"),
-                    a.get("llm_provider"),
-                    a.get("llm_model")
-                ))
-
-    def get_articles_without_analysis(self, limit: int = None) -> List[Dict]:
-        """Get articles that haven't been analyzed yet."""
-        schema = self.config["schema"]
-        query = f"""
-            SELECT a.id, a.title, a.content, a.date_posted, a.source_id
-            FROM {schema}.news_articles a
-            LEFT JOIN {schema}.article_analysis aa ON a.id = aa.article_id
-            WHERE (aa.overall_tone IS NULL OR aa.article_type IS NULL)
-              AND a.content IS NOT NULL
-              AND a.content != ''
-              AND is_ditwah_cyclone = 1
-            ORDER BY a.date_posted, a.id
-        """
-        if limit:
-            query += f" LIMIT {limit}"
-
-        with self.cursor() as cur:
-            cur.execute(query)
-            return cur.fetchall()
-
     # Event cluster operations
     def store_event_clusters(self, clusters: List[Dict], result_version_id: str):
         """Store event clusters for a specific version."""
@@ -898,7 +846,7 @@ class Database:
         with self.cursor() as cur:
             cur.execute(f"""
                 SELECT t.id as topic_id, t.topic_id as bertopic_id, t.name as topic_name,
-                       aa.topic_confidence, aa.overall_tone, aa.headline_tone
+                       aa.topic_confidence
                 FROM {schema}.article_analysis aa
                 JOIN {schema}.topics t ON aa.primary_topic_id = t.id
                 WHERE aa.article_id = %s AND aa.result_version_id = %s

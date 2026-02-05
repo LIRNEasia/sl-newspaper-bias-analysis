@@ -58,13 +58,6 @@ CREATE TABLE IF NOT EXISTS media_bias.article_analysis (
     result_version_id UUID NOT NULL REFERENCES media_bias.result_versions(id) ON DELETE CASCADE,
     primary_topic_id INTEGER REFERENCES media_bias.topics(id),
     topic_confidence FLOAT,
-    article_type VARCHAR(50),
-    article_type_confidence FLOAT,
-    overall_tone FLOAT,
-    headline_tone FLOAT,
-    tone_reasoning TEXT,
-    llm_provider VARCHAR(50),
-    llm_model VARCHAR(100),
     processed_at TIMESTAMP DEFAULT NOW(),
     UNIQUE(article_id, result_version_id)
 );

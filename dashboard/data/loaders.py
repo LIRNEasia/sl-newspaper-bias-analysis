@@ -1157,7 +1157,7 @@ def load_article_topic(article_id: int, version_id: str):
     """Load topic assignment for article.
 
     Returns:
-        Dict with {topic_id, topic_name, confidence, overall_tone, headline_tone}
+        Dict with {topic_id, topic_name, topic_confidence}
     """
     with get_db() as db:
         return db.get_topic_for_article(article_id, version_id)

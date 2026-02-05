@@ -121,7 +121,7 @@ streamlit run dashboard/app.py
 ## Verify Database
 
 ```bash
-psql -h localhost -U ai_agent -d taf_media
+psql -h localhost -U your_db_username -d taf_media
 ```
 
 ```sql
