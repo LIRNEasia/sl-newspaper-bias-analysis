@@ -60,6 +60,7 @@ def render_version_selector(analysis_type):
             st.markdown(f"**{version['name']}**")
             if version['description']:
                 st.caption(version['description'])
+            st.caption(f"Version ID: `{version_id}`")
         with col2:
             st.caption(f"Created: {version['created_at'].strftime('%Y-%m-%d %H:%M')}")
 
