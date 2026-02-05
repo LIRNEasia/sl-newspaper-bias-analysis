@@ -412,6 +412,54 @@ def load_coverage_timeline():
 
 
 @st.cache_data(ttl=300)
+def load_ditwah_timeline():
+    """Load daily Ditwah article counts by source."""
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT date_posted::date as date, source_id, COUNT(*) as count
+                FROM {schema}.news_articles
+                WHERE date_posted IS NOT NULL AND is_ditwah_cyclone = 1
+                GROUP BY date_posted::date, source_id
+                ORDER BY date
+            """)
+            return cur.fetchall()
+
+
+@st.cache_data(ttl=300)
+def load_article_lengths():
+    """Load article lengths for distribution analysis."""
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT
+                    source_id,
+                    LENGTH(content) as article_length
+                FROM {schema}.news_articles
+                WHERE content IS NOT NULL
+            """)
+            return cur.fetchall()
+
+
+@st.cache_data(ttl=300)
+def load_ditwah_article_lengths():
+    """Load article lengths for Ditwah articles."""
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT
+                    source_id,
+                    LENGTH(content) as article_length
+                FROM {schema}.news_articles
+                WHERE content IS NOT NULL AND is_ditwah_cyclone = 1
+            """)
+            return cur.fetchall()
+
+
+@st.cache_data(ttl=300)
 def load_word_frequencies(version_id=None, limit=50):
     """Load word frequencies for a specific version."""
     if not version_id:
