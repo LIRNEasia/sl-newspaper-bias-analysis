@@ -9,6 +9,7 @@ import streamlit as st
 import pandas as pd
 from streamlit_searchbox import st_searchbox
 import plotly.express as px
+import plotly.graph_objects as go
 
 from src.versions import list_versions
 from data.loaders import (
@@ -21,7 +22,8 @@ from data.loaders import (
     load_article_cluster,
     load_event_details,
     get_available_sentiment_models,
-    load_topic_coverage_by_source
+    load_topic_coverage_by_source,
+    load_sentiment_by_source_topic
 )
 from components.source_mapping import SOURCE_NAMES, SOURCE_COLORS
 from components.styling import apply_page_style
@@ -225,7 +227,89 @@ if available_models:
 else:
     st.warning("No sentiment models have analyzed articles yet. Run sentiment analysis pipeline first.")
 
+# Topic Sentiment Comparison - only show if article has topic and sentiment
+if topic_data and sentiment:
+    st.caption(f"How different outlets cover '{topic_data['topic_name']}' (using {sentiment_model} model)")
 
+    # Load sentiment data for this topic across all outlets
+    topic_sentiment_data = load_sentiment_by_source_topic(sentiment_model, topic_data['topic_name'])
+
+    if topic_sentiment_data and len(topic_sentiment_data) > 0:
+        # Transform data
+        sentiment_df = pd.DataFrame(topic_sentiment_data)
+        sentiment_df['source_name'] = sentiment_df['source_id'].map(SOURCE_NAMES)
+
+        # Sort by average sentiment (highest first)
+        sentiment_df = sentiment_df.sort_values('avg_sentiment', ascending=False)
+
+        # Create horizontal bar chart
+        fig = go.Figure()
+
+        # Add bars with error bars (no text labels on bars)
+        fig.add_trace(go.Bar(
+            y=sentiment_df['source_name'],
+            x=sentiment_df['avg_sentiment'],
+            orientation='h',
+            marker_color=[SOURCE_COLORS.get(name, '#999') for name in sentiment_df['source_name']],
+            error_x=dict(
+                type='data',
+                symmetric=True,
+                array=sentiment_df['stddev_sentiment'],
+                arrayminus=sentiment_df['stddev_sentiment'],
+                visible=True
+            ),
+            hovertemplate='<b>%{y}</b><br>' +
+                         'Avg Sentiment: %{x:.2f}<br>' +
+                         'Articles: %{customdata[0]}<br>' +
+                         'Std Dev: %{customdata[1]:.2f}<extra></extra>',
+            customdata=sentiment_df[['article_count', 'stddev_sentiment']].values
+        ))
+
+        # Add neutral reference line at x=0
+        fig.add_vline(x=0, line_dash="dash", line_color="gray", annotation_text="Neutral")
+
+        # Layout configuration
+        fig.update_layout(
+            xaxis_title="Average Sentiment Score",
+            yaxis_title="Outlet",
+            height=300,  # Increased height for better spacing
+            xaxis_range=[-5, 5],
+            showlegend=False,
+            yaxis={'categoryorder': 'total ascending'}
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Display summary table with sentiment details
+        st.caption("Sentiment Details:")
+        display_df = sentiment_df[['source_name', 'avg_sentiment', 'stddev_sentiment', 'article_count']].copy()
+        display_df.columns = ['Outlet', 'Avg Sentiment', 'Std Dev', 'Articles']
+        display_df['Avg Sentiment'] = display_df['Avg Sentiment'].map('{:.2f}'.format)
+        display_df['Std Dev'] = display_df['Std Dev'].map('{:.2f}'.format)
+        display_df['Articles'] = display_df['Articles'].astype(int)
+
+        st.dataframe(
+            display_df,
+            hide_index=True,
+            use_container_width=True,
+            height=180
+        )
+
+        # Add contextual note comparing article sentiment to outlet average
+        current_source = SOURCE_NAMES.get(article['source_id'], article['source_id'])
+        current_outlet_data = sentiment_df[sentiment_df['source_name'] == current_source]
+
+        if not current_outlet_data.empty:
+            current_sentiment = current_outlet_data.iloc[0]['avg_sentiment']
+            article_sentiment = sentiment['overall_sentiment']
+
+            # Only show if significantly different (>1.0 points)
+            if abs(article_sentiment - current_sentiment) > 1.0:
+                st.info(f"📊 This article's sentiment ({article_sentiment:.2f}) differs significantly from {current_source}'s average for this topic ({current_sentiment:.2f})")
+    else:
+        st.info("Not enough sentiment data available for cross-outlet comparison on this topic")
+
+st.divider()
 st.markdown("### Summary")
 
 summarization_versions = list_versions(analysis_type='summarization')
@@ -305,7 +389,7 @@ if ner_versions:
 else:
     st.info("No NER versions found. Create and run an NER version first.")
 
-# Event Clustering Section
+
 st.markdown("### Event Clustering")
 
 clustering_versions = list_versions(analysis_type='clustering')
@@ -326,40 +410,24 @@ if clustering_versions:
     cluster = load_article_cluster(article_id, clustering_version_id)
 
     if cluster:
-        col1, col2 = st.columns([2, 1])
-
-        with col1:
-            st.markdown(f"**Event Cluster:** {cluster['cluster_name']}")
-
-        with col2:
-            if cluster.get('similarity_score'):
-                st.metric(
-                    "Similarity",
-                    f"{cluster['similarity_score']:.2%}"
-                )
-
-        # Display cluster details
+        st.markdown(f"**Event Cluster:** {cluster['cluster_name']}")
         st.markdown(f"**Cluster Size:** {cluster['article_count']} articles from {cluster['sources_count']} sources")
 
-        # Display other sources covering this event
         if cluster.get('other_sources'):
             other_sources = [s for s in cluster['other_sources'] if s]
             if other_sources:
                 source_names = [SOURCE_NAMES.get(s, s) for s in other_sources]
                 st.markdown(f"**Other sources:** {', '.join(source_names)}")
 
-        # Display date range
         if cluster.get('date_start') and cluster.get('date_end'):
             date_range = f"{cluster['date_start'].strftime('%Y-%m-%d')} to {cluster['date_end'].strftime('%Y-%m-%d')}"
             st.markdown(f"**Event Period:** {date_range}")
 
-        # Load and display articles in this cluster
         cluster_articles = load_event_details(cluster['cluster_id'], clustering_version_id)
 
         if cluster_articles:
             st.markdown("**Articles in this cluster:**")
 
-            # Create a dataframe for better display
             articles_data = []
             for art in cluster_articles:
                 source_name = SOURCE_NAMES.get(art['source_id'], art['source_id'])
@@ -371,10 +439,8 @@ if clustering_versions:
                     'URL': art['url'] if art['url'] else ''
                 })
 
-            # Display as dataframe
             df = pd.DataFrame(articles_data)
 
-            # Make clickable links in the dataframe
             st.dataframe(
                 df,
                 column_config={
