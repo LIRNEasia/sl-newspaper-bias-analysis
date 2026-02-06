@@ -916,7 +916,7 @@ class Database:
             cur.execute(f"""
                 SELECT id, title, source_id, date_posted
                 FROM {schema}.news_articles
-                WHERE title ILIKE %s
+                WHERE title ILIKE %s AND is_ditwah_cyclone = 1
                 ORDER BY date_posted DESC
                 LIMIT %s
             """, (f"%{title_search}%", limit))

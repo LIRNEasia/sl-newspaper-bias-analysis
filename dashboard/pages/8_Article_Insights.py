@@ -8,8 +8,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import streamlit as st
 import pandas as pd
 from streamlit_searchbox import st_searchbox
+import plotly.express as px
 
-from src.versions import list_versions, get_version
+from src.versions import list_versions
 from data.loaders import (
     search_articles_by_title,
     load_article_by_id,
@@ -19,9 +20,10 @@ from data.loaders import (
     load_article_entities,
     load_article_cluster,
     load_event_details,
-    get_available_sentiment_models
+    get_available_sentiment_models,
+    load_topic_coverage_by_source
 )
-from components.source_mapping import SOURCE_NAMES
+from components.source_mapping import SOURCE_NAMES, SOURCE_COLORS
 from components.styling import apply_page_style
 
 apply_page_style()
@@ -93,7 +95,87 @@ if article['url']:
     st.markdown(f"[View original article]({article['url']})")
 
 st.divider()
-st.subheader("Analysis Insights")
+
+st.markdown("### Topic Assignment")
+
+topic_versions = list_versions(analysis_type='topics')
+
+if topic_versions:
+    topic_version_options = {
+        f"{v['name']} ({v['created_at'].strftime('%Y-%m-%d')})": v['id']
+        for v in topic_versions
+    }
+
+    selected_topic_version_label = st.selectbox(
+        "Topic Version",
+        options=list(topic_version_options.keys()),
+        key="topic_version_selector"
+    )
+
+    topic_version_id = topic_version_options[selected_topic_version_label]
+    topic_data = load_article_topic(article_id, topic_version_id)
+
+    if topic_data:
+        col1, col2 = st.columns([2, 1])
+
+        with col1:
+            st.markdown(f"**Primary Topic:** {topic_data['topic_name']}")
+
+        # with col2:
+        #     if topic_data.get('topic_confidence'):
+        #         st.metric(
+        #             "Confidence",
+        #             f"{topic_data['topic_confidence']:.2%}"
+        #         )
+
+        # st.markdown("#### Coverage of This Topic Across Outlets")
+        st.caption("Shows how much each outlet covers this topic relative to their total coverage")
+
+        topic_coverage = load_topic_coverage_by_source(topic_data['topic_name'], topic_version_id)
+
+        if topic_coverage:
+            # Prepare data for visualization
+            coverage_data = []
+            for row in topic_coverage:
+                source_name = SOURCE_NAMES.get(row['source_id'], row['source_id'])
+                coverage_data.append({
+                    'Source': source_name,
+                    'Article Count': row['article_count'],
+                    'Percentage': row['percentage']
+                })
+
+            coverage_df = pd.DataFrame(coverage_data)
+            # Sort by article count descending (most coverage first)
+            coverage_df = coverage_df.sort_values('Article Count', ascending=False)
+
+            # Horizontal bar chart
+            fig = px.bar(
+                coverage_df,
+                x='Percentage',
+                y='Source',
+                orientation='h',
+                color='Source',
+                color_discrete_map=SOURCE_COLORS,
+                labels={'Percentage': '% of Source\'s Coverage'},
+                text=coverage_df.apply(
+                    lambda row: f"{row['Article Count']} articles ({row['Percentage']:.1f}%)",
+                    axis=1
+                )
+            )
+            fig.update_traces(textposition='outside')
+            fig.update_layout(
+                height=300,
+                showlegend=False,
+                xaxis_title='% of Outlet\'s Total Coverage',
+                yaxis={'categoryorder': 'total ascending'}
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No coverage data available for this topic")
+    else:
+        st.info(f"Article does not belong to any topic (outlier).")
+else:
+    st.info("No topic versions found. Create and run a topic analysis version first.")
 
 st.markdown("### Sentiment Analysis")
 
@@ -143,43 +225,7 @@ if available_models:
 else:
     st.warning("No sentiment models have analyzed articles yet. Run sentiment analysis pipeline first.")
 
-st.markdown("### Topic Assignment")
 
-topic_versions = list_versions(analysis_type='topics')
-
-if topic_versions:
-    topic_version_options = {
-        f"{v['name']} ({v['created_at'].strftime('%Y-%m-%d')})": v['id']
-        for v in topic_versions
-    }
-
-    selected_topic_version_label = st.selectbox(
-        "Topic Version",
-        options=list(topic_version_options.keys()),
-        key="topic_version_selector"
-    )
-
-    topic_version_id = topic_version_options[selected_topic_version_label]
-    topic_data = load_article_topic(article_id, topic_version_id)
-
-    if topic_data:
-        col1, col2 = st.columns([2, 1])
-
-        with col1:
-            st.markdown(f"**Primary Topic:** {topic_data['topic_name']}")
-
-        with col2:
-            if topic_data.get('topic_confidence'):
-                st.metric(
-                    "Confidence",
-                    f"{topic_data['topic_confidence']:.2%}"
-                )
-    else:
-        st.info(f"Article does not belong to any topic (outlier).")
-else:
-    st.info("No topic versions found. Create and run a topic analysis version first.")
-
-# Summary Section
 st.markdown("### Summary")
 
 summarization_versions = list_versions(analysis_type='summarization')
@@ -200,29 +246,6 @@ if summarization_versions:
     summary = load_article_summary(article_id, summary_version_id)
 
     if summary:
-        # Display summary metrics
-        col1, col2, col3, col4 = st.columns(4)
-
-        with col1:
-            st.metric("Method", summary['method'].upper())
-
-        with col2:
-            if summary.get('word_count'):
-                st.metric("Summary Words", summary['word_count'])
-
-        with col3:
-            if summary.get('compression_ratio'):
-                st.metric(
-                    "Compression",
-                    f"{summary['compression_ratio'] * 100:.1f}%"
-                )
-
-        with col4:
-            if summary.get('processing_time_ms'):
-                st.metric("Time", f"{summary['processing_time_ms']}ms")
-
-        # Display summary text
-        st.markdown("**Summary:**")
         st.write(summary['summary_text'])
     else:
         st.info("Article not summarized in this version")
@@ -230,7 +253,7 @@ else:
     st.info("No summarization versions found. Create and run a summarization version first.")
 
 # Named Entities Section
-st.markdown("### Named Entities / Actors")
+st.markdown("### Actors Involved")
 
 ner_versions = list_versions(analysis_type='ner')
 

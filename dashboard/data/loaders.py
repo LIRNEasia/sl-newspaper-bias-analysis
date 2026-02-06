@@ -360,6 +360,50 @@ def load_topic_by_source(version_id=None):
 
 
 @st.cache_data(ttl=300)
+def load_topic_coverage_by_source(topic_name: str, version_id: str):
+    """Load coverage statistics for a specific topic across all sources.
+
+    Args:
+        topic_name: The topic name to analyze
+        version_id: The topic version ID
+
+    Returns:
+        List of dicts with keys: source_id, article_count, source_total, percentage
+    """
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                WITH topic_counts AS (
+                    SELECT n.source_id, COUNT(*) as topic_count
+                    FROM {schema}.article_analysis aa
+                    JOIN {schema}.topics t ON aa.primary_topic_id = t.id
+                    JOIN {schema}.news_articles n ON aa.article_id = n.id
+                    WHERE t.name = %s
+                      AND t.topic_id != -1
+                      AND aa.result_version_id = %s
+                      AND t.result_version_id = %s
+                    GROUP BY n.source_id
+                ),
+                source_totals AS (
+                    SELECT n.source_id, COUNT(*) as total_count
+                    FROM {schema}.news_articles n
+                    WHERE n.is_ditwah_cyclone = 1
+                    GROUP BY n.source_id
+                )
+                SELECT
+                    COALESCE(tc.source_id, st.source_id) as source_id,
+                    COALESCE(tc.topic_count, 0) as article_count,
+                    st.total_count as source_total,
+                    ROUND(COALESCE(tc.topic_count, 0) * 100.0 / st.total_count, 1) as percentage
+                FROM source_totals st
+                LEFT JOIN topic_counts tc ON st.source_id = tc.source_id
+                ORDER BY st.source_id
+            """, (topic_name, version_id, version_id))
+            return cur.fetchall()
+
+
+@st.cache_data(ttl=300)
 def load_top_events(version_id=None, limit=20):
     """Load top event clusters for a specific version."""
     if not version_id:
