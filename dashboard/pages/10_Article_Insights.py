@@ -328,7 +328,6 @@ if article.get('is_ditwah_cyclone'):
     claims = load_article_claims(article_id)
 
     if claims:
-        st.info(f"This article mentions {len(claims)} claim(s) about Cyclone Ditwah")
 
         for claim in claims:
             claim_preview = claim['claim_text']
