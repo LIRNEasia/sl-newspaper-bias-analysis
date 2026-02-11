@@ -96,9 +96,23 @@ class OpenAILLM(BaseLLM):
     def __init__(self, model: str = "gpt-4o", **kwargs):
         super().__init__(model, **kwargs)
         from openai import OpenAI
-        api_key = os.environ.get("OPENAI_API_KEY")
+
+        # Try to get API key from config first, then environment variable
+        api_key = None
+        try:
+            config = load_config()
+            api_key = config.get("openai", {}).get("api_key") or config.get("llm", {}).get("api_key")
+        except:
+            pass
+
         if not api_key:
-            raise ValueError("OPENAI_API_KEY environment variable not set")
+            api_key = os.environ.get("OPENAI_API_KEY")
+
+        if not api_key:
+            raise ValueError(
+                "OPENAI_API_KEY not found. Set it in config.yaml under 'openai.api_key' "
+                "or as environment variable OPENAI_API_KEY"
+            )
         self.client = OpenAI(api_key=api_key)
 
     def generate(
@@ -290,9 +304,22 @@ class GeminiLLM(BaseLLM):
         from google import genai
         from google.genai import types
 
-        api_key = os.environ.get("GOOGLE_API_KEY")
+        # Try to get API key from config first, then environment variable
+        api_key = None
+        try:
+            config = load_config()
+            api_key = config.get("gemini", {}).get("api_key") or config.get("google", {}).get("api_key")
+        except:
+            pass
+
         if not api_key:
-            raise ValueError("GOOGLE_API_KEY environment variable not set")
+            api_key = os.environ.get("GOOGLE_API_KEY")
+
+        if not api_key:
+            raise ValueError(
+                "GOOGLE_API_KEY not found. Set it in config.yaml under 'gemini.api_key' "
+                "or as environment variable GOOGLE_API_KEY"
+            )
 
         self.client = genai.Client(api_key=api_key)
         self.types = types

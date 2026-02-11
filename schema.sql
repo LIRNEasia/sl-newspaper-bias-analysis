@@ -250,6 +250,29 @@ CREATE INDEX IF NOT EXISTS idx_article_summaries_article ON media_bias.article_s
 CREATE INDEX IF NOT EXISTS idx_article_summaries_version ON media_bias.article_summaries(result_version_id);
 CREATE INDEX IF NOT EXISTS idx_article_summaries_method ON media_bias.article_summaries(result_version_id, method);
 
+-- Multi-document summaries for topic/cluster groups
+CREATE TABLE IF NOT EXISTS media_bias.multi_doc_summaries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    group_type VARCHAR(20) NOT NULL,  -- 'topic' | 'cluster'
+    group_id TEXT NOT NULL,  -- references topics.id (integer) or event_clusters.id (UUID)
+    result_version_id UUID NOT NULL REFERENCES media_bias.result_versions(id) ON DELETE CASCADE,  -- multi-doc summarization version
+    source_version_id UUID NOT NULL REFERENCES media_bias.result_versions(id) ON DELETE CASCADE,  -- topic or cluster version
+    summary_text TEXT NOT NULL,
+    method VARCHAR(50) NOT NULL,  -- 'openai' | 'gemini' (from version config)
+    llm_model VARCHAR(100) NOT NULL,  -- e.g., 'gpt-4o', 'gemini-2.0-flash'
+    article_count INTEGER NOT NULL,  -- number of articles summarized
+    source_count INTEGER NOT NULL,  -- number of distinct sources
+    word_count INTEGER,
+    processing_time_ms INTEGER,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(group_type, group_id, result_version_id, source_version_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_multi_doc_summaries_group ON media_bias.multi_doc_summaries(group_type, group_id);
+CREATE INDEX IF NOT EXISTS idx_multi_doc_summaries_version ON media_bias.multi_doc_summaries(result_version_id);
+CREATE INDEX IF NOT EXISTS idx_multi_doc_summaries_source_version ON media_bias.multi_doc_summaries(source_version_id);
+CREATE INDEX IF NOT EXISTS idx_multi_doc_summaries_method ON media_bias.multi_doc_summaries(method);
+
 -- Ditwah Hurricane Hypothesis Analysis
 -- Hypotheses for Ditwah analysis
 CREATE TABLE IF NOT EXISTS media_bias.ditwah_hypotheses (

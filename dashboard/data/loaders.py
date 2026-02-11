@@ -1249,3 +1249,438 @@ def get_available_sentiment_models():
     """
     models = load_available_models()
     return [m['model_type'] for m in models] if models else []
+
+
+@st.cache_data(ttl=300)
+def load_article_claims(article_id: str):
+    """Load claims linked to a specific article.
+
+    Args:
+        article_id: The article UUID (as string)
+
+    Returns:
+        List of dicts with claim info and stance/sentiment for this article
+    """
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT
+                    dc.id as claim_id,
+                    dc.claim_text,
+                    dc.claim_category,
+                    dc.claim_order,
+                    cs_stance.stance_score,
+                    cs_stance.stance_label,
+                    cs_stance.confidence,
+                    cs_stance.supporting_quotes,
+                    cs_sentiment.sentiment_score
+                FROM {schema}.ditwah_claims dc
+                LEFT JOIN {schema}.claim_stance cs_stance
+                    ON dc.id = cs_stance.claim_id
+                    AND cs_stance.article_id = %s::uuid
+                LEFT JOIN {schema}.claim_sentiment cs_sentiment
+                    ON dc.id = cs_sentiment.claim_id
+                    AND cs_sentiment.article_id = %s::uuid
+                WHERE cs_stance.article_id = %s::uuid OR cs_sentiment.article_id = %s::uuid
+                ORDER BY dc.claim_order, dc.claim_text
+            """, (article_id, article_id, article_id, article_id))
+            return cur.fetchall()
+
+
+def load_multi_doc_summary_for_topic(article_id: int, topic_version_id: str, multi_doc_version_id: str):
+    """Load or generate multi-document summary for article's topic.
+
+    Args:
+        article_id: Article ID
+        topic_version_id: Topic analysis version ID
+        multi_doc_version_id: Multi-doc summarization version ID
+
+    Returns:
+        Dict with {summary_text, article_count, source_count, word_count, processing_time_ms, generated_now}
+        or Dict with {error: 'not_enough_articles', article_count: N} if < 2 articles
+        or Dict with {error: 'generation_failed'} if LLM fails
+        or None if article has no topic assignment
+    """
+    with get_db() as db:
+        # 1. Get article's topic assignment
+        topic = db.get_topic_for_article(article_id, topic_version_id)
+        if not topic:
+            return None
+
+        topic_id = topic['topic_id']
+
+        # 2. Check if summary already exists
+        existing = db.get_multi_doc_summary('topic', str(topic_id), multi_doc_version_id, topic_version_id)
+        if existing:
+            return {
+                'summary_text': existing['summary_text'],
+                'article_count': existing['article_count'],
+                'source_count': existing['source_count'],
+                'word_count': existing['word_count'],
+                'processing_time_ms': existing['processing_time_ms'],
+                'method': existing['method'],
+                'llm_model': existing['llm_model'],
+                'generated_now': False
+            }
+
+        # 3. Generate new summary
+        import time
+        from src.multi_doc_summarization import OpenAIMultiDocSummarizer, GeminiMultiDocSummarizer
+        from src.versions import get_version
+        from dashboard.components.source_mapping import SOURCE_NAMES
+
+        # Get version configuration
+        version = get_version(multi_doc_version_id)
+        if not version:
+            return None
+
+        mds_config = version['configuration'].get('multi_doc_summarization', {})
+        method = mds_config.get('method', 'gemini')
+        llm_model = mds_config.get('llm_model', 'gemini-2.0-flash')
+
+        # Get all articles in topic
+        all_articles = db.get_articles_by_topic(topic_id, topic_version_id)
+
+        if len(all_articles) < 2:
+            # Need at least 2 articles for multi-doc summary
+            return {'error': 'not_enough_articles', 'article_count': len(all_articles)}
+
+        # Smart article sampling if needed
+        max_articles = mds_config.get('max_articles', 10 if method == 'openai' else 50)
+        sampled_from = len(all_articles)
+
+        if len(all_articles) > max_articles:
+            # Sample articles with source diversity: take most recent from each source
+            from collections import defaultdict
+            articles_by_source = defaultdict(list)
+            for article in all_articles:
+                articles_by_source[article['source_id']].append(article)
+
+            # Calculate how many to take from each source
+            num_sources = len(articles_by_source)
+            per_source = max(1, max_articles // num_sources)
+
+            # Take most recent articles from each source
+            sampled_articles = []
+            for source_articles in articles_by_source.values():
+                # Already sorted by date in get_articles_by_topic
+                sampled_articles.extend(source_articles[:per_source])
+
+            # If we're under max_articles, add more from largest sources
+            if len(sampled_articles) < max_articles:
+                remaining = max_articles - len(sampled_articles)
+                for source_articles in sorted(articles_by_source.values(), key=len, reverse=True):
+                    if remaining <= 0:
+                        break
+                    additional = source_articles[per_source:per_source + remaining]
+                    sampled_articles.extend(additional)
+                    remaining -= len(additional)
+
+            articles = sampled_articles[:max_articles]
+        else:
+            articles = all_articles
+
+        # Prepare documents and sources
+        documents = [a['content'] for a in articles]
+        sources = [SOURCE_NAMES.get(a['source_id'], a['source_id']) for a in articles]
+
+        # Initialize summarizer
+        summarizer_config = {
+            'method': method,
+            'llm_model': llm_model,
+            'llm_temperature': mds_config.get('temperature', 0.0),
+            'summary_length': mds_config.get('summary_length', 'medium'),
+            'short_sentences': mds_config.get('short_sentences', 5),
+            'short_words': mds_config.get('short_words', 80),
+            'medium_sentences': mds_config.get('medium_sentences', 8),
+            'medium_words': mds_config.get('medium_words', 150),
+            'long_sentences': mds_config.get('long_sentences', 12),
+            'long_words': mds_config.get('long_words', 200)
+        }
+
+        if method == 'openai':
+            summarizer = OpenAIMultiDocSummarizer(summarizer_config)
+        else:
+            summarizer = GeminiMultiDocSummarizer(summarizer_config)
+
+        # Generate summary with error handling
+        start_time = time.time()
+        try:
+            summary_text = summarizer.summarize_multiple(documents, sources)
+            processing_time_ms = int((time.time() - start_time) * 1000)
+
+            if not summary_text:
+                return {
+                    'error': 'generation_failed',
+                    'article_count': len(articles),
+                    'error_message': 'LLM returned empty response',
+                    'sampled': len(articles) < sampled_from,
+                    'sampled_from': sampled_from
+                }
+        except Exception as e:
+            processing_time_ms = int((time.time() - start_time) * 1000)
+            error_str = str(e)
+
+            # Parse common API errors for user-friendly messages
+            if 'rate_limit_exceeded' in error_str or '429' in error_str:
+                error_type = 'rate_limit'
+                if 'tokens per min' in error_str.lower() or 'tpm' in error_str.lower():
+                    error_message = 'Token rate limit exceeded. The articles contain too many tokens for your API plan. Try reducing max_articles or upgrading your API plan.'
+                else:
+                    error_message = 'API rate limit exceeded. Please wait a moment and try again.'
+            elif 'quota' in error_str.lower():
+                error_type = 'quota_exceeded'
+                error_message = 'API quota exceeded. Check your billing and usage limits.'
+            elif 'authentication' in error_str.lower() or '401' in error_str or '403' in error_str:
+                error_type = 'authentication'
+                error_message = 'API authentication failed. Check your API key configuration.'
+            elif 'timeout' in error_str.lower():
+                error_type = 'timeout'
+                error_message = 'Request timed out. The content may be too large. Try reducing max_articles.'
+            else:
+                error_type = 'api_error'
+                error_message = f'API error: {error_str[:200]}'  # Truncate long errors
+
+            return {
+                'error': 'generation_failed',
+                'error_type': error_type,
+                'error_message': error_message,
+                'article_count': len(articles),
+                'sampled': len(articles) < sampled_from,
+                'sampled_from': sampled_from,
+                'full_error': error_str  # For debugging
+            }
+
+        # Count words
+        word_count = len(summary_text.split())
+
+        # Count unique sources
+        source_count = len(set(a['source_id'] for a in articles))
+
+        # Store in database
+        db.store_multi_doc_summary(
+            group_type='topic',
+            group_id=str(topic_id),
+            version_id=multi_doc_version_id,
+            source_version_id=topic_version_id,
+            summary_text=summary_text,
+            method=method,
+            llm_model=llm_model,
+            article_count=len(articles),
+            source_count=source_count,
+            word_count=word_count,
+            processing_time_ms=processing_time_ms
+        )
+
+        return {
+            'summary_text': summary_text,
+            'article_count': len(articles),
+            'source_count': source_count,
+            'word_count': word_count,
+            'processing_time_ms': processing_time_ms,
+            'method': method,
+            'llm_model': llm_model,
+            'generated_now': True,
+            'sampled': len(articles) < sampled_from,
+            'sampled_from': sampled_from
+        }
+
+
+def load_multi_doc_summary_for_cluster(article_id: int, cluster_version_id: str, multi_doc_version_id: str):
+    """Load or generate multi-document summary for article's event cluster.
+
+    Args:
+        article_id: Article ID
+        cluster_version_id: Clustering analysis version ID
+        multi_doc_version_id: Multi-doc summarization version ID
+
+    Returns:
+        Dict with {summary_text, article_count, source_count, word_count, processing_time_ms, generated_now}
+        or Dict with {error: 'not_enough_articles', article_count: N} if < 2 articles
+        or Dict with {error: 'generation_failed'} if LLM fails
+        or None if article has no cluster assignment
+    """
+    with get_db() as db:
+        # 1. Get article's cluster assignment
+        cluster = db.get_cluster_for_article(article_id, cluster_version_id)
+        if not cluster:
+            return None
+
+        cluster_id = cluster['cluster_id']
+
+        # 2. Check if summary already exists
+        existing = db.get_multi_doc_summary('cluster', cluster_id, multi_doc_version_id, cluster_version_id)
+        if existing:
+            return {
+                'summary_text': existing['summary_text'],
+                'article_count': existing['article_count'],
+                'source_count': existing['source_count'],
+                'word_count': existing['word_count'],
+                'processing_time_ms': existing['processing_time_ms'],
+                'method': existing['method'],
+                'llm_model': existing['llm_model'],
+                'generated_now': False
+            }
+
+        # 3. Generate new summary
+        import time
+        from src.multi_doc_summarization import OpenAIMultiDocSummarizer, GeminiMultiDocSummarizer
+        from src.versions import get_version
+        from dashboard.components.source_mapping import SOURCE_NAMES
+
+        # Get version configuration
+        version = get_version(multi_doc_version_id)
+        if not version:
+            return None
+
+        mds_config = version['configuration'].get('multi_doc_summarization', {})
+        method = mds_config.get('method', 'gemini')
+        llm_model = mds_config.get('llm_model', 'gemini-2.0-flash')
+
+        # Get all articles in cluster
+        all_articles = db.get_articles_by_cluster(cluster_id, cluster_version_id)
+
+        if len(all_articles) < 2:
+            # Need at least 2 articles for multi-doc summary
+            return {'error': 'not_enough_articles', 'article_count': len(all_articles)}
+
+        # Smart article sampling if needed
+        max_articles = mds_config.get('max_articles', 10 if method == 'openai' else 50)
+        sampled_from = len(all_articles)
+
+        if len(all_articles) > max_articles:
+            # Sample articles with source diversity: take most recent from each source
+            from collections import defaultdict
+            articles_by_source = defaultdict(list)
+            for article in all_articles:
+                articles_by_source[article['source_id']].append(article)
+
+            # Calculate how many to take from each source
+            num_sources = len(articles_by_source)
+            per_source = max(1, max_articles // num_sources)
+
+            # Take most recent articles from each source
+            sampled_articles = []
+            for source_articles in articles_by_source.values():
+                # Already sorted by similarity in get_articles_by_cluster
+                sampled_articles.extend(source_articles[:per_source])
+
+            # If we're under max_articles, add more from largest sources
+            if len(sampled_articles) < max_articles:
+                remaining = max_articles - len(sampled_articles)
+                for source_articles in sorted(articles_by_source.values(), key=len, reverse=True):
+                    if remaining <= 0:
+                        break
+                    additional = source_articles[per_source:per_source + remaining]
+                    sampled_articles.extend(additional)
+                    remaining -= len(additional)
+
+            articles = sampled_articles[:max_articles]
+        else:
+            articles = all_articles
+
+        # Prepare documents and sources
+        documents = [a['content'] for a in articles]
+        sources = [SOURCE_NAMES.get(a['source_id'], a['source_id']) for a in articles]
+
+        # Initialize summarizer
+        summarizer_config = {
+            'method': method,
+            'llm_model': llm_model,
+            'llm_temperature': mds_config.get('temperature', 0.0),
+            'summary_length': mds_config.get('summary_length', 'medium'),
+            'short_sentences': mds_config.get('short_sentences', 5),
+            'short_words': mds_config.get('short_words', 80),
+            'medium_sentences': mds_config.get('medium_sentences', 8),
+            'medium_words': mds_config.get('medium_words', 150),
+            'long_sentences': mds_config.get('long_sentences', 12),
+            'long_words': mds_config.get('long_words', 200)
+        }
+
+        if method == 'openai':
+            summarizer = OpenAIMultiDocSummarizer(summarizer_config)
+        else:
+            summarizer = GeminiMultiDocSummarizer(summarizer_config)
+
+        # Generate summary with error handling
+        start_time = time.time()
+        try:
+            summary_text = summarizer.summarize_multiple(documents, sources)
+            processing_time_ms = int((time.time() - start_time) * 1000)
+
+            if not summary_text:
+                return {
+                    'error': 'generation_failed',
+                    'article_count': len(articles),
+                    'error_message': 'LLM returned empty response',
+                    'sampled': len(articles) < sampled_from,
+                    'sampled_from': sampled_from
+                }
+        except Exception as e:
+            processing_time_ms = int((time.time() - start_time) * 1000)
+            error_str = str(e)
+
+            # Parse common API errors for user-friendly messages
+            if 'rate_limit_exceeded' in error_str or '429' in error_str:
+                error_type = 'rate_limit'
+                if 'tokens per min' in error_str.lower() or 'tpm' in error_str.lower():
+                    error_message = 'Token rate limit exceeded. The articles contain too many tokens for your API plan. Try reducing max_articles or upgrading your API plan.'
+                else:
+                    error_message = 'API rate limit exceeded. Please wait a moment and try again.'
+            elif 'quota' in error_str.lower():
+                error_type = 'quota_exceeded'
+                error_message = 'API quota exceeded. Check your billing and usage limits.'
+            elif 'authentication' in error_str.lower() or '401' in error_str or '403' in error_str:
+                error_type = 'authentication'
+                error_message = 'API authentication failed. Check your API key configuration.'
+            elif 'timeout' in error_str.lower():
+                error_type = 'timeout'
+                error_message = 'Request timed out. The content may be too large. Try reducing max_articles.'
+            else:
+                error_type = 'api_error'
+                error_message = f'API error: {error_str[:200]}'  # Truncate long errors
+
+            return {
+                'error': 'generation_failed',
+                'error_type': error_type,
+                'error_message': error_message,
+                'article_count': len(articles),
+                'sampled': len(articles) < sampled_from,
+                'sampled_from': sampled_from,
+                'full_error': error_str  # For debugging
+            }
+
+        # Count words
+        word_count = len(summary_text.split())
+
+        # Count unique sources
+        source_count = len(set(a['source_id'] for a in articles))
+
+        # Store in database
+        db.store_multi_doc_summary(
+            group_type='cluster',
+            group_id=cluster_id,
+            version_id=multi_doc_version_id,
+            source_version_id=cluster_version_id,
+            summary_text=summary_text,
+            method=method,
+            llm_model=llm_model,
+            article_count=len(articles),
+            source_count=source_count,
+            word_count=word_count,
+            processing_time_ms=processing_time_ms
+        )
+
+        return {
+            'summary_text': summary_text,
+            'article_count': len(articles),
+            'source_count': source_count,
+            'word_count': word_count,
+            'processing_time_ms': processing_time_ms,
+            'method': method,
+            'llm_model': llm_model,
+            'generated_now': True,
+            'sampled': len(articles) < sampled_from,
+            'sampled_from': sampled_from
+        }

@@ -922,6 +922,174 @@ class Database:
             """, (f"%{title_search}%", limit))
             return cur.fetchall()
 
+    # Multi-document summarization helpers
+    def get_articles_by_topic(self, topic_id: int, version_id: str) -> List[Dict]:
+        """Fetch all articles assigned to a specific topic.
+
+        Args:
+            topic_id: The topic ID (from topics table, not BERTopic topic_id)
+            version_id: The result version ID
+
+        Returns:
+            List of article dicts with id, title, content, source_id, date_posted
+        """
+        schema = self.config["schema"]
+        with self.cursor() as cur:
+            cur.execute(f"""
+                SELECT a.id, a.title, a.content, a.source_id, a.date_posted
+                FROM {schema}.news_articles a
+                JOIN {schema}.article_analysis aa ON a.id = aa.article_id
+                WHERE aa.primary_topic_id = %s
+                  AND aa.result_version_id = %s
+                  AND a.is_ditwah_cyclone = 1
+                ORDER BY a.date_posted
+            """, (topic_id, version_id))
+            return cur.fetchall()
+
+    def get_articles_by_cluster(self, cluster_id: str, version_id: str) -> List[Dict]:
+        """Fetch all articles in an event cluster.
+
+        Args:
+            cluster_id: The cluster UUID
+            version_id: The result version ID
+
+        Returns:
+            List of article dicts with id, title, content, source_id, date_posted, similarity_score
+        """
+        schema = self.config["schema"]
+        with self.cursor() as cur:
+            cur.execute(f"""
+                SELECT a.id, a.title, a.content, a.source_id, a.date_posted,
+                       ac.similarity_score
+                FROM {schema}.news_articles a
+                JOIN {schema}.article_clusters ac ON a.id = ac.article_id
+                WHERE ac.cluster_id = %s
+                  AND ac.result_version_id = %s
+                  AND a.is_ditwah_cyclone = 1
+                ORDER BY ac.similarity_score DESC
+            """, (cluster_id, version_id))
+            return cur.fetchall()
+
+    def get_all_topics_with_counts(
+        self,
+        version_id: str,
+        min_article_count: int = 3
+    ) -> List[Dict]:
+        """Get all topics with article counts above threshold.
+
+        Args:
+            version_id: The result version ID
+            min_article_count: Minimum articles per topic (default: 3)
+
+        Returns:
+            List of topic dicts with id, topic_id, name, keywords, article_count
+        """
+        schema = self.config["schema"]
+        with self.cursor() as cur:
+            cur.execute(f"""
+                SELECT t.id, t.topic_id, t.name, t.keywords, t.article_count
+                FROM {schema}.topics t
+                WHERE t.result_version_id = %s
+                  AND t.topic_id != -1
+                  AND t.article_count >= %s
+                ORDER BY t.article_count DESC
+            """, (version_id, min_article_count))
+            return cur.fetchall()
+
+    def get_all_clusters_with_counts(
+        self,
+        version_id: str,
+        min_article_count: int = 3
+    ) -> List[Dict]:
+        """Get all event clusters with article counts above threshold.
+
+        Args:
+            version_id: The result version ID
+            min_article_count: Minimum articles per cluster (default: 3)
+
+        Returns:
+            List of cluster dicts with id, cluster_name, article_count, sources_count, date_start, date_end
+        """
+        schema = self.config["schema"]
+        with self.cursor() as cur:
+            cur.execute(f"""
+                SELECT ec.id, ec.cluster_name, ec.article_count, ec.sources_count,
+                       ec.date_start, ec.date_end
+                FROM {schema}.event_clusters ec
+                WHERE ec.result_version_id = %s
+                  AND ec.article_count >= %s
+                ORDER BY ec.article_count DESC
+            """, (version_id, min_article_count))
+            return cur.fetchall()
+
+    def get_multi_doc_summary(self, group_type: str, group_id: str, version_id: str, source_version_id: str):
+        """Get multi-document summary for a topic or cluster.
+
+        Args:
+            group_type: 'topic' or 'cluster'
+            group_id: Topic ID or cluster ID
+            version_id: Multi-doc summarization version ID
+            source_version_id: Topic or cluster version ID
+
+        Returns:
+            Dict with summary data or None if not found
+        """
+        schema = self.config['schema']
+        with self.cursor() as cur:
+            cur.execute(f"""
+                SELECT
+                    id,
+                    summary_text,
+                    method,
+                    llm_model,
+                    article_count,
+                    source_count,
+                    word_count,
+                    processing_time_ms,
+                    created_at
+                FROM {schema}.multi_doc_summaries
+                WHERE group_type = %s
+                  AND group_id = %s
+                  AND result_version_id = %s
+                  AND source_version_id = %s
+            """, (group_type, group_id, version_id, source_version_id))
+            return cur.fetchone()
+
+    def store_multi_doc_summary(self, group_type: str, group_id: str, version_id: str, source_version_id: str,
+                               summary_text: str, method: str, llm_model: str,
+                               article_count: int, source_count: int,
+                               word_count: int, processing_time_ms: int) -> str:
+        """Store a multi-document summary.
+
+        Args:
+            version_id: Multi-doc summarization version ID
+            source_version_id: Topic or cluster version ID
+
+        Returns:
+            UUID of created summary
+        """
+        schema = self.config['schema']
+        with self.cursor() as cur:
+            cur.execute(f"""
+                INSERT INTO {schema}.multi_doc_summaries
+                (group_type, group_id, result_version_id, source_version_id, summary_text, method, llm_model,
+                 article_count, source_count, word_count, processing_time_ms)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (group_type, group_id, result_version_id, source_version_id)
+                DO UPDATE SET
+                    summary_text = EXCLUDED.summary_text,
+                    method = EXCLUDED.method,
+                    llm_model = EXCLUDED.llm_model,
+                    article_count = EXCLUDED.article_count,
+                    source_count = EXCLUDED.source_count,
+                    word_count = EXCLUDED.word_count,
+                    processing_time_ms = EXCLUDED.processing_time_ms,
+                    created_at = NOW()
+                RETURNING id
+            """, (group_type, group_id, version_id, source_version_id, summary_text, method, llm_model,
+                  article_count, source_count, word_count, processing_time_ms))
+            return str(cur.fetchone()['id'])
+
 
 # Convenience function
 def get_db() -> Database:

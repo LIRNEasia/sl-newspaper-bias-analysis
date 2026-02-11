@@ -277,6 +277,49 @@ def get_default_ditwah_claims_config() -> Dict[str, Any]:
     }
 
 
+def get_default_multi_doc_summarization_config() -> Dict[str, Any]:
+    """
+    Get default configuration for multi-document summarization analysis.
+
+    Returns:
+        Dictionary with configuration for multi-doc summarization only.
+    """
+    config = load_config()
+
+    # Default to Gemini for multi-doc summarization
+    default_method = "gemini"
+    default_model = "gemini-2.0-flash"
+
+    # Check if user has specific preferences in config
+    if "multi_doc_summarization" in config:
+        mds_config = config["multi_doc_summarization"]
+        default_method = mds_config.get("method", default_method)
+        default_model = mds_config.get("llm_model", default_model)
+    else:
+        # Fallback to checking provider-specific configs
+        if "gemini" in config and config["gemini"].get("model"):
+            default_model = config["gemini"]["model"]
+        elif "openai" in config and config["openai"].get("model"):
+            default_method = "openai"
+            default_model = config["openai"].get("model", "gpt-4o")
+
+    return {
+        "multi_doc_summarization": {
+            "method": default_method,  # 'gemini' or 'openai'
+            "llm_model": default_model,
+            "temperature": 0.0,
+            "summary_length": "medium",
+            "max_articles": 10 if default_method == "openai" else 50,  # Token limit-aware sampling
+            "short_sentences": config["summarization"].get("short_sentences", 5),
+            "short_words": config["summarization"].get("short_words", 80),
+            "medium_sentences": config["summarization"].get("medium_sentences", 8),
+            "medium_words": config["summarization"].get("medium_words", 150),
+            "long_sentences": config["summarization"].get("long_sentences", 12),
+            "long_words": config["summarization"].get("long_words", 200)
+        }
+    }
+
+
 def create_version(
     name: str,
     description: str = "",
@@ -298,7 +341,7 @@ def create_version(
     Raises:
         ValueError: If version name already exists for the same analysis type
     """
-    valid_types = ['topics', 'clustering', 'word_frequency', 'ner', 'summarization', 'ditwah', 'ditwah_claims', 'combined']
+    valid_types = ['topics', 'clustering', 'word_frequency', 'ner', 'summarization', 'multi_doc_summarization', 'ditwah', 'ditwah_claims', 'combined']
     if analysis_type not in valid_types:
         raise ValueError(f"Invalid analysis_type: {analysis_type}. Must be one of {valid_types}")
 
