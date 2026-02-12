@@ -7,55 +7,51 @@ from tqdm import tqdm
 
 from .db import get_db
 from .llm import get_embeddings_client, load_config
-from .versions import get_version_config
 
 
 def generate_embeddings(
-    result_version_id: str,
+    embedding_model: str = "all-mpnet-base-v2",
     batch_size: int = 50,
     limit: int = None,
     show_progress: bool = True,
     random_seed: int = 42,
-    analysis_type: str = None
+    embeddings_config: dict = None
 ):
     """
-    Generate embeddings for all articles that don't have them yet for a specific version.
+    Generate embeddings for all articles that don't have them yet for a specific model.
 
     Args:
-        result_version_id: UUID of the result version
+        embedding_model: Name of the embedding model (e.g., 'all-mpnet-base-v2')
         batch_size: Number of articles to process per batch
         limit: Maximum articles to process (None = all)
         show_progress: Show progress bar
         random_seed: Random seed for reproducibility
-        analysis_type: Type of analysis (topics, clustering, summarization) for task auto-detection
+        embeddings_config: Optional override for provider, matryoshka, etc.
     """
     # Set random seeds for reproducibility
     random.seed(random_seed)
     np.random.seed(random_seed)
 
-    # Get embeddings config from version (falls back to global config if version not found)
-    version_config = get_version_config(result_version_id)
-    if version_config and "embeddings" in version_config:
-        embeddings_config = version_config["embeddings"]
-    else:
-        # Fallback to global config if version config not found
-        config = load_config()
-        embeddings_config = config.get("embeddings", {})
+    # Build config: start from global defaults, override model name
+    config = load_config()
+    config_dict = config.get("embeddings", {})
+    if embeddings_config:
+        config_dict.update(embeddings_config)
+    config_dict["model"] = embedding_model
 
-    embed_client = get_embeddings_client(embeddings_config, analysis_type=analysis_type)
+    # For EmbeddingGemma, always use "clustering" task for consistency (shared embeddings)
+    embed_client = get_embeddings_client(config_dict)
 
     with get_db() as db:
-        # Get articles without embeddings for this version
-        articles = db.get_articles_without_embeddings(result_version_id=result_version_id, limit=limit)
+        articles = db.get_articles_without_embeddings(embedding_model=embedding_model, limit=limit)
         total = len(articles)
 
         if total == 0:
-            print(f"All articles already have embeddings for version {result_version_id}.")
+            print(f"All articles already have embeddings for model '{embedding_model}'.")
             return
 
-        print(f"Generating embeddings for {total} articles (version: {result_version_id})...")
+        print(f"Generating embeddings for {total} articles (model: {embedding_model})...")
 
-        # Process in batches
         iterator = range(0, total, batch_size)
         if show_progress:
             iterator = tqdm(iterator, desc="Embedding batches")
@@ -82,17 +78,21 @@ def generate_embeddings(
                 for j in range(len(batch))
             ]
 
-            db.store_embeddings(embedding_records, result_version_id)
+            db.store_embeddings(embedding_records)
             processed += len(batch)
 
         print(f"Generated embeddings for {processed} articles.")
 
 
-def get_embedding_stats() -> Dict:
-    """Get statistics about embeddings."""
+def get_embedding_stats(embedding_model: str = None) -> Dict:
+    """Get statistics about embeddings.
+
+    Args:
+        embedding_model: Optional model name filter. If None, counts all embeddings.
+    """
     with get_db() as db:
         total_articles = db.get_article_count()
-        embedded = db.get_embedding_count()
+        embedded = db.get_embedding_count(embedding_model=embedding_model)
 
         return {
             "total_articles": total_articles,
@@ -103,5 +103,5 @@ def get_embedding_stats() -> Dict:
 
 
 if __name__ == "__main__":
-    print("Please use scripts/01_generate_embeddings.py instead.")
-    print("Usage: python3 scripts/01_generate_embeddings.py --version-id <uuid>")
+    print("Please use scripts/embeddings/01_generate_embeddings.py instead.")
+    print("Usage: python3 scripts/embeddings/01_generate_embeddings.py --model <model-name>")

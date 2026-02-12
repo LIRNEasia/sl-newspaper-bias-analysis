@@ -40,15 +40,14 @@ CREATE TABLE IF NOT EXISTS media_bias.topics (
     UNIQUE(topic_id, result_version_id)
 );
 
--- Article embeddings
+-- Article embeddings (shared across versions, keyed by model)
 CREATE TABLE IF NOT EXISTS media_bias.embeddings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     article_id UUID NOT NULL REFERENCES media_bias.news_articles(id),
-    result_version_id UUID NOT NULL REFERENCES media_bias.result_versions(id) ON DELETE CASCADE,
     embedding VECTOR,
-    embedding_model VARCHAR(100),
+    embedding_model VARCHAR(100) NOT NULL,
     created_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(article_id, result_version_id)
+    UNIQUE(article_id, embedding_model)
 );
 
 -- Article-level analysis results
@@ -132,7 +131,7 @@ CREATE TABLE IF NOT EXISTS media_bias.entity_statistics (
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_embeddings_article ON media_bias.embeddings(article_id);
-CREATE INDEX IF NOT EXISTS idx_embeddings_version ON media_bias.embeddings(result_version_id);
+CREATE INDEX IF NOT EXISTS idx_embeddings_model ON media_bias.embeddings(embedding_model);
 CREATE INDEX IF NOT EXISTS idx_topics_version ON media_bias.topics(result_version_id);
 CREATE INDEX IF NOT EXISTS idx_article_analysis_article ON media_bias.article_analysis(article_id);
 CREATE INDEX IF NOT EXISTS idx_article_analysis_version ON media_bias.article_analysis(result_version_id);

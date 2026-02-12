@@ -16,7 +16,8 @@ def cluster_articles(
     similarity_threshold: float = 0.8,
     time_window_days: int = 7,
     min_cluster_size: int = 2,
-    random_seed: int = 42
+    random_seed: int = 42,
+    embeddings_config: dict = None
 ) -> Dict:
     """
     Cluster articles into events based on embedding similarity for a specific version.
@@ -27,21 +28,28 @@ def cluster_articles(
         time_window_days: Only cluster articles within this time window
         min_cluster_size: Minimum articles per cluster
         random_seed: Random seed for reproducibility
+        embeddings_config: Embeddings configuration (contains model name)
 
     Returns:
         Summary of clustering results
     """
-    # Set random seeds for reproducibility
     random.seed(random_seed)
     np.random.seed(random_seed)
 
-    print(f"Loading articles with embeddings for version {result_version_id}...")
+    embedding_model = (embeddings_config or {}).get("model", "all-mpnet-base-v2")
+    print(f"Loading articles with embeddings for model '{embedding_model}'...")
     with get_db() as db:
-        data = db.get_all_embeddings(result_version_id=result_version_id)
+        data = db.get_all_embeddings(embedding_model=embedding_model)
+
+    if len(data) == 0:
+        print(f"No embeddings found for model '{embedding_model}'. Generating automatically...")
+        from .embeddings import generate_embeddings
+        generate_embeddings(embedding_model=embedding_model, embeddings_config=embeddings_config)
+        with get_db() as db:
+            data = db.get_all_embeddings(embedding_model=embedding_model)
 
     print(f"Loaded {len(data)} articles")
 
-    # Prepare data
     article_ids = [str(d['article_id']) for d in data]
     embeddings = np.array([d['embedding'] for d in data])
     dates = [d['date_posted'] for d in data]

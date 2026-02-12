@@ -78,16 +78,13 @@ Python 3.11+
 
 5. **Run the analysis pipeline**
    ```bash
-   # Generate embeddings for topics
-   python3 scripts/topics/01_generate_embeddings.py --version-id <version-id>
+   # Generate embeddings (shared across all versions using the same model)
+   python3 scripts/embeddings/01_generate_embeddings.py --model all-mpnet-base-v2
 
-   # Discover topics
+   # Discover topics (embeddings are auto-generated if not already present)
    python3 scripts/topics/02_discover_topics.py --version-id <version-id>
 
-   # Generate embeddings for clustering
-   python3 scripts/clustering/01_generate_embeddings.py --version-id <version-id>
-
-   # Cluster events
+   # Cluster events (embeddings are auto-generated if not already present)
    python3 scripts/clustering/02_cluster_events.py --version-id <version-id>
 
    # Analyze sentiment
