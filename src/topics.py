@@ -253,10 +253,17 @@ def discover_topics(
                 print(f"  Warning: {e}")
                 print("  Continuing without NER filtering...")
 
-    # Load articles with embeddings for this version
-    print(f"Loading articles and embeddings for version {result_version_id}...")
+    embedding_model = embeddings_config.get("model", "all-mpnet-base-v2")
+    print(f"Loading articles and embeddings for model '{embedding_model}'...")
     with get_db() as db:
-        data = db.get_all_embeddings(result_version_id=result_version_id)
+        data = db.get_all_embeddings(embedding_model=embedding_model)
+
+    if len(data) == 0:
+        print(f"No embeddings found for model '{embedding_model}'. Generating automatically...")
+        from .embeddings import generate_embeddings
+        generate_embeddings(embedding_model=embedding_model, embeddings_config=embeddings_config)
+        with get_db() as db:
+            data = db.get_all_embeddings(embedding_model=embedding_model)
 
     print(f"Loaded {len(data)} articles with embeddings")
 

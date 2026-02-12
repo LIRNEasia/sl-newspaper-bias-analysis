@@ -493,20 +493,14 @@ def get_llm(config: dict = None) -> BaseLLM:
         raise ValueError(f"Unknown LLM provider: {provider}")
 
 
-def get_embeddings_client(config: dict = None, analysis_type: str = None) -> EmbeddingClient:
+def get_embeddings_client(config: dict = None) -> EmbeddingClient:
     """Factory function to get embedding client."""
     if config is None:
         config = load_config()["embeddings"]
 
-    # Auto-detect task from analysis type if not specified
     task = config.get("task")
-    if task is None and analysis_type:
-        task_mapping = {
-            "topics": "classification",
-            "clustering": "clustering",
-            "summarization": "retrieval"
-        }
-        task = task_mapping.get(analysis_type, "classification")
+    if task is None:
+        task = "clustering"
 
     print(f"Creating EmbeddingClient with provider: {config.get('provider', 'local')}, model: {config.get('model', 'all-mpnet-base-v2')}, task: {task}")
     return EmbeddingClient(

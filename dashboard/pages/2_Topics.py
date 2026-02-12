@@ -30,8 +30,9 @@ if not version_id:
 topics = load_topics(version_id)
 if not topics:
     st.warning("No topics found for this version. Run topic discovery first.")
-    st.code(f"""python3 scripts/topics/01_generate_embeddings.py --version-id {version_id}
-python3 scripts/topics/02_discover_topics.py --version-id {version_id}""")
+    st.code(f"python3 scripts/topics/02_discover_topics.py --version-id {version_id}")
+    st.info("Embeddings are auto-generated if needed, or run separately:\n"
+            "`python3 scripts/embeddings/01_generate_embeddings.py --model <model>`")
     st.stop()
 
 topics_df = pd.DataFrame(topics)

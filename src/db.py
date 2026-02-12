@@ -112,34 +112,26 @@ class Database:
             """, (url,))
             return cur.fetchone()
 
-    def get_articles_without_embeddings(self, result_version_id: str = None, limit: int = None) -> List[Dict]:
-        """Get articles that don't have embeddings yet for a specific version."""
+    def get_articles_without_embeddings(self, embedding_model: str, limit: int = None) -> List[Dict]:
+        """Get articles that don't have embeddings yet for a specific model.
+
+        Args:
+            embedding_model: Name of the embedding model (e.g., 'all-mpnet-base-v2')
+            limit: Maximum number of articles to return
+        """
         schema = self.config["schema"]
 
-        if result_version_id:
-            query = f"""
-                SELECT a.id, a.title, a.content, a.date_posted, a.source_id
-                FROM {schema}.news_articles a
-                LEFT JOIN {schema}.embeddings e ON a.id = e.article_id AND e.result_version_id = %s
-                WHERE e.id IS NULL
-                  AND a.content IS NOT NULL
-                  AND a.content != ''
-                  AND a.is_ditwah_cyclone = 1
-                ORDER BY a.date_posted, a.id
-            """
-            params = [result_version_id]
-        else:
-            query = f"""
-                SELECT a.id, a.title, a.content, a.date_posted, a.source_id
-                FROM {schema}.news_articles a
-                LEFT JOIN {schema}.embeddings e ON a.id = e.article_id
-                WHERE e.id IS NULL
-                  AND a.content IS NOT NULL
-                  AND a.content != ''
-                  AND is_ditwah_cyclone = 1
-                ORDER BY a.date_posted, a.id
-            """
-            params = []
+        query = f"""
+            SELECT a.id, a.title, a.content, a.date_posted, a.source_id
+            FROM {schema}.news_articles a
+            LEFT JOIN {schema}.embeddings e ON a.id = e.article_id AND e.embedding_model = %s
+            WHERE e.id IS NULL
+              AND a.content IS NOT NULL
+              AND a.content != ''
+              AND a.is_ditwah_cyclone = 1
+            ORDER BY a.date_posted, a.id
+        """
+        params = [embedding_model]
 
         if limit:
             query += f" LIMIT {limit}"
@@ -149,57 +141,48 @@ class Database:
             return cur.fetchall()
 
     # Embedding operations
-    def store_embeddings(self, embeddings: List[Dict[str, Any]], result_version_id: str):
+    def store_embeddings(self, embeddings: List[Dict[str, Any]]):
         """Store article embeddings in batch.
 
         Args:
-            embeddings: List of dicts with 'article_id' and 'embedding' keys
-            result_version_id: UUID of the result version
+            embeddings: List of dicts with 'article_id', 'embedding', and 'model' keys
         """
         schema = self.config["schema"]
         with self.cursor(dict_cursor=False) as cur:
             execute_values(
                 cur,
                 f"""
-                INSERT INTO {schema}.embeddings (article_id, result_version_id, embedding, embedding_model)
+                INSERT INTO {schema}.embeddings (article_id, embedding, embedding_model)
                 VALUES %s
-                ON CONFLICT (article_id, result_version_id) DO UPDATE SET
+                ON CONFLICT (article_id, embedding_model) DO UPDATE SET
                     embedding = EXCLUDED.embedding,
-                    embedding_model = EXCLUDED.embedding_model,
                     created_at = NOW()
                 """,
                 [
-                    (e["article_id"], result_version_id, e["embedding"], e.get("model", "all-mpnet-base-v2"))
+                    (e["article_id"], e["embedding"], e.get("model", "all-mpnet-base-v2"))
                     for e in embeddings
                 ],
-                template="(%s, %s, %s::vector, %s)"
+                template="(%s, %s::vector, %s)"
             )
 
-    def get_all_embeddings(self, result_version_id: str = None) -> List[Dict]:
-        """Get all article embeddings for a specific version."""
+    def get_all_embeddings(self, embedding_model: str) -> List[Dict]:
+        """Get all article embeddings for a specific model.
+
+        Args:
+            embedding_model: Name of the embedding model (e.g., 'all-mpnet-base-v2')
+        """
         schema = self.config["schema"]
 
-        if result_version_id:
-            query = f"""
-                SELECT e.article_id, e.embedding::text, a.title, a.content,
-                       a.date_posted, a.source_id
-                FROM {schema}.embeddings e
-                JOIN {schema}.news_articles a ON e.article_id = a.id
-                WHERE e.result_version_id = %s
-                  AND a.is_ditwah_cyclone = 1
-                ORDER BY a.date_posted, a.id
-            """
-            params = [result_version_id]
-        else:
-            query = f"""
-                SELECT e.article_id, e.embedding::text, a.title, a.content,
-                       a.date_posted, a.source_id
-                FROM {schema}.embeddings e
-                JOIN {schema}.news_articles a ON e.article_id = a.id
-                WHERE a.is_ditwah_cyclone = 1
-                ORDER BY a.date_posted, a.id
-            """
-            params = []
+        query = f"""
+            SELECT e.article_id, e.embedding::text, a.title, a.content,
+                   a.date_posted, a.source_id
+            FROM {schema}.embeddings e
+            JOIN {schema}.news_articles a ON e.article_id = a.id
+            WHERE e.embedding_model = %s
+              AND a.is_ditwah_cyclone = 1
+            ORDER BY a.date_posted, a.id
+        """
+        params = [embedding_model]
 
         with self.cursor() as cur:
             cur.execute(query, params)
@@ -225,14 +208,18 @@ class Database:
                 })
             return result
 
-    def get_embedding_count(self, result_version_id: str = None) -> int:
-        """Get count of articles with embeddings for a specific version."""
+    def get_embedding_count(self, embedding_model: str = None) -> int:
+        """Get count of articles with embeddings, optionally filtered by model.
+
+        Args:
+            embedding_model: Optional model name filter. If None, counts all embeddings.
+        """
         schema = self.config["schema"]
         with self.cursor() as cur:
-            if result_version_id:
+            if embedding_model:
                 cur.execute(
-                    f"SELECT COUNT(*) as count FROM {schema}.embeddings WHERE result_version_id = %s",
-                    (result_version_id,)
+                    f"SELECT COUNT(*) as count FROM {schema}.embeddings WHERE embedding_model = %s",
+                    (embedding_model,)
                 )
             else:
                 cur.execute(f"SELECT COUNT(*) as count FROM {schema}.embeddings")

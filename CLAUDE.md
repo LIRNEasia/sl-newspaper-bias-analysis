@@ -146,8 +146,9 @@ database-analysis/
 │   ├── clustering.py      # Event clustering using embeddings
 │   └── versions.py        # Result version management (with analysis_type)
 ├── scripts/
+│   ├── embeddings/         # Shared embedding generation
+│   │   └── 01_generate_embeddings.py
 │   ├── clustering/         # Event clustering pipeline
-│   │   ├── 01_generate_embeddings.py
 │   │   └── 02_cluster_events.py
 │   ├── ner/               # Named entity recognition
 │   │   └── 01_extract_entities.py
@@ -156,7 +157,6 @@ database-analysis/
 │   ├── summarization/     # Article summarization
 │   │   └── 01_generate_summaries.py
 │   ├── topics/            # Topic analysis pipeline
-│   │   ├── 01_generate_embeddings.py
 │   │   └── 02_discover_topics.py
 │   ├── word_frequency/    # Word frequency analysis
 │   │   └── 01_compute_word_frequency.py
@@ -227,15 +227,16 @@ print(f'Version ID: {version_id}')
 
 **Run the pipeline:**
 ```bash
-# Step 1: Generate embeddings
-python3 scripts/topics/01_generate_embeddings.py --version-id <version-id>
+# Generate embeddings (shared across versions, only needed once per model)
+python3 scripts/embeddings/01_generate_embeddings.py --model all-mpnet-base-v2
 
-# Step 2: Discover topics (set PYTHONHASHSEED for reproducibility)
+# Discover topics (set PYTHONHASHSEED for reproducibility)
+# Embeddings are auto-generated if not already present
 PYTHONHASHSEED=42 python3 scripts/topics/02_discover_topics.py --version-id <version-id>
 ```
 
 **How it works:**
-- Generates embeddings using configured model (default: `all-mpnet-base-v2`)
+- Uses shared embeddings by model name (auto-generates if missing)
 - Uses BERTopic with UMAP + HDBSCAN clustering
 - Automatically discovers topics from article content
 - Generates keyword-based topic labels
@@ -259,15 +260,15 @@ print(f'Version ID: {version_id}')
 
 **Run the pipeline:**
 ```bash
-# Step 1: Generate embeddings
-python3 scripts/clustering/01_generate_embeddings.py --version-id <version-id>
+# Generate embeddings (shared across versions, only needed once per model)
+python3 scripts/embeddings/01_generate_embeddings.py --model all-mpnet-base-v2
 
-# Step 2: Cluster events
+# Cluster events (embeddings are auto-generated if not already present)
 python3 scripts/clustering/02_cluster_events.py --version-id <version-id>
 ```
 
 **How it works:**
-- Generates embeddings with task-specific prompts (if using EmbeddingGemma)
+- Uses shared embeddings by model name (auto-generates if missing)
 - Groups similar articles using cosine similarity
 - Applies time window constraint (default: 7 days)
 - Identifies multi-source coverage of same events
@@ -757,7 +758,7 @@ The project supports multiple embedding models for generating article embeddings
 
 3. Run the pipeline as usual:
    ```bash
-   python3 scripts/topics/01_generate_embeddings.py --version-id <version-id>
+   python3 scripts/embeddings/01_generate_embeddings.py --model google/embeddinggemma-300m
    PYTHONHASHSEED=42 python3 scripts/topics/02_discover_topics.py --version-id <version-id>
    ```
 

@@ -32,8 +32,9 @@ st.markdown("---")
 events = load_top_events(version_id, 30)
 if not events:
     st.warning("No event clusters found for this version. Run clustering first.")
-    st.code(f"""python3 scripts/clustering/01_generate_embeddings.py --version-id {version_id}
-python3 scripts/clustering/02_cluster_events.py --version-id {version_id}""")
+    st.code(f"python3 scripts/clustering/02_cluster_events.py --version-id {version_id}")
+    st.info("Embeddings are auto-generated if needed, or run separately:\n"
+            "`python3 scripts/embeddings/01_generate_embeddings.py --model <model>`")
     st.stop()
 
 events_df = pd.DataFrame(events)

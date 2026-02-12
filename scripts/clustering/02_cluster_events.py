@@ -20,7 +20,6 @@ def main():
     )
     args = parser.parse_args()
 
-    # Get version and validate it's a clustering version
     version = get_version(args.version_id)
     if not version:
         print(f"Error: Version {args.version_id} not found")
@@ -31,7 +30,6 @@ def main():
         print("Use scripts/clustering/ for clustering analysis versions only")
         sys.exit(1)
 
-    # Get version configuration
     version_config = get_version_config(args.version_id)
 
     print("=" * 60)
@@ -41,14 +39,15 @@ def main():
     print(f"Version ID: {args.version_id}")
     print()
 
-    # Extract clustering configuration
     cluster_config = version_config.get("clustering", {})
+    embeddings_config = version_config.get("embeddings", {})
 
     summary = cluster_articles(
         result_version_id=args.version_id,
         similarity_threshold=cluster_config.get("similarity_threshold", 0.8),
         time_window_days=cluster_config.get("time_window_days", 7),
-        min_cluster_size=cluster_config.get("min_cluster_size", 2)
+        min_cluster_size=cluster_config.get("min_cluster_size", 2),
+        embeddings_config=embeddings_config
     )
 
     print("\n" + "=" * 60)

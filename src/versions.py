@@ -576,7 +576,7 @@ def update_pipeline_status(
         step: Pipeline step name ('embeddings', 'topics', 'clustering', 'word_frequency', 'ner', 'summarization', 'ditwah', or 'ditwah_claims')
         complete: Whether the step is complete
     """
-    valid_steps = ['embeddings', 'topics', 'clustering', 'word_frequency', 'ner', 'summarization', 'ditwah', 'ditwah_claims']
+    valid_steps = ['topics', 'clustering', 'word_frequency', 'ner', 'summarization', 'ditwah', 'ditwah_claims']
     if step not in valid_steps:
         raise ValueError(f"Invalid step: {step}. Must be one of {valid_steps}")
 
@@ -598,25 +598,14 @@ def update_pipeline_status(
                 (f'{{{step}}}', json.dumps(complete), version_id)
             )
 
-            # Check if all relevant steps are complete based on analysis_type and update is_complete
-            # For 'topics': check embeddings + topics
-            # For 'clustering': check embeddings + clustering
-            # For 'word_frequency': check word_frequency only (no embeddings needed)
-            # For 'ner': check ner only (no embeddings needed)
-            # For 'summarization': check summarization only (no embeddings needed)
-            # For 'ditwah': check ditwah only (no embeddings needed)
-            # For 'ditwah_claims': check ditwah_claims only (no embeddings needed)
-            # For 'combined': check all three (backward compatibility)
             cur.execute(
                 f"""
                 UPDATE {schema}.result_versions
                 SET is_complete = (
                     CASE analysis_type
                         WHEN 'topics' THEN
-                            (pipeline_status->>'embeddings')::boolean AND
                             (pipeline_status->>'topics')::boolean
                         WHEN 'clustering' THEN
-                            (pipeline_status->>'embeddings')::boolean AND
                             (pipeline_status->>'clustering')::boolean
                         WHEN 'word_frequency' THEN
                             (pipeline_status->>'word_frequency')::boolean
@@ -693,13 +682,13 @@ def get_version_statistics(version_id: str) -> Dict[str, int]:
         schema = db.config["schema"]
         stats = {}
 
-        # Count embeddings
-        with db.cursor() as cur:
-            cur.execute(
-                f"SELECT COUNT(*) as count FROM {schema}.embeddings WHERE result_version_id = %s",
-                (version_id,)
-            )
-            stats["embeddings"] = cur.fetchone()["count"]
+        # Count embeddings (shared across versions, count by model from version config)
+        version = get_version(version_id)
+        if version and version.get("configuration", {}).get("embeddings", {}).get("model"):
+            embedding_model = version["configuration"]["embeddings"]["model"]
+            stats["embeddings"] = db.get_embedding_count(embedding_model=embedding_model)
+        else:
+            stats["embeddings"] = 0
 
         # Count topics
         with db.cursor() as cur:
