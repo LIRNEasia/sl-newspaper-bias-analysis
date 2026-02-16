@@ -494,7 +494,7 @@ def render_polarization_dashboard(version_id: str):
     for idx, row in controversy_df.iterrows():
         col1, col2 = st.columns([4, 1])
         with col1:
-            st.markdown(f"**{row['claim_text'][:100]}...**")
+            st.markdown(f"**{row['claim_text']}**")
             st.caption(f"Category: {row['category']}")
         with col2:
             st.metric("Controversy", f"{row['controversy_index']:.2f}")
@@ -885,7 +885,7 @@ render_polarization_dashboard(version_id)
 st.divider()
 
 # SECTION 3: Source Alignment Analysis
-st.subheader("🤝 Source Alignment Matrix")
+st.subheader("Source Alignment Matrix")
 st.markdown("See which news sources tend to agree or disagree with each other")
 render_source_alignment(version_id)
 
