@@ -67,6 +67,7 @@ class Database:
             SELECT id, url, title, content, date_posted, source_id, lang
             FROM {schema}.news_articles
             WHERE content IS NOT NULL AND content != '' AND is_ditwah_cyclone = 1
+              AND date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
         """
         params = []
 
@@ -91,6 +92,7 @@ class Database:
                 SELECT COUNT(*) as count
                 FROM {schema}.news_articles
                 WHERE content IS NOT NULL AND content != '' AND is_ditwah_cyclone = 1
+                  AND date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
             """)
             return cur.fetchone()["count"]
 
@@ -109,6 +111,7 @@ class Database:
                 SELECT id, url, title, content, source_id, date_posted
                 FROM {schema}.news_articles
                 WHERE url = %s AND is_ditwah_cyclone = 1
+                  AND date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
             """, (url,))
             return cur.fetchone()
 
@@ -129,6 +132,7 @@ class Database:
               AND a.content IS NOT NULL
               AND a.content != ''
               AND a.is_ditwah_cyclone = 1
+              AND a.date_posted >= '2025-11-22' AND a.date_posted <= '2025-12-31'
             ORDER BY a.date_posted, a.id
         """
         params = [embedding_model]
@@ -180,6 +184,7 @@ class Database:
             JOIN {schema}.news_articles a ON e.article_id = a.id
             WHERE e.embedding_model = %s
               AND a.is_ditwah_cyclone = 1
+              AND a.date_posted >= '2025-11-22' AND a.date_posted <= '2025-12-31'
             ORDER BY a.date_posted, a.id
         """
         params = [embedding_model]
@@ -463,6 +468,7 @@ class Database:
                 JOIN {schema}.news_articles na ON ne.article_id = na.id
                 WHERE ne.result_version_id = %s
                   AND na.is_ditwah_cyclone = 1
+                  AND na.date_posted >= '2025-11-22' AND na.date_posted <= '2025-12-31'
                 GROUP BY ne.result_version_id, ne.entity_text, ne.entity_type, na.source_id
                 ON CONFLICT (result_version_id, entity_text, entity_type, source_id)
                 DO UPDATE SET
@@ -675,6 +681,7 @@ class Database:
               AND a.content IS NOT NULL
               AND a.content != ''
               AND a.is_ditwah_cyclone = 1
+              AND a.date_posted >= '2025-11-22' AND a.date_posted <= '2025-12-31'
             ORDER BY a.date_posted
         """
         if limit:
@@ -703,6 +710,7 @@ class Database:
             FROM {schema}.sentiment_analyses sa
             JOIN {schema}.news_articles a ON sa.article_id = a.id
             WHERE a.is_ditwah_cyclone = 1
+              AND a.date_posted >= '2025-11-22' AND a.date_posted <= '2025-12-31'
         """
         params = []
 
@@ -743,6 +751,7 @@ class Database:
             FROM {schema}.news_articles a
             JOIN {schema}.sentiment_analyses sa ON a.id = sa.article_id
             WHERE a.is_ditwah_cyclone = 1
+              AND a.date_posted >= '2025-11-22' AND a.date_posted <= '2025-12-31'
             GROUP BY a.id, a.title, a.source_id, a.date_posted
             HAVING COUNT(DISTINCT sa.model_type) >= 2
             ORDER BY a.date_posted DESC
@@ -883,6 +892,7 @@ class Database:
                 LEFT JOIN {schema}.news_articles n ON ac2.article_id = n.id
                 WHERE ac.article_id = %s AND ac.result_version_id = %s
                   AND ec.result_version_id = %s
+                  AND (n.id IS NULL OR (n.is_ditwah_cyclone = 1 AND n.date_posted >= '2025-11-22' AND n.date_posted <= '2025-12-31'))
                 GROUP BY ec.id, ec.cluster_name, ac.similarity_score,
                          ec.sources_count, ec.article_count, ec.date_start, ec.date_end
             """, (article_id, article_id, version_id, version_id))
@@ -904,6 +914,7 @@ class Database:
                 SELECT id, title, source_id, date_posted
                 FROM {schema}.news_articles
                 WHERE title ILIKE %s AND is_ditwah_cyclone = 1
+                  AND date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
                 ORDER BY date_posted DESC
                 LIMIT %s
             """, (f"%{title_search}%", limit))
@@ -929,6 +940,7 @@ class Database:
                 WHERE aa.primary_topic_id = %s
                   AND aa.result_version_id = %s
                   AND a.is_ditwah_cyclone = 1
+                  AND a.date_posted >= '2025-11-22' AND a.date_posted <= '2025-12-31'
                 ORDER BY a.date_posted
             """, (topic_id, version_id))
             return cur.fetchall()
@@ -953,6 +965,7 @@ class Database:
                 WHERE ac.cluster_id = %s
                   AND ac.result_version_id = %s
                   AND a.is_ditwah_cyclone = 1
+                  AND a.date_posted >= '2025-11-22' AND a.date_posted <= '2025-12-31'
                 ORDER BY ac.similarity_score DESC
             """, (cluster_id, version_id))
             return cur.fetchall()

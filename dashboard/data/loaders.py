@@ -14,7 +14,10 @@ def load_overview_stats(version_id=None):
         schema = db.config["schema"]
         with db.cursor() as cur:
             # Total articles
-            cur.execute(f"SELECT COUNT(*) as count FROM {schema}.news_articles")
+            cur.execute(f"""
+                SELECT COUNT(*) as count FROM {schema}.news_articles
+                WHERE date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
+            """)
             total_articles = cur.fetchone()["count"]
 
             # Articles about Ditwah cyclone
@@ -22,6 +25,7 @@ def load_overview_stats(version_id=None):
                 SELECT COUNT(*) as count
                 FROM {schema}.news_articles
                 WHERE is_ditwah_cyclone = 1
+                  AND date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
             """)
             ditwah_articles = cur.fetchone()["count"]
 
@@ -29,6 +33,7 @@ def load_overview_stats(version_id=None):
             cur.execute(f"""
                 SELECT source_id, COUNT(*) as count
                 FROM {schema}.news_articles
+                WHERE date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
                 GROUP BY source_id
                 ORDER BY count DESC
             """)
@@ -39,6 +44,7 @@ def load_overview_stats(version_id=None):
                 SELECT source_id, COUNT(*) as count
                 FROM {schema}.news_articles
                 WHERE is_ditwah_cyclone = 1
+                  AND date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
                 GROUP BY source_id
                 ORDER BY count DESC
             """)
@@ -75,6 +81,7 @@ def load_overview_stats(version_id=None):
             cur.execute(f"""
                 SELECT MIN(date_posted)::date as min_date, MAX(date_posted)::date as max_date
                 FROM {schema}.news_articles
+                WHERE date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
             """)
             date_range = cur.fetchone()
 
@@ -123,6 +130,8 @@ def load_sentiment_by_source(model_type: str):
                 FROM {schema}.sentiment_analyses sa
                 JOIN {schema}.news_articles n ON sa.article_id = n.id
                 WHERE sa.model_type = %s
+                  AND n.is_ditwah_cyclone = 1
+                  AND n.date_posted >= '2025-11-22' AND n.date_posted <= '2025-12-31'
                 GROUP BY n.source_id
                 ORDER BY avg_sentiment DESC
             """, (model_type,))
@@ -142,6 +151,8 @@ def load_sentiment_distribution(model_type: str):
                 FROM {schema}.sentiment_analyses sa
                 JOIN {schema}.news_articles n ON sa.article_id = n.id
                 WHERE sa.model_type = %s
+                  AND n.is_ditwah_cyclone = 1
+                  AND n.date_posted >= '2025-11-22' AND n.date_posted <= '2025-12-31'
             """, (model_type,))
             return cur.fetchall()
 
@@ -162,6 +173,8 @@ def load_sentiment_percentage_by_source(model_type: str):
                 FROM {schema}.sentiment_analyses sa
                 JOIN {schema}.news_articles n ON sa.article_id = n.id
                 WHERE sa.model_type = %s
+                  AND n.is_ditwah_cyclone = 1
+                  AND n.date_posted >= '2025-11-22' AND n.date_posted <= '2025-12-31'
                 GROUP BY n.source_id
                 ORDER BY n.source_id
             """, (model_type,))
@@ -182,6 +195,8 @@ def load_sentiment_timeline(model_type: str):
                 FROM {schema}.sentiment_analyses sa
                 JOIN {schema}.news_articles n ON sa.article_id = n.id
                 WHERE sa.model_type = %s
+                  AND n.is_ditwah_cyclone = 1
+                  AND n.date_posted >= '2025-11-22' AND n.date_posted <= '2025-12-31'
                 GROUP BY DATE_TRUNC('day', n.date_posted), n.source_id
                 ORDER BY date
             """, (model_type,))
@@ -389,6 +404,7 @@ def load_topic_coverage_by_source(topic_name: str, version_id: str):
                     SELECT n.source_id, COUNT(*) as total_count
                     FROM {schema}.news_articles n
                     WHERE n.is_ditwah_cyclone = 1
+                      AND n.date_posted >= '2025-11-22' AND n.date_posted <= '2025-12-31'
                     GROUP BY n.source_id
                 )
                 SELECT
@@ -435,6 +451,8 @@ def load_event_details(event_id, version_id=None):
                 FROM {schema}.article_clusters ac
                 JOIN {schema}.news_articles n ON ac.article_id = n.id
                 WHERE ac.cluster_id = %s
+                  AND n.is_ditwah_cyclone = 1
+                  AND n.date_posted >= '2025-11-22' AND n.date_posted <= '2025-12-31'
                 ORDER BY n.date_posted
             """, (event_id,))
             return cur.fetchall()
@@ -450,6 +468,7 @@ def load_coverage_timeline():
                 SELECT date_posted::date as date, source_id, COUNT(*) as count
                 FROM {schema}.news_articles
                 WHERE date_posted IS NOT NULL
+                  AND date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
                 GROUP BY date_posted::date, source_id
                 ORDER BY date
             """)
@@ -466,6 +485,7 @@ def load_ditwah_timeline():
                 SELECT date_posted::date as date, source_id, COUNT(*) as count
                 FROM {schema}.news_articles
                 WHERE date_posted IS NOT NULL AND is_ditwah_cyclone = 1
+                  AND date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
                 GROUP BY date_posted::date, source_id
                 ORDER BY date
             """)
@@ -484,6 +504,7 @@ def load_article_lengths():
                     LENGTH(content) as article_length
                 FROM {schema}.news_articles
                 WHERE content IS NOT NULL
+                  AND date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
             """)
             return cur.fetchall()
 
@@ -500,6 +521,7 @@ def load_ditwah_article_lengths():
                     LENGTH(content) as article_length
                 FROM {schema}.news_articles
                 WHERE content IS NOT NULL AND is_ditwah_cyclone = 1
+                  AND date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
             """)
             return cur.fetchall()
 
@@ -705,6 +727,8 @@ def load_summary_statistics(version_id=None):
                 FROM {schema}.article_summaries s
                 JOIN {schema}.news_articles a ON s.article_id = a.id
                 WHERE s.result_version_id = %s
+                  AND a.is_ditwah_cyclone = 1
+                  AND a.date_posted >= '2025-11-22' AND a.date_posted <= '2025-12-31'
                 GROUP BY a.source_id
                 ORDER BY a.source_id
             """, (version_id,))
@@ -736,6 +760,8 @@ def load_summaries_by_source(version_id=None):
                 FROM {schema}.article_summaries s
                 JOIN {schema}.news_articles a ON s.article_id = a.id
                 WHERE s.result_version_id = %s
+                  AND a.is_ditwah_cyclone = 1
+                  AND a.date_posted >= '2025-11-22' AND a.date_posted <= '2025-12-31'
                 GROUP BY a.source_id
                 ORDER BY a.source_id
             """, (version_id,))
@@ -764,6 +790,8 @@ def load_articles_by_topic(version_id=None, topic_name=None):
                 WHERE t.name = %s
                   AND aa.result_version_id = %s
                   AND t.result_version_id = %s
+                  AND n.is_ditwah_cyclone = 1
+                  AND n.date_posted >= '2025-11-22' AND n.date_posted <= '2025-12-31'
                 ORDER BY n.date_posted DESC
             """, (topic_name, version_id, version_id))
             return cur.fetchall()
