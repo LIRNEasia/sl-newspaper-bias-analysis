@@ -9,11 +9,18 @@ import html
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
 from src.db import get_db
 from src.versions import get_version
-from data.loaders import load_entity_statistics
-from components.source_mapping import SOURCE_NAMES
+from data.loaders import (
+    load_entity_statistics,
+    load_entities_grouped_by_type,
+    load_articles_for_entity,
+    load_entity_sentiment_by_source,
+    load_available_models
+)
+from components.source_mapping import SOURCE_NAMES, SOURCE_COLORS
 from components.version_selector import render_version_selector, render_create_version_button
 from components.styling import apply_page_style
 
@@ -75,7 +82,188 @@ fig = px.bar(
 fig.update_layout(showlegend=False, height=400)
 st.plotly_chart(fig, width='stretch')
 
-# Filter by entity type
+# ========== ENTITY EXPLORER SECTION ==========
+st.divider()
+st.subheader("Entity Explorer")
+st.markdown("Analyze sentiment patterns for specific entities (people, organizations, locations, etc.)")
+
+# Load entities grouped by type
+grouped_entities = load_entities_grouped_by_type(version_id, limit_per_type=20)
+
+if not grouped_entities:
+    st.info("No entities found. Run the extraction pipeline.")
+else:
+    # Group entities by type
+    entities_by_type = {}
+    for entity in grouped_entities:
+        etype = entity['entity_type']
+        if etype not in entities_by_type:
+            entities_by_type[etype] = []
+        entities_by_type[etype].append(entity)
+
+    # Filters row
+    col1, col2 = st.columns([1, 1])
+
+    with col1:
+        # Entity type filter
+        entity_type_options = ["All Types"] + sorted(entities_by_type.keys())
+        selected_entity_type = st.selectbox(
+            "Filter by Entity Type",
+            options=entity_type_options,
+            key="ner_type_filter"
+        )
+
+    with col2:
+        # Sentiment model selector
+        available_models = load_available_models()
+        if available_models:
+            MODEL_DISPLAY_NAMES = {
+                'roberta': 'RoBERTa',
+                'distilbert': 'DistilBERT',
+                'finbert': 'FinBERT',
+                'vader': 'VADER',
+                'textblob': 'TextBlob',
+                'local': 'Local (RoBERTa)'
+            }
+            model_options = [m['model_type'] for m in available_models]
+            selected_sentiment_model = st.selectbox(
+                "Sentiment Model",
+                options=model_options,
+                format_func=lambda x: MODEL_DISPLAY_NAMES.get(x, x.upper()),
+                key="ner_sentiment_model"
+            )
+        else:
+            st.warning("No sentiment data available. Sentiment analysis will be skipped.")
+            selected_sentiment_model = None
+
+    # Filter entities based on type selection
+    if selected_entity_type == "All Types":
+        filtered_entities = grouped_entities
+    else:
+        filtered_entities = entities_by_type[selected_entity_type]
+
+    # Create entity selection options
+    # Format: "PERSON: Ranil Wickremesinghe (245 mentions)"
+    entity_options = []
+    entity_map = {}  # Maps display string to entity data
+
+    for entity in filtered_entities:
+        display_label = f"{entity['entity_type']}: {entity['entity_text']} ({entity['total_mentions']} mentions, {entity['total_articles']} articles)"
+        entity_options.append(display_label)
+        entity_map[display_label] = entity
+
+    # Add placeholder at the beginning
+    entity_options.insert(0, "— Select an entity to analyze —")
+
+    # Entity selector
+    selected_entity_display = st.selectbox(
+        "Select Entity",
+        options=entity_options,
+        key="ner_entity_selector",
+        help="Choose an entity to view sentiment analysis and related articles"
+    )
+
+    # Show details if an entity is selected
+    if selected_entity_display != "— Select an entity to analyze —" and selected_sentiment_model:
+        selected = entity_map[selected_entity_display]
+
+        # Entity details header
+        st.divider()
+        st.markdown(f"## {selected['entity_text']}")
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Entity Type", selected['entity_type'])
+        with col2:
+            st.metric("Total Mentions", f"{selected['total_mentions']:,}")
+        with col3:
+            st.metric("Articles", f"{selected['total_articles']:,}")
+
+        # Load sentiment by source
+        sentiment_data = load_entity_sentiment_by_source(
+            version_id,
+            selected['entity_text'],
+            selected['entity_type'],
+            selected_sentiment_model
+        )
+
+        if sentiment_data:
+            st.markdown("### Average Sentiment by Outlet")
+            st.caption(f"Using {MODEL_DISPLAY_NAMES.get(selected_sentiment_model, selected_sentiment_model)} model")
+
+            df_sentiment = pd.DataFrame(sentiment_data)
+            df_sentiment['source_name'] = df_sentiment['source_id'].map(SOURCE_NAMES)
+
+            # Horizontal bar chart with error bars
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                y=df_sentiment['source_name'],
+                x=df_sentiment['avg_sentiment'],
+                orientation='h',
+                error_x=dict(
+                    type='data',
+                    array=df_sentiment['stddev_sentiment'].fillna(0)
+                ),
+                marker_color=[SOURCE_COLORS.get(name, '#999') for name in df_sentiment['source_name']],
+                text=df_sentiment['avg_sentiment'].round(2),
+                textposition='outside',
+                hovertemplate='<b>%{y}</b><br>Avg Sentiment: %{x:.2f}<br>Articles: %{customdata}<extra></extra>',
+                customdata=df_sentiment['article_count']
+            ))
+
+            fig.update_layout(
+                xaxis_title="Average Sentiment Score (-5 to +5)",
+                yaxis_title="",
+                height=max(300, len(df_sentiment) * 60),
+                xaxis_range=[-5, 5],
+                margin=dict(l=150, r=50, t=30, b=50),
+                showlegend=False
+            )
+            fig.add_vline(x=0, line_dash="dash", line_color="gray", annotation_text="Neutral")
+
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info(f"No sentiment data available for **{selected['entity_text']}** using {MODEL_DISPLAY_NAMES.get(selected_sentiment_model, selected_sentiment_model)} model")
+
+        # Load articles for this entity
+        articles = load_articles_for_entity(
+            version_id,
+            selected['entity_text'],
+            selected['entity_type'],
+            selected_sentiment_model
+        )
+
+        if articles:
+            st.markdown("### Articles Mentioning This Entity")
+            st.caption(f"Showing {len(articles)} articles")
+
+            df_articles = pd.DataFrame(articles)
+            df_articles['source_name'] = df_articles['source_id'].map(SOURCE_NAMES)
+
+            # Format for display
+            display_df = df_articles[[
+                'title', 'source_name', 'date_posted', 'overall_sentiment', 'url'
+            ]].copy()
+
+            display_df.columns = ['Title', 'Source', 'Date', 'Sentiment', 'URL']
+
+            # Display dataframe
+            st.dataframe(
+                display_df,
+                column_config={
+                    'URL': st.column_config.LinkColumn('URL', display_text='View'),
+                    'Sentiment': st.column_config.NumberColumn('Sentiment', format='%.2f'),
+                    'Date': st.column_config.DateColumn('Date', format='YYYY-MM-DD')
+                },
+                hide_index=True,
+                use_container_width=True,
+                height=400
+            )
+        else:
+            st.warning(f"No articles found mentioning **{selected['entity_text']}**")
+
+# ========== TOP ENTITIES BY SOURCE (EXISTING) ==========
+st.divider()
 st.subheader("Top Entities by Source")
 
 entity_type_filter = st.selectbox(

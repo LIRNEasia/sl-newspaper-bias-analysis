@@ -854,6 +854,98 @@ def load_entity_statistics(version_id=None, entity_type=None, limit=100):
 
 
 @st.cache_data(ttl=300)
+def load_entities_grouped_by_type(version_id, limit_per_type=30):
+    """Load top entities grouped by entity type."""
+    if not version_id:
+        return []
+
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                WITH ranked_entities AS (
+                    SELECT
+                        entity_text,
+                        entity_type,
+                        SUM(mention_count) as total_mentions,
+                        SUM(article_count) as total_articles,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY entity_type
+                            ORDER BY SUM(mention_count) DESC
+                        ) as rank
+                    FROM {schema}.entity_statistics
+                    WHERE result_version_id = %s
+                    GROUP BY entity_text, entity_type
+                )
+                SELECT entity_text, entity_type, total_mentions, total_articles
+                FROM ranked_entities
+                WHERE rank <= %s
+                ORDER BY entity_type, rank
+            """, (version_id, limit_per_type))
+            return cur.fetchall()
+
+
+@st.cache_data(ttl=300)
+def load_articles_for_entity(version_id, entity_text, entity_type, sentiment_model='roberta'):
+    """Load articles mentioning a specific entity with sentiment data."""
+    if not version_id:
+        return []
+
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT DISTINCT
+                    n.id,
+                    n.title,
+                    n.source_id,
+                    n.date_posted,
+                    n.url,
+                    sa.overall_sentiment,
+                    sa.overall_confidence
+                FROM {schema}.named_entities ne
+                JOIN {schema}.news_articles n ON ne.article_id = n.id
+                LEFT JOIN {schema}.sentiment_analyses sa
+                    ON sa.article_id = n.id AND sa.model_type = %s
+                WHERE ne.result_version_id = %s
+                  AND ne.entity_text = %s
+                  AND ne.entity_type = %s
+                  AND n.is_ditwah_cyclone = 1
+                ORDER BY n.date_posted DESC
+            """, (sentiment_model, version_id, entity_text, entity_type))
+            return cur.fetchall()
+
+
+@st.cache_data(ttl=300)
+def load_entity_sentiment_by_source(version_id, entity_text, entity_type, sentiment_model='roberta'):
+    """Load sentiment statistics by source for a specific entity."""
+    if not version_id:
+        return []
+
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT
+                    n.source_id,
+                    COUNT(DISTINCT n.id) as article_count,
+                    AVG(sa.overall_sentiment) as avg_sentiment,
+                    STDDEV(sa.overall_sentiment) as stddev_sentiment
+                FROM {schema}.named_entities ne
+                JOIN {schema}.news_articles n ON ne.article_id = n.id
+                JOIN {schema}.sentiment_analyses sa
+                    ON sa.article_id = n.id AND sa.model_type = %s
+                WHERE ne.result_version_id = %s
+                  AND ne.entity_text = %s
+                  AND ne.entity_type = %s
+                  AND n.is_ditwah_cyclone = 1
+                GROUP BY n.source_id
+                ORDER BY avg_sentiment DESC
+            """, (sentiment_model, version_id, entity_text, entity_type))
+            return cur.fetchall()
+
+
+@st.cache_data(ttl=300)
 def load_summaries(version_id=None, source_id=None, limit=100):
     """Load article summaries with article metadata for a specific version."""
     if not version_id:
