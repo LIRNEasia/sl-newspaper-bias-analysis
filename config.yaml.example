@@ -126,3 +126,17 @@ sentiment:
     - finbert                  # Financial/economic news
     - vader                    # Lexicon-based, very fast
     - textblob                 # Pattern-based, simple
+
+# Entity Stance Detection (NLI-based stance toward named entities)
+entity_stance:
+  chunk_size: 5                          # Sentences per chunk window
+  neutral_threshold: 0.2                 # Discard stances where |score| <= threshold
+  min_confidence: 0.3                    # Discard low-confidence stances
+  entity_types:                          # Entity types to analyze
+    - PERSON
+    - ORG
+    - GPE
+    - NORP
+    - EVENT
+    - LAW
+  model: cross-encoder/nli-deberta-v3-base  # NLI model (~350MB)
