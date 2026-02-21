@@ -1,17 +1,14 @@
 """Article summarization using extractive, abstractive, and LLM-based methods."""
 
-import os
 import re
 import time
 from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Optional, Tuple, Union
 from tqdm import tqdm
 
-# Resolve the project root (parent of src/)
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
 from src.db import Database, load_config
 from src.llm import get_llm
+from src.prompts import load_prompt
 
 
 class BaseSummarizer(ABC):
@@ -408,12 +405,6 @@ class LLMSummarizer(BaseSummarizer):
 
         self.llm = get_llm(llm_config)
 
-    def _load_prompt_template(self) -> str:
-        """Load the summarization prompt template from file."""
-        prompt_path = os.path.join(_PROJECT_ROOT, "prompts", "summarization.md")
-        with open(prompt_path, "r") as f:
-            return f.read()
-
     def summarize(self, text: str) -> str:
         """Generate LLM-based summary."""
         if not text or not text.strip():
@@ -421,10 +412,12 @@ class LLMSummarizer(BaseSummarizer):
 
         target_sentences, target_words = self.get_target_length()
 
-        template = self._load_prompt_template()
-        prompt = template.replace("{{target_sentences}}", str(target_sentences))
-        prompt = prompt.replace("{{target_words}}", str(target_words))
-        prompt = prompt.replace("{{article_text}}", text)
+        prompt = load_prompt(
+            "summarization.md",
+            target_sentences=target_sentences,
+            target_words=target_words,
+            article_text=text,
+        )
 
         try:
             response = self.llm.generate(prompt)

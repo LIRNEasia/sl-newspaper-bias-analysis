@@ -5,6 +5,7 @@ import pandas as pd
 from pathlib import Path
 
 from src.db import get_db
+from src.prompts import load_prompt
 
 
 @st.cache_data(ttl=300)
@@ -510,17 +511,7 @@ def generate_topic_aspects(version_id, topics_with_keywords, force=False):
 
     llm = get_llm()
 
-    system_prompt = (
-        "You are an expert media analyst studying how Sri Lankan English newspapers "
-        "covered Cyclone Ditwah (November 2025 - December 2025). The cyclone caused "
-        "significant damage in Sri Lanka, triggering government response, international "
-        "aid, and extensive media coverage across multiple outlets.\n\n"
-        "You are analysing topics discovered by BERTopic from the full corpus of articles. "
-        "For each topic, you will receive its top keywords (with importance scores) and "
-        "representative article titles and excerpts.\n\n"
-        "Your task is to identify what specific aspect of the Ditwah cyclone event this "
-        "topic captures."
-    )
+    system_prompt = load_prompt("topics/aspect_label_system.md")
 
     success_count = 0
 
@@ -550,17 +541,14 @@ def generate_topic_aspects(version_id, topics_with_keywords, force=False):
                 art_lines.append(f"  {i}. [{art['source_id']}] {art['title']}\n     {excerpt}...")
             art_section = "\n".join(art_lines)
 
-            prompt = (
-                f"Below is a topic discovered from Sri Lankan newspaper coverage of Cyclone Ditwah.\n\n"
-                f"TOPIC {topic['topic_id']} ({topic['article_count']} articles)\n\n"
-                f"Top {min(20, len(keywords))} keywords:\n{kw_section}\n\n"
-                f"Top {len(rep_articles)} representative articles:\n{art_section}\n\n"
-                f"Based on the keywords and articles above, provide:\n"
-                f"1. A short aspect phrase (2-5 words) that captures what this topic is about\n"
-                f"2. A 1-2 sentence description explaining what this topic covers in the "
-                f"context of Cyclone Ditwah coverage\n\n"
-                f'Respond with JSON in this exact format:\n'
-                f'{{"aspect": "short phrase here", "description": "1-2 sentence description here"}}'
+            prompt = load_prompt(
+                "topics/aspect_label_user.md",
+                topic_id=topic['topic_id'],
+                article_count=topic['article_count'],
+                keyword_count=min(20, len(keywords)),
+                keywords_section=kw_section,
+                article_count_shown=len(rep_articles),
+                articles_section=art_section,
             )
 
             try:
@@ -645,27 +633,18 @@ def generate_overall_bias_narrative(version_id: str, bias_data: pd.DataFrame) ->
 
     llm = get_llm()
 
-    system_prompt = (
-        "You are a media bias analyst studying Sri Lankan newspaper coverage of "
-        "Cyclone Ditwah. You are analyzing selection bias patterns - which topics "
-        "each outlet chose to cover (or ignore) - to understand editorial priorities."
-    )
+    system_prompt = load_prompt("topics/bias_narrative_system.md")
 
     # Prepare analysis context
     top_spread = bias_data.nlargest(5, 'Spread')[['Aspect', 'Spread', 'Most', 'Least']]
     outlet_specialization = _analyze_outlet_specialization(bias_data)
     surprising_gaps = _find_surprising_gaps(bias_data)
 
-    prompt = (
-        f"Analyze the selection bias patterns from this coverage data:\n\n"
-        f"TOP 5 TOPICS BY COVERAGE VARIANCE:\n{top_spread.to_string()}\n\n"
-        f"OUTLET SPECIALIZATION:\n{outlet_specialization}\n\n"
-        f"SURPRISING COVERAGE GAPS:\n{surprising_gaps}\n\n"
-        f"Write a brief analysis (3-4 sentences) highlighting:\n"
-        f"1. Which outlets show the most distinct editorial focus (specialization)\n"
-        f"2. Most surprising coverage gaps (topics heavily covered by some but ignored by others)\n"
-        f"3. What this reveals about editorial priorities\n\n"
-        f"Be specific with numbers and outlet names. Keep it concise and insightful."
+    prompt = load_prompt(
+        "topics/bias_narrative_user.md",
+        top_spread_table=top_spread.to_string(),
+        outlet_specialization=outlet_specialization,
+        surprising_gaps=surprising_gaps,
     )
 
     try:
@@ -726,11 +705,7 @@ def generate_topic_bias_insights(version_id: str, bias_data: pd.DataFrame, force
     llm = get_llm()
     success_count = 0
 
-    system_prompt = (
-        "You are analyzing selection bias in Sri Lankan newspaper coverage. "
-        "For each topic, explain why coverage varies across outlets, focusing on "
-        "outlet specialization and surprising coverage gaps."
-    )
+    system_prompt = load_prompt("topics/bias_insight_system.md")
 
     with get_db() as db:
         schema = db.config["schema"]
@@ -766,17 +741,14 @@ def generate_topic_bias_insights(version_id: str, bias_data: pd.DataFrame, force
                       ['Aspect', 'Topic', 'Spread', 'Most', 'Least']]
             coverage = {outlet: row[outlet] for outlet in outlets}
 
-            prompt = (
-                f"Topic: {row['Aspect']}\n"
-                f"Coverage by outlet:\n"
-                + "\n".join(f"  {o}: {coverage[o]:.1f}%" for o in outlets) +
-                f"\n\nSpread: {row['Spread']:.1f} percentage points\n"
-                f"Most coverage: {row['Most']}\n"
-                f"Least coverage: {row['Least']}\n\n"
-                f"Write a concise 1-2 sentence insight explaining:\n"
-                f"- Which outlet(s) specialize in this topic (if any)\n"
-                f"- Most surprising coverage gap (if significant)\n"
-                f"Only mention notable patterns (spread >5pp). If spread is small, just say 'Balanced coverage across outlets.'"
+            coverage_breakdown = "\n".join(f"  {o}: {coverage[o]:.1f}%" for o in outlets)
+            prompt = load_prompt(
+                "topics/bias_insight_user.md",
+                aspect=row['Aspect'],
+                coverage_breakdown=coverage_breakdown,
+                spread=f"{row['Spread']:.1f}",
+                most_coverage=row['Most'],
+                least_coverage=row['Least'],
             )
 
             try:
@@ -2298,3 +2270,87 @@ def load_multi_doc_summary_for_cluster(article_id: int, cluster_version_id: str,
             'sampled': len(articles) < sampled_from,
             'sampled_from': sampled_from
         }
+
+
+# Entity Stance loaders
+
+@st.cache_data(ttl=300)
+def load_entity_stance_summary(version_id):
+    """Load aggregated entity stance by source."""
+    with get_db() as db:
+        rows = db.get_entity_stance_summary(version_id)
+    return pd.DataFrame(rows) if rows else pd.DataFrame()
+
+
+@st.cache_data(ttl=300)
+def load_polarizing_entities(version_id, limit=20):
+    """Load most polarizing entities (highest cross-source stance variance)."""
+    with get_db() as db:
+        rows = db.get_most_polarizing_entities(version_id, limit)
+    return pd.DataFrame(rows) if rows else pd.DataFrame()
+
+
+@st.cache_data(ttl=300)
+def load_entity_stance_summary_by_topic(
+    stance_version_id, topic_version_id, topic_bertopic_id=None
+):
+    """Load aggregated entity stance by source, filtered by topic."""
+    with get_db() as db:
+        rows = db.get_entity_stance_summary_by_topic(
+            stance_version_id, topic_version_id, topic_bertopic_id
+        )
+    return pd.DataFrame(rows) if rows else pd.DataFrame()
+
+
+@st.cache_data(ttl=300)
+def load_entity_stance_examples(
+    version_id,
+    entity_texts_tuple,
+    limit=200,
+    topic_version_id=None,
+    topic_bertopic_id=None,
+):
+    """Load chunk-level stance rows with chunk text for given entities.
+
+    Args:
+        entity_texts_tuple: Tuple of entity strings (tuple for cache hashability)
+        limit: Max rows from DB
+        topic_version_id: Optional topic version UUID to filter by topic
+        topic_bertopic_id: Optional BERTopic topic_id to filter by specific topic
+    """
+    with get_db() as db:
+        rows = db.get_entity_stance_examples(
+            version_id,
+            list(entity_texts_tuple),
+            limit,
+            topic_version_id=topic_version_id,
+            topic_bertopic_id=topic_bertopic_id,
+        )
+    return pd.DataFrame(rows) if rows else pd.DataFrame()
+
+
+@st.cache_data(ttl=300)
+def load_entity_stance_detail(article_id, version_id):
+    """Load chunk-level entity stance for an article."""
+    with get_db() as db:
+        rows = db.get_entity_stance_for_article(article_id, version_id)
+    return rows if rows else []
+
+
+@st.cache_data(ttl=300)
+def load_entity_stance_overview(version_id):
+    """Load overview stats for entity stance analysis."""
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT
+                    COUNT(*) as total_stances,
+                    COUNT(DISTINCT entity_text) as unique_entities,
+                    COUNT(DISTINCT article_id) as articles_processed,
+                    AVG(ABS(stance_score)) as avg_abs_stance,
+                    AVG(confidence) as avg_confidence
+                FROM {schema}.entity_stance
+                WHERE result_version_id = %s
+            """, (version_id,))
+            return dict(cur.fetchone())

@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS media_bias.result_versions (
     configuration JSONB NOT NULL,
     analysis_type VARCHAR(50) NOT NULL DEFAULT 'combined',
     is_complete BOOLEAN DEFAULT false,
-    pipeline_status JSONB DEFAULT '{"embeddings": false, "topics": false, "clustering": false, "word_frequency": false, "ner": false, "summarization": false, "ditwah": false, "ditwah_claims": false}'::jsonb,
+    pipeline_status JSONB DEFAULT '{"embeddings": false, "topics": false, "clustering": false, "word_frequency": false, "ner": false, "summarization": false, "ditwah": false, "ditwah_claims": false, "entity_stance": false}'::jsonb,
     model_data BYTEA,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
@@ -448,3 +448,27 @@ ORDER BY gc.claim_order, ac.created_at;
 
 COMMENT ON VIEW media_bias.ditwah_claims_hierarchy IS
   'Shows the mapping from individual article claims to general claims for analysis';
+
+-- Entity Stance Detection (NLI-based stance toward named entities)
+CREATE TABLE IF NOT EXISTS media_bias.entity_stance (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    result_version_id UUID NOT NULL REFERENCES media_bias.result_versions(id) ON DELETE CASCADE,
+    ner_version_id UUID NOT NULL REFERENCES media_bias.result_versions(id) ON DELETE CASCADE,
+    article_id UUID NOT NULL REFERENCES media_bias.news_articles(id),
+    chunk_index INTEGER NOT NULL,
+    start_char INTEGER NOT NULL,
+    end_char INTEGER NOT NULL,
+    entity_text VARCHAR(500) NOT NULL,
+    entity_type VARCHAR(50) NOT NULL,
+    stance_score FLOAT NOT NULL,        -- -1.0 to +1.0
+    stance_label VARCHAR(50) NOT NULL,  -- strongly_negative, negative, positive, strongly_positive
+    confidence FLOAT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(article_id, result_version_id, chunk_index, entity_text)
+);
+
+-- Indexes for entity stance
+CREATE INDEX IF NOT EXISTS idx_entity_stance_version ON media_bias.entity_stance(result_version_id);
+CREATE INDEX IF NOT EXISTS idx_entity_stance_article ON media_bias.entity_stance(article_id);
+CREATE INDEX IF NOT EXISTS idx_entity_stance_entity_text ON media_bias.entity_stance(entity_text);
+CREATE INDEX IF NOT EXISTS idx_entity_stance_entity_type ON media_bias.entity_stance(entity_type);

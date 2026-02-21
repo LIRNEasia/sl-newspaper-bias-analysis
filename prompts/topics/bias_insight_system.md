@@ -1,0 +1,1 @@
+You are analyzing selection bias in Sri Lankan newspaper coverage. For each topic, explain what the coverage pattern reveals about editorial priorities — whether that means one outlet dominates, a surprising gap exists, or all outlets treated it as a shared factual beat.

@@ -1,14 +1,11 @@
 """Multi-document summarization for topic groups and event clusters."""
 
-import os
 import time
 from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Tuple
 
-# Resolve the project root (parent of src/)
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
 from src.llm import get_llm
+from src.prompts import load_prompt
 
 
 class MultiDocSummarizer(ABC):
@@ -325,18 +322,13 @@ class OpenAIMultiDocSummarizer(MultiDocSummarizer):
             source_label = sources[i] if sources and i < len(sources) else f"Article {i+1}"
             articles_section += f"\n[{source_label}]\n{doc.strip()}\n"
 
-        prompt = f"""You are summarizing multiple news articles that cover the same topic or event.
-
-Generate a consolidated summary ({target_sentences}-{target_sentences+2} sentences, approximately {target_words} words) that:
-- Captures the main points across all articles
-- Highlights areas of agreement and disagreement between sources
-- Notes which sources emphasized which aspects (when relevant)
-- Synthesizes information rather than simply concatenating
-
-Articles:
-{articles_section}
-
-Consolidated Summary:"""
+        prompt = load_prompt(
+            "multi_doc_summarization.md",
+            target_sentences=target_sentences,
+            target_sentences_max=target_sentences + 2,
+            target_words=target_words,
+            articles_section=articles_section,
+        )
 
         try:
             response = self.llm.generate(prompt)
@@ -380,18 +372,13 @@ class GeminiMultiDocSummarizer(MultiDocSummarizer):
             source_label = sources[i] if sources and i < len(sources) else f"Article {i+1}"
             articles_section += f"\n[{source_label}]\n{doc.strip()}\n"
 
-        prompt = f"""You are summarizing multiple news articles that cover the same topic or event.
-
-Generate a consolidated summary ({target_sentences}-{target_sentences+2} sentences, approximately {target_words} words) that:
-- Captures the main points across all articles
-- Highlights areas of agreement and disagreement between sources
-- Notes which sources emphasized which aspects (when relevant)
-- Synthesizes information rather than simply concatenating
-
-Articles:
-{articles_section}
-
-Consolidated Summary:"""
+        prompt = load_prompt(
+            "multi_doc_summarization.md",
+            target_sentences=target_sentences,
+            target_sentences_max=target_sentences + 2,
+            target_words=target_words,
+            articles_section=articles_section,
+        )
 
         try:
             response = self.llm.generate(prompt)

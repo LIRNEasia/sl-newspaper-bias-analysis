@@ -222,8 +222,7 @@ if topics_with_kw and topic_source_data and outlet_totals:
 
     # Display overall narrative if exists
     if narrative:
-        st.markdown("### 🔍 Selection Bias Analysis")
-        st.info(narrative)
+        st.markdown(narrative)
 
         # Optionally show per-topic insights
         with st.expander("Per-Topic Bias Insights"):

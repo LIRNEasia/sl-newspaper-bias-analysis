@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Any, Tuple
 from uuid import UUID
 from src.db import Database
 from src.llm import get_llm, BaseLLM
+from src.prompts import load_prompt
 
 
 def filter_ditwah_articles(clustering_version_id: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -86,38 +87,13 @@ def generate_stance_prompt(article_title: str, article_content: str, hypothesis:
     # Truncate content if too long (keep first 3000 chars)
     content_truncated = article_content[:3000] if len(article_content) > 3000 else article_content
 
-    system_prompt = """You are a media bias analyst specializing in stance detection.
-Your task is to analyze how a news article relates to a given hypothesis about Cyclone Ditwah.
-
-Analyze:
-1. Does the article provide evidence supporting or contradicting the hypothesis?
-2. What is the overall stance (strongly agree, agree, neutral, disagree, strongly disagree)?
-3. How confident are you in this assessment?
-4. Extract relevant quotes that support your analysis.
-
-Respond with valid JSON only, no other text."""
-
-    user_prompt = f"""Article Title: {article_title}
-
-Article Content:
-{content_truncated}
-
-Hypothesis: {hypothesis}
-
-Analyze the article's stance towards the hypothesis. Respond with JSON:
-{{
-  "agreement_score": <float between -1.0 (strongly disagree) and 1.0 (strongly agree)>,
-  "confidence": <float between 0.0 and 1.0>,
-  "stance": "<one of: strongly_agree, agree, neutral, disagree, strongly_disagree>",
-  "reasoning": "<2-3 sentence explanation of your assessment>",
-  "supporting_quotes": ["<relevant quote 1>", "<relevant quote 2>"]
-}}
-
-Important:
-- If the article doesn't mention the hypothesis topic at all, use stance "neutral" with confidence < 0.3
-- Only use "strongly_agree" or "strongly_disagree" if the article explicitly and clearly takes that position
-- Keep quotes short (max 200 chars each), extract at most 3 quotes
-- Reasoning should be concise and evidence-based"""
+    system_prompt = load_prompt("ditwah/stance_system.md")
+    user_prompt = load_prompt(
+        "ditwah/stance_user.md",
+        article_title=article_title,
+        article_content=content_truncated,
+        hypothesis=hypothesis,
+    )
 
     return system_prompt, user_prompt
 

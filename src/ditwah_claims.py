@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Any
 from uuid import UUID
 
 from src.db import get_db
+from src.prompts import load_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -53,28 +54,13 @@ def generate_individual_claim_for_article(llm, article: Dict, config: Dict) -> O
     Returns:
         Claim text string or None if generation fails
     """
-    prompt = f"""Analyze this article about Cyclone Ditwah and generate ONE specific, verifiable claim that captures the main point.
-
-Article Title: {article['title']}
-Article Date: {article['date_posted']}
-Article Source: {article['source_id']}
-Article Content: {article['content'][:2000] if article['content'] else article['title']}
-
-The claim should be:
-- Specific and factual (not vague or general)
-- 1-2 sentences maximum
-- Focus on what happened, who did what, or what the impact was
-- Something that can be agreed or disagreed with
-
-Examples of good claims:
-- "The government allocated Rs. 5 billion for immediate cyclone relief"
-- "Cyclone Ditwah caused 15 deaths and displaced 50,000 people"
-- "International aid organizations failed to respond quickly enough"
-
-Return ONLY a JSON object with this structure:
-{{"claim": "Your specific claim here"}}
-
-Return ONLY the JSON, no other text."""
+    prompt = load_prompt(
+        "ditwah/claims_individual.md",
+        article_title=article['title'],
+        article_date=article['date_posted'],
+        article_source=article['source_id'],
+        article_content=article['content'][:2000] if article['content'] else article['title'],
+    )
 
     try:
         response = llm.generate(prompt=prompt, json_mode=True)
@@ -319,28 +305,19 @@ def generate_general_claim_from_cluster(
         "casualties_and_displacement"
     ])
 
-    prompt = f"""You are analyzing {len(individual_claims)} similar claims from different articles about Cyclone Ditwah.
-These claims come from sources: {', '.join(sources)}
-
-Individual claims:
-{chr(10).join(f'{i+1}. {claim}' for i, claim in enumerate(individual_claims[:10]))}
-{f'... and {len(individual_claims) - 10} more' if len(individual_claims) > 10 else ''}
-
-Generate ONE general claim that captures the common theme across these individual claims.
-
-The general claim should:
-- Capture the essence of what these claims are saying
-- Be specific enough to be meaningful
-- Be general enough to cover all the individual claims
-- Be 1-2 sentences
-- Be verifiable
-
-Also categorize the claim using one of these categories: {', '.join(categories)}
-
-Return ONLY a JSON object:
-{{"claim_text": "Your general claim here", "claim_category": "category_name"}}
-
-Return ONLY the JSON, no other text."""
+    overflow_text = (
+        f'... and {len(individual_claims) - 10} more' if len(individual_claims) > 10 else ''
+    )
+    prompt = load_prompt(
+        "ditwah/claims_general.md",
+        claim_count=len(individual_claims),
+        sources_list=', '.join(sources),
+        claims_list='\n'.join(
+            f'{i+1}. {claim}' for i, claim in enumerate(individual_claims[:10])
+        ),
+        overflow_text=overflow_text,
+        categories_list=', '.join(categories),
+    )
 
     try:
         response = llm.generate(prompt=prompt, json_mode=True)
@@ -475,30 +452,13 @@ def generate_claims_from_articles(llm, articles: List[Dict], config: Dict) -> Li
         article_summaries.append(summary)
 
     # Create LLM prompt
-    prompt = f"""Analyze these {len(articles)} news articles about Cyclone Ditwah and identify {num_claims} specific, verifiable claims made across the coverage.
-
-Articles:
-{json.dumps(article_summaries, indent=2)}
-
-Instructions:
-1. Identify {num_claims} key claims or statements that appear across multiple articles
-2. Each claim should be:
-   - Specific and verifiable (not vague or general)
-   - Mentioned or implied by at least 3 articles
-   - Significant to understanding the cyclone's impact or response
-3. Categorize each claim using these categories: {', '.join(categories)}
-4. Prioritize claims that show variation across sources (some agree, some disagree)
-
-Return a JSON array of claims with this structure:
-[
-  {{
-    "claim_text": "The exact claim or statement",
-    "claim_category": "one of the categories above",
-    "confidence": 0.9
-  }}
-]
-
-Return ONLY the JSON array, no other text."""
+    prompt = load_prompt(
+        "ditwah/claims_batch.md",
+        article_count=len(articles),
+        num_claims=num_claims,
+        articles_json=json.dumps(article_summaries, indent=2),
+        categories_list=', '.join(categories),
+    )
 
     try:
         # Call LLM
@@ -860,37 +820,11 @@ def analyze_claim_stance_to_df(
             })
 
         # Create LLM prompt
-        prompt = f"""Analyze whether each article agrees, disagrees, or remains neutral about this claim:
-
-Claim: "{claim_text}"
-
-Articles:
-{json.dumps(article_data, indent=2)}
-
-For each article, determine:
-1. Does it agree, disagree, or remain neutral about the claim?
-2. How confident are you? (0.0 to 1.0)
-3. What is your reasoning?
-4. What quotes support your assessment? (up to 2 quotes)
-
-Return a JSON array with this structure:
-[
-  {{
-    "article_id": "uuid",
-    "stance_score": 0.7,  // -1.0 (strongly disagree) to +1.0 (strongly agree), 0 = neutral
-    "stance_label": "agree",  // one of: strongly_agree, agree, neutral, disagree, strongly_disagree
-    "confidence": 0.9,
-    "reasoning": "Brief explanation of the stance",
-    "supporting_quotes": ["quote 1", "quote 2"]
-  }}
-]
-
-Guidelines:
-- stance_score: -1.0 to -0.6 = strongly_disagree, -0.6 to -0.2 = disagree, -0.2 to 0.2 = neutral, 0.2 to 0.6 = agree, 0.6 to 1.0 = strongly_agree
-- If the article doesn't mention the claim, mark as neutral with low confidence
-- Focus on what the article explicitly states, not implications
-
-Return ONLY the JSON array, no other text."""
+        prompt = load_prompt(
+            "ditwah/claims_stance.md",
+            claim_text=claim_text,
+            articles_json=json.dumps(article_data, indent=2),
+        )
 
         try:
             # Call LLM
@@ -988,37 +922,11 @@ def analyze_claim_stance(
             })
 
         # Create LLM prompt
-        prompt = f"""Analyze whether each article agrees, disagrees, or remains neutral about this claim:
-
-Claim: "{claim_text}"
-
-Articles:
-{json.dumps(article_data, indent=2)}
-
-For each article, determine:
-1. Does it agree, disagree, or remain neutral about the claim?
-2. How confident are you? (0.0 to 1.0)
-3. What is your reasoning?
-4. What quotes support your assessment? (up to 2 quotes)
-
-Return a JSON array with this structure:
-[
-  {{
-    "article_id": "uuid",
-    "stance_score": 0.7,  // -1.0 (strongly disagree) to +1.0 (strongly agree), 0 = neutral
-    "stance_label": "agree",  // one of: strongly_agree, agree, neutral, disagree, strongly_disagree
-    "confidence": 0.9,
-    "reasoning": "Brief explanation of the stance",
-    "supporting_quotes": ["quote 1", "quote 2"]
-  }}
-]
-
-Guidelines:
-- stance_score: -1.0 to -0.6 = strongly_disagree, -0.6 to -0.2 = disagree, -0.2 to 0.2 = neutral, 0.2 to 0.6 = agree, 0.6 to 1.0 = strongly_agree
-- If the article doesn't mention the claim, mark as neutral with low confidence
-- Focus on what the article explicitly states, not implications
-
-Return ONLY the JSON array, no other text."""
+        prompt = load_prompt(
+            "ditwah/claims_stance.md",
+            claim_text=claim_text,
+            articles_json=json.dumps(article_data, indent=2),
+        )
 
         try:
             # Call LLM
@@ -1341,37 +1249,11 @@ def generate_claims_pipeline(version_id: UUID, config: Dict) -> Dict[str, Any]:
                 })
 
             # Create LLM prompt
-            prompt = f"""Analyze whether each article agrees, disagrees, or remains neutral about this claim:
-
-Claim: "{claim_text}"
-
-Articles:
-{json.dumps(article_data, indent=2)}
-
-For each article, determine:
-1. Does it agree, disagree, or remain neutral about the claim?
-2. How confident are you? (0.0 to 1.0)
-3. What is your reasoning?
-4. What quotes support your assessment? (up to 2 quotes)
-
-Return a JSON array with this structure:
-[
-  {{
-    "article_id": "uuid",
-    "stance_score": 0.7,  // -1.0 (strongly disagree) to +1.0 (strongly agree), 0 = neutral
-    "stance_label": "agree",  // one of: strongly_agree, agree, neutral, disagree, strongly_disagree
-    "confidence": 0.9,
-    "reasoning": "Brief explanation of the stance",
-    "supporting_quotes": ["quote 1", "quote 2"]
-  }}
-]
-
-Guidelines:
-- stance_score: -1.0 to -0.6 = strongly_disagree, -0.6 to -0.2 = disagree, -0.2 to 0.2 = neutral, 0.2 to 0.6 = agree, 0.6 to 1.0 = strongly_agree
-- If the article doesn't mention the claim, mark as neutral with low confidence
-- Focus on what the article explicitly states, not implications
-
-Return ONLY the JSON array, no other text."""
+            prompt = load_prompt(
+                "ditwah/claims_stance.md",
+                claim_text=claim_text,
+                articles_json=json.dumps(article_data, indent=2),
+            )
 
             try:
                 # Call LLM
