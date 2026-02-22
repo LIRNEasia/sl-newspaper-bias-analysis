@@ -404,7 +404,8 @@ article_url = st.text_input(
 if article_url:
     with get_db() as db:
         # Fetch article by URL
-        article = db.get_article_by_url(article_url)
+        from src.db import ditwah_filters
+        article = db.get_article_by_url(article_url, filters=ditwah_filters())
 
         if not article:
             st.warning("Article not found. Please ensure the URL is exactly as stored in the database.")

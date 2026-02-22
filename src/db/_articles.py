@@ -1,32 +1,96 @@
 """Article database operations."""
 
-from typing import List, Dict
+from dataclasses import dataclass
+from typing import Any, List, Dict, Optional
+
+
+@dataclass
+class ArticleFilter:
+    """A single filter condition for article queries.
+
+    Args:
+        column: Column name to filter on (must be in ALLOWED_COLUMNS)
+        op: SQL operator ('=', '!=', '>', '>=', '<', '<=', 'ILIKE')
+        value: Value to compare against
+    """
+    column: str
+    op: str
+    value: Any
+
+
+ALLOWED_COLUMNS = {
+    "is_ditwah_cyclone", "date_posted", "source_id", "lang", "id"
+}
+ALLOWED_OPS = {"=", "!=", ">", ">=", "<", "<=", "ILIKE"}
+
+
+def ditwah_filters() -> List[ArticleFilter]:
+    """Standard filters for Ditwah cyclone analysis."""
+    return [
+        ArticleFilter("is_ditwah_cyclone", "=", 1),
+        ArticleFilter("date_posted", ">=", "2025-11-22"),
+        ArticleFilter("date_posted", "<=", "2025-12-31"),
+    ]
 
 
 class ArticleMixin:
     """Article-related database operations."""
 
+    def _build_filters(
+        self,
+        filters: Optional[List[ArticleFilter]],
+        table_alias: str = ""
+    ) -> tuple:
+        """Build WHERE clause fragments and params from ArticleFilter list.
+
+        Args:
+            filters: List of ArticleFilter conditions
+            table_alias: Optional table alias prefix (e.g. "a")
+
+        Returns:
+            Tuple of (clauses list, params list)
+        """
+        if not filters:
+            return [], []
+        clauses = []
+        params = []
+        prefix = f"{table_alias}." if table_alias else ""
+        for f in filters:
+            if f.column not in ALLOWED_COLUMNS:
+                raise ValueError(f"Column '{f.column}' not allowed in filters")
+            if f.op not in ALLOWED_OPS:
+                raise ValueError(f"Operator '{f.op}' not allowed")
+            clauses.append(f"{prefix}{f.column} {f.op} %s")
+            params.append(f.value)
+        return clauses, params
+
     def get_articles(
         self,
         limit: int = None,
         offset: int = 0,
-        source_id: str = None
+        source_id: str = None,
+        filters: List[ArticleFilter] = None
     ) -> List[Dict]:
         """Fetch articles from news_articles table."""
         schema = self.config["schema"]
+        base_conditions = ["content IS NOT NULL", "content != ''"]
+        params = []
+
+        filter_clauses, filter_params = self._build_filters(filters)
+        base_conditions.extend(filter_clauses)
+        params.extend(filter_params)
+
+        if source_id:
+            base_conditions.append("source_id = %s")
+            params.append(source_id)
+
+        where = " AND ".join(base_conditions)
         query = f"""
             SELECT id, url, title, content, date_posted, source_id, lang
             FROM {schema}.news_articles
-            WHERE content IS NOT NULL AND content != '' AND is_ditwah_cyclone = 1
-              AND date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
+            WHERE {where}
+            ORDER BY date_posted, id
         """
-        params = []
-
-        if source_id:
-            query += " AND source_id = %s"
-            params.append(source_id)
-
-        query += " ORDER BY date_posted, id"
 
         if limit:
             query += f" LIMIT {limit} OFFSET {offset}"
@@ -35,65 +99,55 @@ class ArticleMixin:
             cur.execute(query, params)
             return cur.fetchall()
 
-    def get_article_count(self) -> int:
+    def get_article_count(self, filters: List[ArticleFilter] = None) -> int:
         """Get total article count."""
         schema = self.config["schema"]
+        base_conditions = ["content IS NOT NULL", "content != ''"]
+        params = []
+
+        filter_clauses, filter_params = self._build_filters(filters)
+        base_conditions.extend(filter_clauses)
+        params.extend(filter_params)
+
+        where = " AND ".join(base_conditions)
         with self.cursor() as cur:
             cur.execute(f"""
                 SELECT COUNT(*) as count
                 FROM {schema}.news_articles
-                WHERE content IS NOT NULL AND content != '' AND is_ditwah_cyclone = 1
-                  AND date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
-            """)
+                WHERE {where}
+            """, params)
             return cur.fetchone()["count"]
 
-    def get_article_by_url(self, url: str) -> Dict:
+    def get_article_by_url(
+        self,
+        url: str,
+        filters: List[ArticleFilter] = None
+    ) -> Dict:
         """Fetch article by URL.
 
         Args:
             url: The article URL to search for
+            filters: Optional list of ArticleFilter conditions
 
         Returns:
             Article dict with id, url, title, content, source_id, date_posted, or None if not found
         """
         schema = self.config["schema"]
+        base_conditions = ["url = %s"]
+        params = [url]
+
+        filter_clauses, filter_params = self._build_filters(filters)
+        base_conditions.extend(filter_clauses)
+        params.extend(filter_params)
+
+        where = " AND ".join(base_conditions)
         with self.cursor() as cur:
             cur.execute(f"""
                 SELECT id, url, title, content, source_id, date_posted
                 FROM {schema}.news_articles
-                WHERE url = %s AND is_ditwah_cyclone = 1
-                  AND date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
-            """, (url,))
+                WHERE {where}
+            """, params)
             return cur.fetchone()
-
-    def get_articles_without_embeddings(self, embedding_model: str, limit: int = None) -> List[Dict]:
-        """Get articles that don't have embeddings yet for a specific model.
-
-        Args:
-            embedding_model: Name of the embedding model (e.g., 'all-mpnet-base-v2')
-            limit: Maximum number of articles to return
-        """
-        schema = self.config["schema"]
-
-        query = f"""
-            SELECT a.id, a.title, a.content, a.date_posted, a.source_id
-            FROM {schema}.news_articles a
-            LEFT JOIN {schema}.embeddings e ON a.id = e.article_id AND e.embedding_model = %s
-            WHERE e.id IS NULL
-              AND a.content IS NOT NULL
-              AND a.content != ''
-              AND a.is_ditwah_cyclone = 1
-              AND a.date_posted >= '2025-11-22' AND a.date_posted <= '2025-12-31'
-            ORDER BY a.date_posted, a.id
-        """
-        params = [embedding_model]
-
-        if limit:
-            query += f" LIMIT {limit}"
-
-        with self.cursor() as cur:
-            cur.execute(query, params)
-            return cur.fetchall()
 
     def get_article_by_id(self, article_id: int) -> Dict:
         """Fetch article metadata by ID.
@@ -113,24 +167,38 @@ class ArticleMixin:
             """, (article_id,))
             return cur.fetchone()
 
-    def search_articles(self, title_search: str, limit: int = 50) -> List[Dict]:
+    def search_articles(
+        self,
+        title_search: str,
+        limit: int = 50,
+        filters: List[ArticleFilter] = None
+    ) -> List[Dict]:
         """Search articles by title.
 
         Args:
             title_search: Search term for title (case-insensitive)
             limit: Maximum number of results
+            filters: Optional list of ArticleFilter conditions
 
         Returns:
             List of article dicts with id, title, source_id, date_posted
         """
         schema = self.config["schema"]
+        base_conditions = ["title ILIKE %s"]
+        params = [f"%{title_search}%"]
+
+        filter_clauses, filter_params = self._build_filters(filters)
+        base_conditions.extend(filter_clauses)
+        params.extend(filter_params)
+
+        where = " AND ".join(base_conditions)
+        params.append(limit)
         with self.cursor() as cur:
             cur.execute(f"""
                 SELECT id, title, source_id, date_posted
                 FROM {schema}.news_articles
-                WHERE title ILIKE %s AND is_ditwah_cyclone = 1
-                  AND date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
+                WHERE {where}
                 ORDER BY date_posted DESC
                 LIMIT %s
-            """, (f"%{title_search}%", limit))
+            """, params)
             return cur.fetchall()

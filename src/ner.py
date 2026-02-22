@@ -18,7 +18,7 @@ try:
 except ImportError:
     GLINER_AVAILABLE = False
 
-from .db import get_db, load_config
+from .db import get_db, load_config, ditwah_filters
 
 
 class NERExtractor:
@@ -166,7 +166,7 @@ def extract_entities_from_articles(
     # Load articles
     print(f"Loading articles for version {result_version_id}...")
     with get_db() as db:
-        articles = db.get_articles()  # Get all articles from news_articles table
+        articles = db.get_articles(filters=ditwah_filters())
 
     print(f"Loaded {len(articles)} articles")
 

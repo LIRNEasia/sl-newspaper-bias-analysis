@@ -2,7 +2,7 @@
 
 from src.config import load_config
 from src.db._connection import DatabaseConnection
-from src.db._articles import ArticleMixin
+from src.db._articles import ArticleMixin, ArticleFilter, ditwah_filters
 from src.db._embeddings import EmbeddingMixin
 from src.db._topics import TopicMixin
 from src.db._clustering import ClusteringMixin
@@ -34,4 +34,4 @@ def get_db() -> Database:
     return Database()
 
 
-__all__ = ["Database", "get_db", "load_config"]
+__all__ = ["Database", "get_db", "load_config", "ArticleFilter", "ditwah_filters"]

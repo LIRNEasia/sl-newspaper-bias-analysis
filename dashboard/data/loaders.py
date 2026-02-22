@@ -1757,7 +1757,8 @@ def search_articles_by_title(search_term: str, limit: int = 50):
         return []
 
     with get_db() as db:
-        return db.search_articles(search_term, limit)
+        from src.db import ditwah_filters
+        return db.search_articles(search_term, limit, filters=ditwah_filters())
 
 
 @st.cache_data(ttl=300)

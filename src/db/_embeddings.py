@@ -31,25 +31,77 @@ class EmbeddingMixin:
                 template="(%s, %s::vector, %s)"
             )
 
-    def get_all_embeddings(self, embedding_model: str) -> List[Dict]:
+    def get_articles_without_embeddings(
+        self,
+        embedding_model: str,
+        limit: int = None,
+        filters: list = None
+    ) -> List[Dict]:
+        """Get articles that don't have embeddings yet for a specific model.
+
+        Args:
+            embedding_model: Name of the embedding model (e.g., 'all-mpnet-base-v2')
+            limit: Maximum number of articles to return
+            filters: Optional list of ArticleFilter conditions (applied to article table)
+        """
+        schema = self.config["schema"]
+
+        base_conditions = [
+            "e.id IS NULL",
+            "a.content IS NOT NULL",
+            "a.content != ''"
+        ]
+        params = [embedding_model]
+
+        filter_clauses, filter_params = self._build_filters(filters, table_alias="a")
+        base_conditions.extend(filter_clauses)
+        params.extend(filter_params)
+
+        where = " AND ".join(base_conditions)
+        query = f"""
+            SELECT a.id, a.title, a.content, a.date_posted, a.source_id
+            FROM {schema}.news_articles a
+            LEFT JOIN {schema}.embeddings e ON a.id = e.article_id AND e.embedding_model = %s
+            WHERE {where}
+            ORDER BY a.date_posted, a.id
+        """
+
+        if limit:
+            query += f" LIMIT {limit}"
+
+        with self.cursor() as cur:
+            cur.execute(query, params)
+            return cur.fetchall()
+
+    def get_all_embeddings(
+        self,
+        embedding_model: str,
+        filters: list = None
+    ) -> List[Dict]:
         """Get all article embeddings for a specific model.
 
         Args:
             embedding_model: Name of the embedding model (e.g., 'all-mpnet-base-v2')
+            filters: Optional list of ArticleFilter conditions (applied to article table)
         """
         schema = self.config["schema"]
 
+        base_conditions = ["e.embedding_model = %s"]
+        params = [embedding_model]
+
+        filter_clauses, filter_params = self._build_filters(filters, table_alias="a")
+        base_conditions.extend(filter_clauses)
+        params.extend(filter_params)
+
+        where = " AND ".join(base_conditions)
         query = f"""
             SELECT e.article_id, e.embedding::text, a.title, a.content,
                    a.date_posted, a.source_id
             FROM {schema}.embeddings e
             JOIN {schema}.news_articles a ON e.article_id = a.id
-            WHERE e.embedding_model = %s
-              AND a.is_ditwah_cyclone = 1
-              AND a.date_posted >= '2025-11-22' AND a.date_posted <= '2025-12-31'
+            WHERE {where}
             ORDER BY a.date_posted, a.id
         """
-        params = [embedding_model]
 
         with self.cursor() as cur:
             cur.execute(query, params)
