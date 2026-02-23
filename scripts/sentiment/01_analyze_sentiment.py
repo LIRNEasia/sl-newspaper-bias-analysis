@@ -26,7 +26,7 @@ import time
 # Add src to path (parent.parent because we're in scripts/sentiment/)
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.db import Database
+from src.db import Database, ditwah_filters
 from src.sentiment import get_sentiment_analyzer, get_sentiment_stats
 from src.config import load_config
 
@@ -38,7 +38,7 @@ def display_status(db: Database, models: list = None):
     print("="*70)
 
     # Total articles
-    total = db.get_article_count()
+    total = db.get_article_count(filters=ditwah_filters())
     print(f"\nTotal articles in database: {total:,}")
 
     # Get enabled models from config

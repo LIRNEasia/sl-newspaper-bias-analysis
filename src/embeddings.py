@@ -5,7 +5,7 @@ import numpy as np
 from typing import Dict
 from tqdm import tqdm
 
-from .db import get_db
+from .db import get_db, ditwah_filters
 from .llm import get_embeddings_client, load_config
 
 
@@ -43,7 +43,9 @@ def generate_embeddings(
     embed_client = get_embeddings_client(config_dict)
 
     with get_db() as db:
-        articles = db.get_articles_without_embeddings(embedding_model=embedding_model, limit=limit)
+        articles = db.get_articles_without_embeddings(
+            embedding_model=embedding_model, limit=limit, filters=ditwah_filters()
+        )
         total = len(articles)
 
         if total == 0:
@@ -91,7 +93,7 @@ def get_embedding_stats(embedding_model: str = None) -> Dict:
         embedding_model: Optional model name filter. If None, counts all embeddings.
     """
     with get_db() as db:
-        total_articles = db.get_article_count()
+        total_articles = db.get_article_count(filters=ditwah_filters())
         embedded = db.get_embedding_count(embedding_model=embedding_model)
 
         return {

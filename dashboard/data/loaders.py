@@ -4,7 +4,7 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 
-from src.db import get_db
+from src.db import get_db, date_range_filters, ditwah_filters
 from src.prompts import load_prompt
 
 
@@ -13,78 +13,41 @@ def load_overview_stats(version_id=None):
     """Load overview statistics for a specific version."""
     with get_db() as db:
         schema = db.config["schema"]
-        with db.cursor() as cur:
-            # Total articles
-            cur.execute(f"""
-                SELECT COUNT(*) as count FROM {schema}.news_articles
-                WHERE date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
-            """)
-            total_articles = cur.fetchone()["count"]
 
-            # Articles about Ditwah cyclone
-            cur.execute(f"""
-                SELECT COUNT(*) as count
-                FROM {schema}.news_articles
-                WHERE is_ditwah_cyclone = 1
-                  AND date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
-            """)
-            ditwah_articles = cur.fetchone()["count"]
+        # Article queries via db methods
+        dr_filters = date_range_filters()
+        dw_filters = ditwah_filters()
 
-            # Articles by source
-            cur.execute(f"""
-                SELECT source_id, COUNT(*) as count
-                FROM {schema}.news_articles
-                WHERE date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
-                GROUP BY source_id
-                ORDER BY count DESC
-            """)
-            by_source = cur.fetchall()
+        total_articles = sum(r["count"] for r in db.get_article_counts_by_source(dr_filters))
+        by_source = db.get_article_counts_by_source(dr_filters)
+        ditwah_articles = sum(r["count"] for r in db.get_article_counts_by_source(dw_filters))
+        ditwah_by_source = db.get_article_counts_by_source(dw_filters)
+        date_range = db.get_article_date_range(dr_filters)
 
-            # Ditwah articles by source
-            cur.execute(f"""
-                SELECT source_id, COUNT(*) as count
-                FROM {schema}.news_articles
-                WHERE is_ditwah_cyclone = 1
-                  AND date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
-                GROUP BY source_id
-                ORDER BY count DESC
-            """)
-            ditwah_by_source = cur.fetchall()
-
-            if version_id:
-                # Total topics for this version
+        # Topic/cluster count queries
+        if version_id:
+            with db.cursor() as cur:
                 cur.execute(
                     f"SELECT COUNT(*) as count FROM {schema}.topics WHERE topic_id NOT IN (-1, -2) AND result_version_id = %s",
                     (version_id,)
                 )
                 total_topics = cur.fetchone()["count"]
 
-                # Total clusters for this version
                 cur.execute(
                     f"SELECT COUNT(*) as count FROM {schema}.event_clusters WHERE result_version_id = %s",
                     (version_id,)
                 )
                 total_clusters = cur.fetchone()["count"]
 
-                # Multi-source clusters for this version
                 cur.execute(
                     f"SELECT COUNT(*) as count FROM {schema}.event_clusters WHERE sources_count > 1 AND result_version_id = %s",
                     (version_id,)
                 )
                 multi_source = cur.fetchone()["count"]
-            else:
-                # Fallback for no version selected
-                total_topics = 0
-                total_clusters = 0
-                multi_source = 0
-
-            # Date range
-            cur.execute(f"""
-                SELECT MIN(date_posted)::date as min_date, MAX(date_posted)::date as max_date
-                FROM {schema}.news_articles
-                WHERE date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
-            """)
-            date_range = cur.fetchone()
+        else:
+            total_topics = 0
+            total_clusters = 0
+            multi_source = 0
 
     return {
         "total_articles": total_articles,
@@ -482,17 +445,8 @@ def load_outlet_totals():
         Dict mapping source_id to article count.
     """
     with get_db() as db:
-        schema = db.config["schema"]
-        with db.cursor() as cur:
-            cur.execute(f"""
-                SELECT source_id, COUNT(*) as count
-                FROM {schema}.news_articles
-                WHERE is_ditwah_cyclone = 1
-                  AND date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
-                GROUP BY source_id
-            """)
-            rows = cur.fetchall()
-            return {r['source_id']: r['count'] for r in rows}
+        rows = db.get_article_counts_by_source(ditwah_filters())
+        return {r['source_id']: r['count'] for r in rows}
 
 
 def generate_topic_aspects(version_id, topics_with_keywords, force=False):
@@ -928,68 +882,28 @@ def load_event_details(event_id, version_id=None):
 def load_coverage_timeline():
     """Load daily article counts by source."""
     with get_db() as db:
-        schema = db.config["schema"]
-        with db.cursor() as cur:
-            cur.execute(f"""
-                SELECT date_posted::date as date, source_id, COUNT(*) as count
-                FROM {schema}.news_articles
-                WHERE date_posted IS NOT NULL
-                  AND date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
-                GROUP BY date_posted::date, source_id
-                ORDER BY date
-            """)
-            return cur.fetchall()
+        return db.get_article_counts_by_date(date_range_filters())
 
 
 @st.cache_data(ttl=300)
 def load_ditwah_timeline():
     """Load daily Ditwah article counts by source."""
     with get_db() as db:
-        schema = db.config["schema"]
-        with db.cursor() as cur:
-            cur.execute(f"""
-                SELECT date_posted::date as date, source_id, COUNT(*) as count
-                FROM {schema}.news_articles
-                WHERE date_posted IS NOT NULL AND is_ditwah_cyclone = 1
-                  AND date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
-                GROUP BY date_posted::date, source_id
-                ORDER BY date
-            """)
-            return cur.fetchall()
+        return db.get_article_counts_by_date(ditwah_filters())
 
 
 @st.cache_data(ttl=300)
 def load_article_lengths():
     """Load article lengths for distribution analysis."""
     with get_db() as db:
-        schema = db.config["schema"]
-        with db.cursor() as cur:
-            cur.execute(f"""
-                SELECT
-                    source_id,
-                    LENGTH(content) as article_length
-                FROM {schema}.news_articles
-                WHERE content IS NOT NULL
-                  AND date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
-            """)
-            return cur.fetchall()
+        return db.get_article_lengths(date_range_filters())
 
 
 @st.cache_data(ttl=300)
 def load_ditwah_article_lengths():
     """Load article lengths for Ditwah articles."""
     with get_db() as db:
-        schema = db.config["schema"]
-        with db.cursor() as cur:
-            cur.execute(f"""
-                SELECT
-                    source_id,
-                    LENGTH(content) as article_length
-                FROM {schema}.news_articles
-                WHERE content IS NOT NULL AND is_ditwah_cyclone = 1
-                  AND date_posted >= '2025-11-22' AND date_posted <= '2025-12-31'
-            """)
-            return cur.fetchall()
+        return db.get_article_lengths(ditwah_filters())
 
 
 @st.cache_data(ttl=300)
@@ -1757,7 +1671,8 @@ def search_articles_by_title(search_term: str, limit: int = 50):
         return []
 
     with get_db() as db:
-        return db.search_articles(search_term, limit)
+        from src.db import ditwah_filters
+        return db.search_articles(search_term, limit, filters=ditwah_filters())
 
 
 @st.cache_data(ttl=300)
