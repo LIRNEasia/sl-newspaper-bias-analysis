@@ -54,12 +54,33 @@ def load_ditwah_claims(version_id: str, keyword: Optional[str] = None):
             return cur.fetchall()
 
 
-@st.cache_data(ttl=300)
-def load_claim_stance_breakdown(claim_id: str):
-    """Get stance distribution (agree/neutral/disagree percentages) by source."""
+@st.cache_data(ttl=600)
+def get_available_stance_models() -> list:
+    """Return distinct llm_model values in claim_stance, sorted alphabetically."""
     with get_db() as db:
         schema = db.config["schema"]
         with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT DISTINCT llm_model
+                FROM {schema}.claim_stance
+                WHERE llm_model IS NOT NULL
+                ORDER BY llm_model
+            """)
+            rows = cur.fetchall()
+            return [r["llm_model"] for r in rows]
+
+
+@st.cache_data(ttl=300)
+def load_claim_stance_breakdown(claim_id: str, stance_model: str = None):
+    """Get stance distribution (agree/neutral/disagree percentages) by source.
+
+    Optionally filter by stance_model (llm_model column).
+    """
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            model_clause = "AND llm_model = %s" if stance_model else ""
+            params = (claim_id, stance_model) if stance_model else (claim_id,)
             cur.execute(f"""
                 SELECT
                     source_id,
@@ -71,9 +92,9 @@ def load_claim_stance_breakdown(claim_id: str):
                     SUM(CASE WHEN stance_score < -0.2 THEN 1 ELSE 0 END)::int as disagree_count,
                     SUM(CASE WHEN stance_score < -0.2 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as disagree_pct
                 FROM {schema}.claim_stance
-                WHERE claim_id = %s
+                WHERE claim_id = %s {model_clause}
                 GROUP BY source_id
-            """, (claim_id,))
+            """, params)
             return cur.fetchall()
 
 
@@ -582,7 +603,7 @@ def render_confidence_explorer(version_id: str):
         st.metric("High Disagree + Consensus", len(high_disagree_low_controversy))
 
 
-def render_claim_deep_dive(version_id: str):
+def render_claim_deep_dive(version_id: str, stance_model: str = None):
     """Render detailed claim analysis with progressive disclosure."""
     # Load all claims for dropdown
     claims = load_ditwah_claims(version_id)
@@ -621,7 +642,7 @@ def render_claim_deep_dive(version_id: str):
 
     # Stance distribution (reuse existing function)
     st.markdown("#### 📊 Stance Distribution by Source")
-    stance_breakdown = load_claim_stance_breakdown(claim_id)
+    stance_breakdown = load_claim_stance_breakdown(claim_id, stance_model)
 
     if stance_breakdown:
         # Create stacked bar chart data
@@ -812,6 +833,21 @@ st.markdown("Analyze how different news sources agree/disagree with claims about
 version_id = render_version_selector('ditwah_claims')
 render_create_version_button('ditwah_claims')
 
+# Stance model selector
+with st.sidebar:
+    st.divider()
+    _stance_models = get_available_stance_models()
+    if _stance_models:
+        selected_stance_model = st.selectbox(
+            "Stance model",
+            options=_stance_models,
+            index=0,
+            help="Which stance model's results to display. "
+                 "roberta-large-mnli = NLI-based; others = LLM-based.",
+        )
+    else:
+        selected_stance_model = None
+
 if not version_id:
     st.info("👆 Select or create a ditwah_claims version to view stance analysis")
     st.stop()
@@ -857,4 +893,4 @@ st.divider()
 # SECTION 5: Claim Deep Dive
 st.subheader("🔍 Claim Deep Dive")
 st.markdown("Select a claim to see detailed stance breakdown, quotes, and article-level analysis")
-render_claim_deep_dive(version_id)
+render_claim_deep_dive(version_id, selected_stance_model)

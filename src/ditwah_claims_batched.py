@@ -264,7 +264,7 @@ def deduplicate_similar_claims_with_embeddings(claims: List[Dict], similarity_th
     return deduplicated
 
 
-def filter_claims_by_article_count(claims: List[Dict], min_articles: int = 5) -> List[Dict]:
+def filter_claims_by_article_count(claims: List[Dict], min_articles: int = 10) -> List[Dict]:
     """Filter out claims with fewer than min_articles."""
     filtered = [c for c in claims if c['article_count'] >= min_articles]
 
@@ -305,77 +305,94 @@ def analyze_claim_sentiment(claim: Dict, config: Dict) -> List[Dict]:
     return sentiment_records
 
 
-def analyze_claim_stance_batch(llm, claim_text: str, articles: List[Dict], config: Dict) -> List[Dict]:
-    """Analyze stance for a batch of articles using LLM."""
+def load_nli_model(model_name: str = "facebook/bart-large-mnli"):
+    """Load NLI model for stance detection. Returns a zero-shot-classification pipeline."""
+    from transformers import pipeline as hf_pipeline
+    logger.info(f"Loading NLI model for stance detection: {model_name}")
+    nli_pipeline = hf_pipeline(
+        "zero-shot-classification",
+        model=model_name,
+        device=-1  # CPU; change to 0 if GPU is available
+    )
+    logger.info("NLI model loaded successfully")
+    return nli_pipeline
+
+
+def analyze_claim_stance_nli(nli_pipeline, claim_text: str, articles: List[Dict]) -> List[Dict]:
+    """
+    Analyze stance for a batch of articles using NLI-based detection (BART/RoBERTa MNLI).
+
+    Uses zero-shot classification where the article text is the premise and
+    the claim is mapped to candidate labels to determine stance.
+
+    Args:
+        nli_pipeline: Loaded HuggingFace zero-shot-classification pipeline
+        claim_text: The claim to evaluate stance against
+        articles: List of article dicts with id, title, content, source_id
+
+    Returns:
+        List of stance records compatible with store_claim_stance()
+    """
     if not articles:
         return []
 
-    # Prepare article summaries
-    article_summaries = []
-    for i, article in enumerate(articles):
-        article_summaries.append(f"""
-Article {i+1} [ID: {article['id']}]
-Title: {article['title']}
-Content: {article['content'][:800]}...""")
+    article_map = {str(a['id']): a['source_id'] for a in articles}
+    candidate_labels = [
+        "supports this claim",
+        "contradicts this claim",
+        "is neutral about this claim",
+    ]
 
-    prompt = f"""Analyze how each article relates to this claim:
+    stance_records = []
 
-CLAIM: "{claim_text}"
+    for article in articles:
+        article_id = str(article['id'])
+        # Use title + truncated content as premise
+        text = f"{article['title']}. {article['content'][:800]}"
 
-For each article, determine its stance toward this claim:
-- STRONGLY_AGREE (+1.0): Explicitly supports/confirms
-- AGREE (+0.5): Generally supports
-- NEUTRAL (0.0): Mentions without clear position
-- DISAGREE (-0.5): Contradicts or questions
-- STRONGLY_DISAGREE (-1.0): Explicitly contradicts
+        try:
+            result = nli_pipeline(
+                text,
+                candidate_labels,
+                hypothesis_template="This text {}.",
+            )
 
-{chr(10).join(article_summaries)}
+            top_label = result['labels'][0]
+            confidence = float(result['scores'][0])
+            all_scores = dict(zip(result['labels'], result['scores']))
 
-Return JSON array:
-[
-  {{
-    "article_id": "article_id_here",
-    "stance_score": 0.5,
-    "stance_label": "agree",
-    "confidence": 0.8,
-    "reasoning": "Brief explanation",
-    "supporting_quotes": ["Quote 1", "Quote 2"]
-  }}
-]
-
-Return valid JSON only."""
-
-    try:
-        response = llm.generate(prompt=prompt, json_mode=True)
-        stances = json.loads(response.content)
-
-        if not isinstance(stances, list):
-            return []
-
-        # Create mapping of valid article IDs to source_ids
-        article_map = {str(a['id']): a['source_id'] for a in articles}
-        valid_article_ids = set(article_map.keys())
-
-        # Filter and validate stance records
-        valid_stances = []
-        for stance in stances:
-            if 'article_id' not in stance:
-                continue
-
-            article_id = str(stance['article_id'])
-
-            # Only keep stances for articles that exist in our batch
-            if article_id in valid_article_ids:
-                stance['source_id'] = article_map[article_id]
-                valid_stances.append(stance)
+            # Map NLI output to stance label and numeric score
+            if "supports" in top_label:
+                stance_label = "strongly_agree" if confidence >= 0.7 else "agree"
+                stance_score = 1.0 if confidence >= 0.7 else 0.5
+            elif "contradicts" in top_label:
+                stance_label = "strongly_disagree" if confidence >= 0.7 else "disagree"
+                stance_score = -1.0 if confidence >= 0.7 else -0.5
             else:
-                logger.warning(f"LLM returned invalid article_id: {article_id}, skipping")
+                stance_label = "neutral"
+                stance_score = 0.0
 
-        return valid_stances
+            reasoning = (
+                f"NLI stance: {top_label} "
+                f"(support={all_scores.get('supports this claim', 0):.2f}, "
+                f"neutral={all_scores.get('is neutral about this claim', 0):.2f}, "
+                f"contradict={all_scores.get('contradicts this claim', 0):.2f})"
+            )
 
-    except Exception as e:
-        logger.error(f"Error analyzing stance: {e}")
-        return []
+            stance_records.append({
+                'article_id': article_id,
+                'source_id': article_map[article_id],
+                'stance_score': stance_score,
+                'stance_label': stance_label,
+                'confidence': confidence,
+                'reasoning': reasoning,
+                'supporting_quotes': [],
+            })
+
+        except Exception as e:
+            logger.error(f"NLI stance error for article {article_id}: {e}")
+
+    return stance_records
 
 
 def store_claims_v2(version_id: UUID, claims: List[Dict], llm_provider: str, llm_model: str) -> List[Tuple[UUID, Dict]]:
@@ -425,28 +442,38 @@ def store_claim_sentiment(claim_id: UUID, sentiment_records: List[Dict]) -> int:
     with get_db() as db:
         schema = db.config["schema"]
         count = 0
+        skipped = 0
 
         with db.cursor() as cur:
             for record in sentiment_records:
-                cur.execute(f"""
-                    INSERT INTO {schema}.claim_sentiment (
-                        claim_id,
-                        article_id,
-                        source_id,
-                        sentiment_score,
-                        sentiment_model
-                    ) VALUES (%s, %s, %s, %s, %s)
-                    ON CONFLICT (claim_id, article_id) DO UPDATE
-                    SET sentiment_score = EXCLUDED.sentiment_score
-                """, (
-                    str(claim_id),
-                    record['article_id'],
-                    record['source_id'],
-                    record['sentiment_score'],
-                    record['sentiment_model']
-                ))
-                count += 1
+                try:
+                    cur.execute("SAVEPOINT sp_sentiment")
+                    cur.execute(f"""
+                        INSERT INTO {schema}.claim_sentiment (
+                            claim_id,
+                            article_id,
+                            source_id,
+                            sentiment_score,
+                            sentiment_model
+                        ) VALUES (%s, %s, %s, %s, %s)
+                        ON CONFLICT (claim_id, article_id) DO UPDATE
+                        SET sentiment_score = EXCLUDED.sentiment_score
+                    """, (
+                        str(claim_id),
+                        record['article_id'],
+                        record['source_id'],
+                        record['sentiment_score'],
+                        record['sentiment_model']
+                    ))
+                    cur.execute("RELEASE SAVEPOINT sp_sentiment")
+                    count += 1
+                except Exception as e:
+                    cur.execute("ROLLBACK TO SAVEPOINT sp_sentiment")
+                    skipped += 1
+                    logger.warning(f"Skipping sentiment record for article {record.get('article_id')}: {e}")
 
+        if skipped:
+            logger.warning(f"  Skipped {skipped} sentiment records due to errors")
         return count
 
 
@@ -458,36 +485,46 @@ def store_claim_stance(claim_id: UUID, stance_records: List[Dict]) -> int:
     with get_db() as db:
         schema = db.config["schema"]
         count = 0
+        skipped = 0
 
         with db.cursor() as cur:
             for record in stance_records:
-                cur.execute(f"""
-                    INSERT INTO {schema}.claim_stance (
-                        claim_id,
-                        article_id,
-                        source_id,
-                        stance_score,
-                        stance_label,
-                        confidence,
-                        reasoning,
-                        supporting_quotes
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (claim_id, article_id) DO UPDATE
-                    SET stance_score = EXCLUDED.stance_score,
-                        stance_label = EXCLUDED.stance_label,
-                        confidence = EXCLUDED.confidence
-                """, (
-                    str(claim_id),
-                    record['article_id'],
-                    record['source_id'],
-                    record.get('stance_score', 0.0),
-                    record.get('stance_label', 'neutral'),
-                    record.get('confidence', 0.5),
-                    record.get('reasoning', ''),
-                    json.dumps(record.get('supporting_quotes', []))
-                ))
-                count += 1
+                try:
+                    cur.execute("SAVEPOINT sp_stance")
+                    cur.execute(f"""
+                        INSERT INTO {schema}.claim_stance (
+                            claim_id,
+                            article_id,
+                            source_id,
+                            stance_score,
+                            stance_label,
+                            confidence,
+                            reasoning,
+                            supporting_quotes
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (claim_id, article_id) DO UPDATE
+                        SET stance_score = EXCLUDED.stance_score,
+                            stance_label = EXCLUDED.stance_label,
+                            confidence = EXCLUDED.confidence
+                    """, (
+                        str(claim_id),
+                        record['article_id'],
+                        record['source_id'],
+                        record.get('stance_score', 0.0),
+                        record.get('stance_label', 'neutral'),
+                        record.get('confidence', 0.5),
+                        record.get('reasoning', ''),
+                        json.dumps(record.get('supporting_quotes', []))
+                    ))
+                    cur.execute("RELEASE SAVEPOINT sp_stance")
+                    count += 1
+                except Exception as e:
+                    cur.execute("ROLLBACK TO SAVEPOINT sp_stance")
+                    skipped += 1
+                    logger.warning(f"Skipping stance record for article {record.get('article_id')}: {e}")
 
+        if skipped:
+            logger.warning(f"  Skipped {skipped} stance records due to errors")
         return count
 
 
@@ -558,7 +595,7 @@ def generate_claims_pipeline_batched(version_id: UUID, config: Dict) -> Dict[str
     deduplicated_claims = deduplicate_similar_claims_with_embeddings(merged_claims, similarity_threshold)
 
     # Step 5: Filter by article count
-    min_articles = generation_config.get('min_articles', 5)
+    min_articles = generation_config.get('min_articles', 10)
     filtered_claims = filter_claims_by_article_count(deduplicated_claims, min_articles)
 
     if not filtered_claims:
@@ -577,12 +614,37 @@ def generate_claims_pipeline_batched(version_id: UUID, config: Dict) -> Dict[str
     stance_config = config.get('stance', {})
     stance_batch_size = stance_config.get('batch_size', 5)
 
+    # Load NLI model once for all stance analyses
+    nli_model_name = stance_config.get('nli_model', 'facebook/bart-large-mnli')
+    nli_pipeline = load_nli_model(nli_model_name)
+
     total_sentiment = 0
     total_stance = 0
     claims_with_both = 0
 
+    # Build set of claim_ids that already have both sentiment and stance data (for resume)
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            claim_ids_list = [str(cid) for cid, _ in claim_results]
+            cur.execute(f"""
+                SELECT claim_id FROM {schema}.claim_sentiment WHERE claim_id = ANY(%s::uuid[])
+                INTERSECT
+                SELECT claim_id FROM {schema}.claim_stance WHERE claim_id = ANY(%s::uuid[])
+            """, (claim_ids_list, claim_ids_list))
+            already_complete = {str(r['claim_id']) for r in cur.fetchall()}
+
+    if already_complete:
+        logger.info(f"Resuming: {len(already_complete)} claims already have both sentiment & stance — skipping")
+
     for idx, (claim_id, claim) in enumerate(claim_results):
         claim_text = claim['claim_text']
+
+        if str(claim_id) in already_complete:
+            logger.info(f"Skipping claim {idx+1}/{len(claim_results)} (already complete): {claim_text[:60]}...")
+            claims_with_both += 1
+            continue
+
         logger.info(f"Analyzing claim {idx+1}/{len(claim_results)}: {claim_text[:60]}...")
 
         # Analyze sentiment
@@ -611,10 +673,10 @@ def generate_claims_pipeline_batched(version_id: UUID, config: Dict) -> Dict[str
                 """, (article_ids,))
                 full_articles = [dict(a) for a in cur.fetchall()]
 
-        # Process stance in batches
+        # Process stance in batches using NLI model
         for i in range(0, len(full_articles), stance_batch_size):
             batch = full_articles[i:i + stance_batch_size]
-            batch_stances = analyze_claim_stance_batch(llm, claim_text, batch, stance_config)
+            batch_stances = analyze_claim_stance_nli(nli_pipeline, claim_text, batch)
             stance_records.extend(batch_stances)
 
         if stance_records:

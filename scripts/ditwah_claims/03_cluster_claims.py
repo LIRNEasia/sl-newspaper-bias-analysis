@@ -48,8 +48,14 @@ def main():
     parser = argparse.ArgumentParser(description='Cluster individual claims into general claims')
     parser.add_argument('--version-id', type=str, required=True,
                        help='Result version ID (UUID)')
-    parser.add_argument('--max-clusters', type=int, default=40,
-                       help='Maximum number of general claims to create (default: 40)')
+    parser.add_argument('--max-clusters', type=int, default=60,
+                       help='Hard upper bound on number of clusters (default: 60)')
+    parser.add_argument('--target-cluster-size', type=int, default=35,
+                       help='Target average articles per cluster (default: 35). '
+                            'Controls how many clusters are created: n = total // target.')
+    parser.add_argument('--min-articles', type=int, default=20,
+                       help='Minimum articles per cluster; smaller clusters are merged '
+                            'into their nearest neighbour (default: 20)')
     args = parser.parse_args()
 
     logger.info("=" * 80)
@@ -64,7 +70,9 @@ def main():
 
     logger.info(f"Version: {version['name']}")
     logger.info(f"Description: {version['description']}")
-    logger.info(f"Target: Max {args.max_clusters} general claims")
+    logger.info(f"Target cluster size: ~{args.target_cluster_size} articles each")
+    logger.info(f"Minimum articles per cluster: {args.min_articles}")
+    logger.info(f"Hard upper bound on clusters: {args.max_clusters}")
 
     config = version['configuration']
     llm_config = config.get('llm', {})
@@ -115,7 +123,9 @@ def main():
     clusters = cluster_individual_claims(
         version_id=args.version_id,
         config=clustering_config,
-        max_clusters=args.max_clusters
+        max_clusters=args.max_clusters,
+        target_cluster_size=args.target_cluster_size,
+        min_articles=args.min_articles,
     )
 
     if not clusters:
@@ -123,9 +133,11 @@ def main():
         sys.exit(1)
 
     logger.info(f"✅ Created {len(clusters)} clusters")
-    logger.info(f"Cluster sizes: min={min(len(c) for c in clusters)}, "
-                f"max={max(len(c) for c in clusters)}, "
-                f"avg={sum(len(c) for c in clusters)/len(clusters):.1f}")
+    sizes = sorted([len(c) for c in clusters], reverse=True)
+    logger.info(
+        f"Cluster sizes: min={min(sizes)}, max={max(sizes)}, "
+        f"avg={sum(sizes)/len(sizes):.1f} | all ≥{args.min_articles} articles"
+    )
 
     # Initialize LLM for general claim generation
     logger.info("\n" + "=" * 80)

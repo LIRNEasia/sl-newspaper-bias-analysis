@@ -43,7 +43,7 @@ def filter_ditwah_articles() -> List[Dict]:
 
 def generate_individual_claim_for_article(llm, article: Dict, config: Dict) -> Optional[str]:
     """
-    Generate ONE specific claim for a single article.
+    Generate ONE specific, debatable claim for a single article that can be clustered effectively.
 
     Args:
         llm: LLM client instance
@@ -53,26 +53,49 @@ def generate_individual_claim_for_article(llm, article: Dict, config: Dict) -> O
     Returns:
         Claim text string or None if generation fails
     """
-    prompt = f"""Analyze this article about Cyclone Ditwah and generate ONE specific, verifiable claim that captures the main point.
+    prompt = f"""Read this Sri Lankan newspaper article about Cyclone Ditwah and extract the SPECIFIC POSITION or ASSERTION it is making.
 
 Article Title: {article['title']}
 Article Date: {article['date_posted']}
 Article Source: {article['source_id']}
-Article Content: {article['content'][:2000] if article['content'] else article['title']}
+Article Content: {article['content'][:2500] if article['content'] else article['title']}
 
-The claim should be:
-- Specific and factual (not vague or general)
-- 1-2 sentences maximum
-- Focus on what happened, who did what, or what the impact was
-- Something that can be agreed or disagreed with
+Your task: Write ONE claim that captures exactly what THIS article is asserting about Cyclone Ditwah.
 
-Examples of good claims:
-- "The government allocated Rs. 5 billion for immediate cyclone relief"
-- "Cyclone Ditwah caused 15 deaths and displaced 50,000 people"
-- "International aid organizations failed to respond quickly enough"
+The claim must:
+1. Reflect the SPECIFIC position this article takes — not a generic summary
+2. Be debatable — other newspapers might frame the same topic differently
+3. Name specific actors, institutions, or outcomes where the article supports it
+4. Be 1–2 sentences
+5. Be grounded in what the article actually says (do not invent details)
 
-Return ONLY a JSON object with this structure:
-{{"claim": "Your specific claim here"}}
+Ask yourself: "What is this article trying to convince the reader of?" That answer is your claim.
+
+Categories to consider:
+- Government response: Was it timely, coordinated, adequate? Who was praised or criticised?
+- Humanitarian impact: How severe were casualties/displacement? Which communities were hit hardest?
+- International response: Which countries/organisations helped? Was aid sufficient and timely?
+- Infrastructure damage: Which sectors and districts were hardest hit? How severe?
+- Economic impact: Which livelihoods were devastated? Fishing, farming, tourism?
+- Relief operations: Was distribution effective? Were there shortfalls or coordination failures?
+- Evacuation: Were people moved safely? Were shelters adequate?
+- Early warnings: Did warnings reach people in time? Were meteorological alerts accurate?
+- Recovery: Are reconstruction plans underway? Is funding adequate?
+
+GOOD claim examples (specific, debatable, grounded):
+- "The Presidential Task Force's relief coordination was criticised for being too slow to reach isolated coastal villages"
+- "Cyclone Ditwah displaced over 50,000 people, overwhelming government shelter capacity in the Southern Province"
+- "India's rapid deployment of naval vessels and emergency supplies was the most significant foreign aid contribution"
+- "Fishing communities in Hambantota bore the brunt of livelihood losses, with thousands of boats destroyed"
+- "Early warnings gave residents less than 12 hours to evacuate, leaving many coastal families without adequate time to prepare"
+
+BAD claim examples (too generic, not debatable):
+- "Cyclone Ditwah caused damage in Sri Lanka"
+- "The government responded to the cyclone"
+- "There were casualties and infrastructure damage"
+
+Return ONLY a JSON object:
+{{"claim": "Your specific, debatable claim grounded in this article"}}
 
 Return ONLY the JSON, no other text."""
 
@@ -191,24 +214,30 @@ def store_individual_claims(
 def cluster_individual_claims(
     version_id: UUID,
     config: Dict,
-    max_clusters: int = 40
+    max_clusters: int = 60,
+    target_cluster_size: int = 35,
+    min_articles: int = 20,
 ) -> List[List[str]]:
     """
     Cluster individual claims into groups using embeddings.
 
+    n_clusters is computed dynamically from target_cluster_size so each cluster
+    has approximately that many articles rather than using a fixed maximum.
+    Clusters that fall below min_articles are merged into the nearest valid cluster
+    so every article stays assigned to a claim.
+
     Args:
         version_id: Result version ID
         config: Configuration dict with clustering settings
-        max_clusters: Maximum number of clusters (general claims) to create
+        max_clusters: Hard upper bound on number of clusters (safety cap)
+        target_cluster_size: Desired average articles per cluster (default 25)
+        min_articles: Minimum articles a cluster must have; smaller ones are merged
 
     Returns:
-        List of lists, where each inner list contains individual claim IDs in that cluster
+        List of lists, where each inner list contains individual claim IDs
     """
     from src.llm import get_embeddings_client
     import numpy as np
-    from sklearn.cluster import AgglomerativeClustering
-
-    logger.info(f"Clustering individual claims (target: max {max_clusters} clusters)...")
 
     # Fetch individual claims
     with get_db() as db:
@@ -226,49 +255,111 @@ def cluster_individual_claims(
         logger.warning("No individual claims found to cluster")
         return []
 
-    logger.info(f"Found {len(claims)} individual claims to cluster")
+    total = len(claims)
+    logger.info(f"Found {total} individual claims to cluster")
 
-    # Generate embeddings
+    # Generate embeddings for all individual claim texts
     embedding_config = config.get('embeddings', {})
     embeddings_client = get_embeddings_client(embedding_config)
 
     claim_texts = [c['claim_text'] for c in claims]
-    claim_ids = [str(c['id']) for c in claims]
+    claim_ids   = [str(c['id'])   for c in claims]
 
-    logger.info("Generating embeddings for claims...")
-    embeddings = embeddings_client.embed(claim_texts)
+    logger.info("Generating embeddings for individual claims...")
+    embeddings       = embeddings_client.embed(claim_texts)
     embeddings_array = np.array(embeddings)
 
-    # Cluster using Agglomerative Clustering
-    # This produces a hierarchical clustering that we can cut at different levels
-    n_clusters = min(max_clusters, len(claims))  # Don't create more clusters than claims
+    # -----------------------------------------------------------------------
+    # Compute n_clusters dynamically based on target cluster size.
+    # E.g. 1657 claims, target_size=25 → 1657//25 = 66 clusters
+    # Hard-bounded by max_clusters from above.
+    # -----------------------------------------------------------------------
+    n_clusters = max(10, total // target_cluster_size)
+    n_clusters = min(n_clusters, max_clusters, total)
 
-    logger.info(f"Running hierarchical clustering (target {n_clusters} clusters)...")
-    clustering = AgglomerativeClustering(
-        n_clusters=n_clusters,
-        metric='cosine',
-        linkage='average'
+    logger.info(
+        f"Running KMeans clustering: {total} claims → {n_clusters} clusters "
+        f"(target size ≈{target_cluster_size}, min ≥{min_articles})"
     )
-    cluster_labels = clustering.fit_predict(embeddings_array)
 
-    # Group claim IDs by cluster
-    clusters = {}
-    for claim_id, label in zip(claim_ids, cluster_labels):
-        if label not in clusters:
-            clusters[label] = []
-        clusters[label].append(claim_id)
+    # Normalise embeddings → KMeans on unit vectors ≡ spherical k-means
+    from sklearn.cluster import KMeans
+    from sklearn.preprocessing import normalize as sk_normalize
+    normed = sk_normalize(embeddings_array, norm='l2')
+    rng = config.get('random_seed', 42)
+    km = KMeans(n_clusters=n_clusters, random_state=rng, n_init=10, max_iter=300)
+    labels = km.fit_predict(normed)
 
-    # Convert to list of lists
-    cluster_list = list(clusters.values())
+    # Map label → list of indices
+    raw_clusters: Dict[int, List[int]] = {}
+    for idx, label in enumerate(labels):
+        raw_clusters.setdefault(label, []).append(idx)
 
-    # Filter out very small clusters (noise)
-    min_cluster_size = config.get('min_cluster_size', 2)
-    filtered_clusters = [c for c in cluster_list if len(c) >= min_cluster_size]
+    # -----------------------------------------------------------------------
+    # Merge clusters that are below min_articles into their nearest neighbour.
+    # "Nearest" = smallest cosine distance between cluster centroids.
+    # Cap: a target cluster may not grow beyond max_merge_size to prevent
+    # one cluster from absorbing everything.
+    # -----------------------------------------------------------------------
+    max_merge_size = max(target_cluster_size * 3, min_articles * 4)
 
-    logger.info(f"Created {len(filtered_clusters)} clusters (filtered from {len(cluster_list)})")
-    logger.info(f"Cluster sizes: {[len(c) for c in filtered_clusters]}")
+    def centroid(indices):
+        return embeddings_array[indices].mean(axis=0)
 
-    return filtered_clusters
+    def cosine_dist(a, b):
+        na = np.linalg.norm(a)
+        nb = np.linalg.norm(b)
+        if na == 0 or nb == 0:
+            return 1.0
+        return 1.0 - float(np.dot(a, b) / (na * nb))
+
+    # Iteratively merge small clusters until all remaining meet min_articles
+    changed = True
+    while changed:
+        changed = False
+        small = [k for k, v in raw_clusters.items() if len(v) < min_articles]
+        if not small:
+            break
+
+        # Pick the smallest cluster to merge first
+        small.sort(key=lambda k: len(raw_clusters[k]))
+        victim = small[0]
+        victim_centroid = centroid(raw_clusters[victim])
+
+        # Find candidate targets: other clusters that aren't over the size cap
+        candidates = [
+            k for k in raw_clusters
+            if k != victim and len(raw_clusters[k]) <= max_merge_size
+        ]
+        # Fall back to all others if all are over cap (edge case)
+        if not candidates:
+            candidates = [k for k in raw_clusters if k != victim]
+        if not candidates:
+            break  # Only one cluster left
+
+        nearest = min(
+            candidates,
+            key=lambda k: cosine_dist(victim_centroid, centroid(raw_clusters[k]))
+        )
+
+        # Merge victim into nearest
+        raw_clusters[nearest].extend(raw_clusters.pop(victim))
+        changed = True
+
+    # Convert index lists → claim_id lists
+    final_clusters = [
+        [claim_ids[i] for i in indices]
+        for indices in raw_clusters.values()
+    ]
+
+    sizes = sorted([len(c) for c in final_clusters], reverse=True)
+    logger.info(
+        f"Final: {len(final_clusters)} clusters | "
+        f"min={min(sizes)} max={max(sizes)} avg={sum(sizes)/len(sizes):.1f}"
+    )
+    logger.info(f"Size distribution: {sizes}")
+
+    return final_clusters
 
 
 def generate_general_claim_from_cluster(
@@ -280,6 +371,9 @@ def generate_general_claim_from_cluster(
     """
     Generate a general claim from a cluster of individual claims.
 
+    Fetches article titles and content excerpts alongside the per-article claims so
+    the LLM has richer context when synthesising the general claim.
+
     Args:
         llm: LLM client instance
         individual_claim_ids: List of individual claim IDs in this cluster
@@ -289,13 +383,16 @@ def generate_general_claim_from_cluster(
     Returns:
         Dict with keys: claim_text, claim_category or None if generation fails
     """
-    # Fetch the individual claims
+    # Fetch individual claims AND article context (title + excerpt)
     with get_db() as db:
         schema = db.config["schema"]
         with db.cursor() as cur:
             placeholders = ','.join(['%s'] * len(individual_claim_ids))
             cur.execute(f"""
-                SELECT ac.claim_text, n.source_id
+                SELECT ac.claim_text,
+                       n.source_id,
+                       n.title        AS article_title,
+                       LEFT(n.content, 400) AS content_excerpt
                 FROM {schema}.ditwah_article_claims ac
                 JOIN {schema}.news_articles n ON ac.article_id = n.id
                 WHERE ac.id IN ({placeholders})
@@ -306,9 +403,27 @@ def generate_general_claim_from_cluster(
         logger.warning("No claims found for cluster")
         return None
 
-    # Prepare claims for LLM
-    individual_claims = [c['claim_text'] for c in claims_data]
     sources = list(set(c['source_id'] for c in claims_data))
+
+    # All per-article claims — these are short (1-2 sentences) so include every one
+    all_claims_block = '\n'.join(
+        f"• [{row['source_id']}] {row['claim_text']}"
+        for row in claims_data
+    )
+
+    # Article excerpts for richer context — show up to 20 articles with full text
+    article_summaries = []
+    for row in claims_data[:20]:
+        excerpt = (row['content_excerpt'] or '').strip().replace('\n', ' ')
+        article_summaries.append(
+            f"• [{row['source_id']}] {row['article_title']}\n"
+            f"  Excerpt: {excerpt[:300]}"
+        )
+    article_block = '\n\n'.join(article_summaries)
+    extra = (
+        f'\n\n(+ {len(claims_data) - 20} more articles not shown above)'
+        if len(claims_data) > 20 else ''
+    )
 
     categories = config.get('categories', [
         "government_response",
@@ -316,29 +431,54 @@ def generate_general_claim_from_cluster(
         "infrastructure_damage",
         "economic_impact",
         "international_response",
-        "casualties_and_displacement"
+        "casualties_and_displacement",
+        "relief_operations",
+        "evacuation_and_displacement",
+        "weather_warnings",
+        "preparation_measures"
     ])
 
-    prompt = f"""You are analyzing {len(individual_claims)} similar claims from different articles about Cyclone Ditwah.
-These claims come from sources: {', '.join(sources)}
+    prompt = f"""You are writing ONE high-quality general claim that faithfully captures what a group of {len(claims_data)} newspaper articles about Cyclone Ditwah are collectively asserting.
 
-Individual claims:
-{chr(10).join(f'{i+1}. {claim}' for i, claim in enumerate(individual_claims[:10]))}
-{f'... and {len(individual_claims) - 10} more' if len(individual_claims) > 10 else ''}
+Newspapers represented: {', '.join(sources)}
 
-Generate ONE general claim that captures the common theme across these individual claims.
+ALL {len(claims_data)} per-article claims in this cluster (every article's individual position):
 
-The general claim should:
-- Capture the essence of what these claims are saying
-- Be specific enough to be meaningful
-- Be general enough to cover all the individual claims
-- Be 1-2 sentences
-- Be verifiable
+{all_claims_block}
 
-Also categorize the claim using one of these categories: {', '.join(categories)}
+Article text excerpts for context (first 20 shown){extra}:
+
+{article_block}
+
+YOUR TASK:
+Read ALL {len(claims_data)} per-article claims above — they represent the full scope of this cluster.
+Write ONE concise, substantive general claim that:
+1. Precisely captures the DOMINANT SHARED ASSERTION across ALL these articles — what is the central thing they are all saying about Cyclone Ditwah?
+2. Is SPECIFIC — name the relevant actors, institutions, locations, or outcomes that the articles highlight
+3. Is DEBATABLE — different sources may agree or disagree with this framing
+4. Is FAITHFUL — grounded in what ALL the articles say, not just a few
+5. Is 1–2 sentences maximum
+6. Is NOT generic — avoid hollow phrases like "the government responded" or "there was damage"
+7. Covers the BREADTH of the cluster — does not cherry-pick one article's angle when most say something different
+
+Ask yourself: "If someone read ALL {len(claims_data)} of these articles, what is the ONE key point they would all agree is being made?" Write that as a clear, precise claim.
+
+Strong examples:
+- "Cyclone Ditwah's relief operations were hampered by poor inter-agency coordination, leaving displaced communities in the Southern Province without adequate food and shelter for days"
+- "The Sri Lankan fishing industry suffered catastrophic losses as Cyclone Ditwah destroyed thousands of boats and damaged harbour infrastructure across Hambantota and Matara districts"
+- "Despite advance meteorological warnings, evacuation orders reached many coastal communities too late to allow safe and orderly departure"
+- "India's swift deployment of naval and air assets made it the single largest foreign contributor to Cyclone Ditwah relief efforts"
+
+Weak examples to AVOID:
+- "Cyclone Ditwah caused significant damage" (too vague)
+- "The government responded to the cyclone" (not debatable, no detail)
+- "News articles reported on Cyclone Ditwah" (trivially true)
+
+CATEGORIES (choose the single most appropriate):
+{chr(10).join(f"- {cat}" for cat in categories)}
 
 Return ONLY a JSON object:
-{{"claim_text": "Your general claim here", "claim_category": "category_name"}}
+{{"claim_text": "Your specific, substantive general claim here", "claim_category": "most_appropriate_category"}}
 
 Return ONLY the JSON, no other text."""
 
@@ -453,47 +593,93 @@ def generate_claims_from_articles(llm, articles: List[Dict], config: Dict) -> Li
     """
     logger.info(f"Generating claims from {len(articles)} articles...")
 
-    num_claims = config.get('num_claims', 15)
+    num_claims = config.get('num_claims', 22)
+    max_articles = config.get('max_articles_for_generation', 200)
     categories = config.get('categories', [
         "government_response",
-        "humanitarian_aid",
-        "infrastructure_damage",
-        "economic_impact",
         "international_response",
-        "casualties_and_displacement"
+        "infrastructure_damage",
+        "casualties_and_displacement",
+        "economic_impact",
+        "relief_operations",
+        "weather_warnings",
+        "recovery"
     ])
 
-    # Prepare article summaries for LLM (title + first 500 chars)
+    # Sample articles evenly across sources to stay within LLM context limits
+    if len(articles) > max_articles:
+        import random
+        from collections import defaultdict
+        by_source = defaultdict(list)
+        for a in articles:
+            by_source[a['source_id']].append(a)
+        sampled = []
+        per_source = max_articles // max(len(by_source), 1)
+        for source_articles in by_source.values():
+            random.shuffle(source_articles)
+            sampled.extend(source_articles[:per_source])
+        # Top up to max_articles if needed
+        remaining = [a for a in articles if a not in sampled]
+        random.shuffle(remaining)
+        sampled.extend(remaining[:max_articles - len(sampled)])
+        articles_to_use = sampled[:max_articles]
+        logger.info(f"Sampled {len(articles_to_use)} articles (from {len(articles)}) spread across {len(by_source)} sources")
+    else:
+        articles_to_use = articles
+
+    # Prepare article summaries for LLM (title + first 400 chars)
     article_summaries = []
-    for article in articles:
+    for article in articles_to_use:
         summary = {
             'title': article['title'],
-            'excerpt': article['content'][:500] if article['content'] else '',
-            'date': str(article['date_posted']),
+            'excerpt': article['content'][:400] if article['content'] else '',
             'source_id': article['source_id']
         }
         article_summaries.append(summary)
 
     # Create LLM prompt
-    prompt = f"""Analyze these {len(articles)} news articles about Cyclone Ditwah and identify {num_claims} specific, verifiable claims made across the coverage.
+    prompt = f"""You are analyzing {len(articles_to_use)} news articles about Cyclone Ditwah in Sri Lanka.
+Identify EXACTLY {num_claims} specific, debatable claims made across the coverage.
 
 Articles:
 {json.dumps(article_summaries, indent=2)}
 
-Instructions:
-1. Identify {num_claims} key claims or statements that appear across multiple articles
-2. Each claim should be:
-   - Specific and verifiable (not vague or general)
-   - Mentioned or implied by at least 3 articles
-   - Significant to understanding the cyclone's impact or response
-3. Categorize each claim using these categories: {', '.join(categories)}
-4. Prioritize claims that show variation across sources (some agree, some disagree)
+REQUIREMENTS:
+1. Generate EXACTLY {num_claims} claims — no fewer, no more
+2. Each claim MUST name specific actors, organizations, locations, or actions where the articles support it
+3. Each claim must be DEBATABLE — different sources would frame it differently
+4. No duplicate or near-duplicate claims — each must cover a distinct aspect
+5. Spread claims evenly across all categories below
 
-Return a JSON array of claims with this structure:
+CATEGORIES (distribute claims across all of these):
+- government_response: coordination speed, Task Force actions, specific measures, adequacy gaps
+- international_response: which countries/orgs helped, aid amounts, delivery timing
+- infrastructure_damage: which sectors hit, specific districts, severity and scope
+- casualties_and_displacement: scale, which communities, shelter and care quality
+- economic_impact: fishing, tourism, agriculture, small business losses
+- relief_operations: aid distribution, NGO coordination, logistics problems
+- weather_warnings: lead time, reach to affected communities, preparation adequacy
+- recovery: reconstruction plans, funding, long-term consequences
+
+SPECIFICITY RULES — this separates good claims from bad:
+  BAD:  "The government responded to Cyclone Ditwah"
+  GOOD: "Sri Lanka's Presidential Task Force faced criticism for slow coordination of relief efforts in the Southern Province"
+
+  BAD:  "International aid arrived"
+  GOOD: "India provided the largest single foreign aid contribution including helicopters and emergency supplies"
+
+  BAD:  "People were displaced and infrastructure was damaged"
+  GOOD: "Coastal fishing communities in Hambantota and Matara faced the most severe economic and displacement impact"
+
+INCLUDE BOTH SIDES — generate some claims where sources agree AND some where they disagree:
+  Example pair: "Early warnings gave communities adequate preparation time" vs
+                "Cyclone Ditwah warnings reached coastal communities too late to be fully effective"
+
+Return ONLY a JSON array with EXACTLY {num_claims} objects:
 [
   {{
-    "claim_text": "The exact claim or statement",
-    "claim_category": "one of the categories above",
+    "claim_text": "Specific 1-2 sentence debatable claim",
+    "claim_category": "one of the eight categories above",
     "confidence": 0.9
   }}
 ]
@@ -507,19 +693,38 @@ Return ONLY the JSON array, no other text."""
             json_mode=True
         )
 
+        # Clean response content (remove markdown code blocks if present)
+        content = response.content.strip()
+        if content.startswith('```json'):
+            content = content[7:]  # Remove ```json
+        if content.startswith('```'):
+            content = content[3:]  # Remove ```
+        if content.endswith('```'):
+            content = content[:-3]  # Remove trailing ```
+        content = content.strip()
+
         # Parse JSON response
-        claims = json.loads(response.content)
+        claims = json.loads(content)
 
         if not isinstance(claims, list):
             logger.error("LLM response is not a list")
             return []
+
+        # Normalize key names — LLMs sometimes return "category" instead of "claim_category"
+        for claim in claims:
+            if 'category' in claim and 'claim_category' not in claim:
+                claim['claim_category'] = claim.pop('category')
+            if 'claim_category' not in claim:
+                claim['claim_category'] = 'other'
+            if 'claim_text' not in claim and 'text' in claim:
+                claim['claim_text'] = claim.pop('text')
 
         logger.info(f"Generated {len(claims)} claims")
         return claims
 
     except json.JSONDecodeError as e:
         logger.error(f"Failed to parse LLM response as JSON: {e}")
-        logger.error(f"Response: {response[:500]}...")
+        logger.error(f"Response: {response.content[:500]}...")
         return []
     except Exception as e:
         logger.error(f"Error generating claims: {e}")
@@ -651,6 +856,8 @@ def store_claim_stance(claim_id: UUID, stance_records: List[Dict]) -> int:
                         confidence = EXCLUDED.confidence,
                         reasoning = EXCLUDED.reasoning,
                         supporting_quotes = EXCLUDED.supporting_quotes,
+                        llm_provider = EXCLUDED.llm_provider,
+                        llm_model = EXCLUDED.llm_model,
                         processed_at = NOW()
                 """, (
                     str(claim_id),
@@ -1094,6 +1301,59 @@ Return ONLY the JSON array, no other text."""
     return count
 
 
+def analyze_claim_stance_nli(
+    analyzer,
+    claim_id: UUID,
+    claim_text: str,
+    articles: List[Dict],
+) -> int:
+    """
+    NLI-based stance detection using a pre-loaded NLIStanceAnalyzer.
+
+    Uses roberta-large-mnli with overlapping token chunks to handle articles
+    longer than the model's 512-token limit.  No LLM calls are made.
+
+    Args:
+        analyzer:   Pre-instantiated NLIStanceAnalyzer (reused across claims).
+        claim_id:   UUID of the general claim.
+        claim_text: The claim text (used as NLI hypothesis).
+        articles:   List of article dicts with keys: id, title, content, source_id.
+
+    Returns:
+        Number of stance records stored.
+    """
+    if not articles:
+        return 0
+
+    logger.info(
+        f"NLI stance: {len(articles)} articles for claim '{claim_text[:60]}…'"
+    )
+
+    # Build premises: title + full content
+    premises = [
+        f"{a['title']}\n{(a['content'] or '').strip()}"
+        for a in articles
+    ]
+
+    nli_results = analyzer.predict_batch(premises, claim_text)
+
+    stance_records = []
+    for article, result in zip(articles, nli_results):
+        stance_records.append({
+            "article_id": str(article["id"]),
+            "source_id": article["source_id"],
+            "stance_score": result["stance_score"],
+            "stance_label": result["stance_label"],
+            "confidence": result["confidence"],
+            "reasoning": result["reasoning"],
+            "supporting_quotes": "[]",   # NLI does not extract quotes
+            "llm_provider": "local",
+            "llm_model": analyzer.MODEL_NAME,
+        })
+
+    return store_claim_stance(claim_id, stance_records)
+
+
 def update_claim_article_counts(version_id: UUID) -> None:
     """
     Update article_count for all general claims in a version.
@@ -1132,7 +1392,10 @@ def update_claim_article_counts(version_id: UUID) -> None:
 
 def get_articles_for_general_claim(claim_id: UUID) -> List[Dict]:
     """
-    Get all articles linked to a general claim (via individual claims).
+    Get all articles linked to a general claim.
+
+    Primary path: ditwah_article_claims (newer pipeline).
+    Fallback: claim_sentiment (older pipeline that lacks ditwah_article_claims rows).
 
     Args:
         claim_id: General claim ID
@@ -1148,6 +1411,20 @@ def get_articles_for_general_claim(claim_id: UUID) -> List[Dict]:
                 FROM {schema}.ditwah_article_claims ac
                 JOIN {schema}.news_articles n ON ac.article_id = n.id
                 WHERE ac.general_claim_id = %s
+                ORDER BY n.date_posted DESC
+            """, (str(claim_id),))
+            rows = cur.fetchall()
+
+        if rows:
+            return rows
+
+        # Fallback for versions that used claim_sentiment as article linkage
+        with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT DISTINCT n.id, n.title, n.content, n.source_id, n.date_posted, n.url
+                FROM {schema}.claim_sentiment cs
+                JOIN {schema}.news_articles n ON cs.article_id = n.id
+                WHERE cs.claim_id = %s
                 ORDER BY n.date_posted DESC
             """, (str(claim_id),))
             return cur.fetchall()
