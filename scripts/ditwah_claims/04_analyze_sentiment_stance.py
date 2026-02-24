@@ -35,7 +35,8 @@ from src.llm import get_llm
 from src.ditwah_claims import (
     get_articles_for_general_claim,
     link_sentiment_to_general_claims,
-    analyze_claim_stance
+    analyze_claim_stance,
+    analyze_claim_stance_nli,
 )
 from src.versions import get_version
 
@@ -53,6 +54,10 @@ def main():
                        help='Result version ID (UUID)')
     parser.add_argument('--sentiment-model', type=str, default='roberta',
                        help='Sentiment model to use (default: roberta)')
+    parser.add_argument('--stance-method', type=str, default='nli',
+                       choices=['nli', 'llm'],
+                       help='Stance detection method: nli (default, uses roberta-large-mnli) '
+                            'or llm (legacy LLM-based)')
     args = parser.parse_args()
 
     logger.info("=" * 80)
@@ -106,15 +111,26 @@ def main():
     logger.info("\n" + "=" * 80)
     logger.info("Step 2: Analyzing Stance for General Claims")
     logger.info("=" * 80)
-    logger.info(f"Provider: {llm_config.get('provider', 'local')}")
-    logger.info(f"Model: {llm_config.get('model', 'llama3.1:latest')}")
-    logger.info("This may take 1-2 hours with local LLM")
-    logger.info("")
+    logger.info(f"Stance method: {args.stance_method}")
 
-    # Initialize LLM
-    llm = get_llm(llm_config)
-    llm_provider = llm_config.get('provider', 'local')
-    llm_model = llm_config.get('model', 'llama3.1:latest')
+    # Initialize stance analyzer
+    if args.stance_method == 'nli':
+        from src.nli_stance import NLIStanceAnalyzer
+        nli_analyzer = NLIStanceAnalyzer()
+        logger.info(f"NLI model: {nli_analyzer.MODEL_NAME}")
+        llm = None
+        llm_provider = 'local'
+        llm_model = nli_analyzer.MODEL_NAME
+    else:
+        logger.info(f"Provider: {llm_config.get('provider', 'local')}")
+        logger.info(f"Model: {llm_config.get('model', 'llama3.1:latest')}")
+        logger.info("This may take 1-2 hours with local LLM")
+        llm = get_llm(llm_config)
+        llm_provider = llm_config.get('provider', 'local')
+        llm_model = llm_config.get('model', 'llama3.1:latest')
+        nli_analyzer = None
+
+    logger.info("")
 
     # Get all general claims
     with get_db() as db:
@@ -145,15 +161,23 @@ def main():
             continue
 
         # Analyze stance
-        count = analyze_claim_stance(
-            llm=llm,
-            claim_id=claim_id,
-            claim_text=claim_text,
-            articles=articles,
-            config=stance_config,
-            llm_provider=llm_provider,
-            llm_model=llm_model
-        )
+        if args.stance_method == 'nli':
+            count = analyze_claim_stance_nli(
+                analyzer=nli_analyzer,
+                claim_id=claim_id,
+                claim_text=claim_text,
+                articles=articles,
+            )
+        else:
+            count = analyze_claim_stance(
+                llm=llm,
+                claim_id=claim_id,
+                claim_text=claim_text,
+                articles=articles,
+                config=stance_config,
+                llm_provider=llm_provider,
+                llm_model=llm_model,
+            )
 
         total_stance_records += count
         logger.info(f"  ✅ Analyzed {count} articles")

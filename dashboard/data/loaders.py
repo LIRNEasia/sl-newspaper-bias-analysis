@@ -1317,12 +1317,30 @@ def load_claim_sentiment_by_source(claim_id):
             return cur.fetchall()
 
 
-@st.cache_data(ttl=300)
-def load_claim_stance_by_source(claim_id):
-    """Get average stance by source for a claim."""
+@st.cache_data(ttl=600)
+def get_available_stance_models() -> list:
+    """Return distinct llm_model values in claim_stance, sorted alphabetically."""
     with get_db() as db:
         schema = db.config["schema"]
         with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT DISTINCT llm_model
+                FROM {schema}.claim_stance
+                WHERE llm_model IS NOT NULL
+                ORDER BY llm_model
+            """)
+            rows = cur.fetchall()
+            return [r["llm_model"] for r in rows]
+
+
+@st.cache_data(ttl=300)
+def load_claim_stance_by_source(claim_id, stance_model: str = None):
+    """Get average stance by source for a claim, optionally filtered by stance model."""
+    with get_db() as db:
+        schema = db.config["schema"]
+        with db.cursor() as cur:
+            model_clause = "AND cs.llm_model = %s" if stance_model else ""
+            params = (claim_id, stance_model) if stance_model else (claim_id,)
             cur.execute(f"""
                 SELECT
                     cs.source_id,
@@ -1331,10 +1349,10 @@ def load_claim_stance_by_source(claim_id):
                     AVG(cs.confidence) as avg_confidence,
                     COUNT(*) as article_count
                 FROM {schema}.claim_stance cs
-                WHERE cs.claim_id = %s
+                WHERE cs.claim_id = %s {model_clause}
                 GROUP BY cs.source_id
                 ORDER BY avg_stance DESC
-            """, (claim_id,))
+            """, params)
             return cur.fetchall()
 
 
@@ -1366,11 +1384,16 @@ def load_claim_sentiment_breakdown(claim_id):
 
 
 @st.cache_data(ttl=300)
-def load_claim_stance_breakdown(claim_id):
-    """Get stance distribution (agree/neutral/disagree percentages) by source."""
+def load_claim_stance_breakdown(claim_id, stance_model: str = None):
+    """Get stance distribution (agree/neutral/disagree percentages) by source.
+
+    Optionally filter by stance_model (llm_model column) to show only NLI or LLM results.
+    """
     with get_db() as db:
         schema = db.config["schema"]
         with db.cursor() as cur:
+            model_clause = "AND llm_model = %s" if stance_model else ""
+            params = (claim_id, stance_model) if stance_model else (claim_id,)
             cur.execute(f"""
                 SELECT
                     source_id,
@@ -1382,9 +1405,9 @@ def load_claim_stance_breakdown(claim_id):
                     SUM(CASE WHEN stance_score < -0.2 THEN 1 ELSE 0 END)::int as disagree_count,
                     SUM(CASE WHEN stance_score < -0.2 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as disagree_pct
                 FROM {schema}.claim_stance
-                WHERE claim_id = %s
+                WHERE claim_id = %s {model_clause}
                 GROUP BY source_id
-            """, (claim_id,))
+            """, params)
             return cur.fetchall()
 
 

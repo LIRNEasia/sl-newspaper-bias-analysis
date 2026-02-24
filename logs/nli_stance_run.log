@@ -1,0 +1,703 @@
+2026-02-24 10:17:54,175 - __main__ - INFO - ================================================================================
+2026-02-24 10:17:54,175 - __main__ - INFO - DITWAH Sentiment & Stance Analysis Pipeline
+2026-02-24 10:17:54,175 - __main__ - INFO - ================================================================================
+2026-02-24 10:17:54,198 - __main__ - INFO - Version: ditwah-v2-per-article
+2026-02-24 10:17:54,198 - __main__ - INFO - Description: Ditwah claims generated from each individual article (min 5 articles per claim, with sentiment + stance)
+2026-02-24 10:17:54,217 - __main__ - INFO - ✅ Found 124 general claims
+2026-02-24 10:17:54,217 - __main__ - INFO - 
+================================================================================
+2026-02-24 10:17:54,217 - __main__ - INFO - Step 1: Linking Sentiment Data to General Claims
+2026-02-24 10:17:54,217 - __main__ - INFO - ================================================================================
+2026-02-24 10:17:54,217 - __main__ - INFO - Using sentiment model: roberta
+2026-02-24 10:17:54,217 - src.ditwah_claims - INFO - Linking sentiment data to general claims...
+2026-02-24 10:17:57,045 - src.ditwah_claims - INFO - Linked 726 sentiment records to general claims
+2026-02-24 10:17:57,045 - __main__ - INFO - ✅ Linked 726 sentiment records
+2026-02-24 10:17:57,045 - __main__ - INFO - 
+================================================================================
+2026-02-24 10:17:57,045 - __main__ - INFO - Step 2: Analyzing Stance for General Claims
+2026-02-24 10:17:57,045 - __main__ - INFO - ================================================================================
+2026-02-24 10:17:57,045 - __main__ - INFO - Stance method: nli
+2026-02-24 10:17:58,311 - __main__ - INFO - NLI model: roberta-large-mnli
+2026-02-24 10:17:58,312 - __main__ - INFO - 
+2026-02-24 10:17:58,330 - __main__ - INFO - 
+Processing claim 1/124: Cyclone Ditwah is expected to cause very heavy rainfall abov...
+2026-02-24 10:17:58,349 - __main__ - INFO -   Found 9 articles
+2026-02-24 10:17:58,349 - src.ditwah_claims - INFO - NLI stance: 9 articles for claim 'Cyclone Ditwah is expected to cause very heavy rainfall abov…'
+2026-02-24 10:18:00,316 - numexpr.utils - INFO - Note: NumExpr detected 12 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+2026-02-24 10:18:00,316 - numexpr.utils - INFO - NumExpr defaulting to 8 threads.
+2026-02-24 10:18:00,695 - src.nli_stance - INFO - Loading NLI model: roberta-large-mnli …
+Some weights of the model checkpoint at roberta-large-mnli were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
+- This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+2026-02-24 10:22:00,325 - src.nli_stance - INFO - NLI model loaded on cuda
+Token indices sequence length is longer than the specified maximum sequence length for this model (543 > 512). Running this sequence through the model will result in indexing errors
+2026-02-24 10:22:00,805 - src.ditwah_claims - INFO - Stored 9 stance records for claim c83e117f-42aa-40eb-8d03-62ca26e78026
+2026-02-24 10:22:00,805 - __main__ - INFO -   ✅ Analyzed 9 articles
+2026-02-24 10:22:00,806 - __main__ - INFO - 
+Processing claim 2/124: The Sri Lankan government established a 'Rebuilding Sri Lank...
+2026-02-24 10:22:00,833 - __main__ - INFO -   Found 14 articles
+2026-02-24 10:22:00,833 - src.ditwah_claims - INFO - NLI stance: 14 articles for claim 'The Sri Lankan government established a 'Rebuilding Sri Lank…'
+2026-02-24 10:22:01,097 - src.ditwah_claims - INFO - Stored 14 stance records for claim 29630c9c-7bb8-4b96-92a5-146c7d85e09e
+2026-02-24 10:22:01,097 - __main__ - INFO -   ✅ Analyzed 14 articles
+2026-02-24 10:22:01,097 - __main__ - INFO - 
+Processing claim 3/124: Cyclone Ditwah intensified from a deep depression near Sri L...
+2026-02-24 10:22:01,119 - __main__ - INFO -   Found 12 articles
+2026-02-24 10:22:01,119 - src.ditwah_claims - INFO - NLI stance: 12 articles for claim 'Cyclone Ditwah intensified from a deep depression near Sri L…'
+2026-02-24 10:22:01,374 - src.ditwah_claims - INFO - Stored 12 stance records for claim 63528399-b935-4a47-91be-cf17111891ac
+2026-02-24 10:22:01,374 - __main__ - INFO -   ✅ Analyzed 12 articles
+2026-02-24 10:22:01,374 - __main__ - INFO - 
+Processing claim 4/124: Strong winds of 60 to 70 km/h, gusting up to 80–90 km/h, are...
+2026-02-24 10:22:01,394 - __main__ - INFO -   Found 6 articles
+2026-02-24 10:22:01,394 - src.ditwah_claims - INFO - NLI stance: 6 articles for claim 'Strong winds of 60 to 70 km/h, gusting up to 80–90 km/h, are…'
+2026-02-24 10:22:01,514 - src.ditwah_claims - INFO - Stored 6 stance records for claim 63b04c7b-5de2-47b1-abf5-03aa3841cc64
+2026-02-24 10:22:01,514 - __main__ - INFO -   ✅ Analyzed 6 articles
+2026-02-24 10:22:01,514 - __main__ - INFO - 
+Processing claim 5/124: The remaining GCE Advanced Level Examination subjects, disru...
+2026-02-24 10:22:01,535 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:01,535 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'The remaining GCE Advanced Level Examination subjects, disru…'
+2026-02-24 10:22:01,636 - src.ditwah_claims - INFO - Stored 5 stance records for claim 98a29eef-bbc6-42f2-bb47-b3835b9cfc53
+2026-02-24 10:22:01,636 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:01,637 - __main__ - INFO - 
+Processing claim 6/124: Cyclone Ditwah was centered approximately 20 km southwest of...
+2026-02-24 10:22:01,661 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:01,661 - __main__ - WARNING -   No articles found for claim 035449d2-d96f-4d4a-8c9c-147899ce371e
+2026-02-24 10:22:01,661 - __main__ - INFO - 
+Processing claim 7/124: The 'Rebuilding Sri Lanka' Fund was established by President...
+2026-02-24 10:22:01,680 - __main__ - INFO -   Found 6 articles
+2026-02-24 10:22:01,680 - src.ditwah_claims - INFO - NLI stance: 6 articles for claim 'The 'Rebuilding Sri Lanka' Fund was established by President…'
+2026-02-24 10:22:01,889 - src.ditwah_claims - INFO - Stored 6 stance records for claim 1a697bc1-2322-4aa4-9363-553b0c69c3a8
+2026-02-24 10:22:01,890 - __main__ - INFO -   ✅ Analyzed 6 articles
+2026-02-24 10:22:01,890 - __main__ - INFO - 
+Processing claim 8/124: Cyclone Ditwah moved to a position approximately 50 km south...
+2026-02-24 10:22:01,915 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:01,915 - __main__ - WARNING -   No articles found for claim 5cd64460-6102-4e98-b48f-8166609597ec
+2026-02-24 10:22:01,915 - __main__ - INFO - 
+Processing claim 9/124: Strong winds of 60 to 70 km/h, gusting up to 80–90 km/h, wer...
+2026-02-24 10:22:01,945 - __main__ - INFO -   Found 6 articles
+2026-02-24 10:22:01,945 - src.ditwah_claims - INFO - NLI stance: 6 articles for claim 'Strong winds of 60 to 70 km/h, gusting up to 80–90 km/h, wer…'
+2026-02-24 10:22:02,055 - src.ditwah_claims - INFO - Stored 6 stance records for claim 65f2d1f6-3037-41eb-a5c9-7becd444728b
+2026-02-24 10:22:02,056 - __main__ - INFO -   ✅ Analyzed 6 articles
+2026-02-24 10:22:02,056 - __main__ - INFO - 
+Processing claim 10/124: Three houses were completely damaged and 431 houses partiall...
+2026-02-24 10:22:02,078 - __main__ - INFO -   Found 12 articles
+2026-02-24 10:22:02,078 - src.ditwah_claims - INFO - NLI stance: 12 articles for claim 'Three houses were completely damaged and 431 houses partiall…'
+2026-02-24 10:22:02,595 - src.ditwah_claims - INFO - Stored 12 stance records for claim 53d27b01-10a7-4e97-9aef-b3557b6141d1
+2026-02-24 10:22:02,596 - __main__ - INFO -   ✅ Analyzed 12 articles
+2026-02-24 10:22:02,596 - __main__ - INFO - 
+Processing claim 11/124: Cyclone Ditwah caused very heavy rainfall exceeding 200 mm i...
+2026-02-24 10:22:02,615 - __main__ - INFO -   Found 10 articles
+2026-02-24 10:22:02,615 - src.ditwah_claims - INFO - NLI stance: 10 articles for claim 'Cyclone Ditwah caused very heavy rainfall exceeding 200 mm i…'
+2026-02-24 10:22:02,851 - src.ditwah_claims - INFO - Stored 10 stance records for claim 4814a82e-c4cd-4e97-b8c8-0be681ee4a06
+2026-02-24 10:22:02,852 - __main__ - INFO -   ✅ Analyzed 10 articles
+2026-02-24 10:22:02,852 - __main__ - INFO - 
+Processing claim 12/124: Cyclone Ditwah caused widespread destruction of homes, infra...
+2026-02-24 10:22:02,880 - __main__ - INFO -   Found 7 articles
+2026-02-24 10:22:02,880 - src.ditwah_claims - INFO - NLI stance: 7 articles for claim 'Cyclone Ditwah caused widespread destruction of homes, infra…'
+2026-02-24 10:22:03,360 - src.ditwah_claims - INFO - Stored 7 stance records for claim 6cd523c3-40cb-4764-b6cb-0d892becd238
+2026-02-24 10:22:03,361 - __main__ - INFO -   ✅ Analyzed 7 articles
+2026-02-24 10:22:03,361 - __main__ - INFO - 
+Processing claim 13/124: Strong winds of 60 to 70 km/h, gusting up to 80-90 km/h, wer...
+2026-02-24 10:22:03,380 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:03,380 - __main__ - WARNING -   No articles found for claim 5291ecf6-09b2-4a31-b46c-b2333d7ed8fc
+2026-02-24 10:22:03,380 - __main__ - INFO - 
+Processing claim 14/124: Cyclone Ditwah was expected to approach the Tamil Nadu coast...
+2026-02-24 10:22:03,404 - __main__ - INFO -   Found 8 articles
+2026-02-24 10:22:03,404 - src.ditwah_claims - INFO - NLI stance: 8 articles for claim 'Cyclone Ditwah was expected to approach the Tamil Nadu coast…'
+2026-02-24 10:22:03,580 - src.ditwah_claims - INFO - Stored 8 stance records for claim 31d89037-daaf-4c54-9bf3-734447e32a36
+2026-02-24 10:22:03,580 - __main__ - INFO -   ✅ Analyzed 8 articles
+2026-02-24 10:22:03,580 - __main__ - INFO - 
+Processing claim 15/124: Cyclone Ditwah caused severe flooding and landslides, disrup...
+2026-02-24 10:22:03,608 - __main__ - INFO -   Found 17 articles
+2026-02-24 10:22:03,608 - src.ditwah_claims - INFO - NLI stance: 17 articles for claim 'Cyclone Ditwah caused severe flooding and landslides, disrup…'
+2026-02-24 10:22:04,283 - src.ditwah_claims - INFO - Stored 17 stance records for claim 38c697e7-0490-4294-941b-07ec2e12b7d5
+2026-02-24 10:22:04,283 - __main__ - INFO -   ✅ Analyzed 17 articles
+2026-02-24 10:22:04,283 - __main__ - INFO - 
+Processing claim 16/124: Three houses were completely damaged and 431 houses were par...
+2026-02-24 10:22:04,303 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:04,303 - __main__ - WARNING -   No articles found for claim 90c6a03c-17ca-40ff-98a9-0be4e8b015ee
+2026-02-24 10:22:04,303 - __main__ - INFO - 
+Processing claim 17/124: Three houses were completely damaged and 431 houses partiall...
+2026-02-24 10:22:04,322 - __main__ - INFO -   Found 9 articles
+2026-02-24 10:22:04,322 - src.ditwah_claims - INFO - NLI stance: 9 articles for claim 'Three houses were completely damaged and 431 houses partiall…'
+2026-02-24 10:22:04,661 - src.ditwah_claims - INFO - Stored 9 stance records for claim 6257cbbe-65d1-4bb4-8e2f-a401bce38f65
+2026-02-24 10:22:04,662 - __main__ - INFO -   ✅ Analyzed 9 articles
+2026-02-24 10:22:04,662 - __main__ - INFO - 
+Processing claim 18/124: Cyclone Ditwah struck Sri Lanka on 27 November 2025....
+2026-02-24 10:22:04,684 - __main__ - INFO -   Found 10 articles
+2026-02-24 10:22:04,684 - src.ditwah_claims - INFO - NLI stance: 10 articles for claim 'Cyclone Ditwah struck Sri Lanka on 27 November 2025.…'
+2026-02-24 10:22:05,164 - src.ditwah_claims - INFO - Stored 10 stance records for claim f3cbe2a7-7fda-48e8-a7ea-8df9827f322a
+2026-02-24 10:22:05,164 - __main__ - INFO -   ✅ Analyzed 10 articles
+2026-02-24 10:22:05,164 - __main__ - INFO - 
+Processing claim 19/124: Cyclone Ditwah caused at least 40 deaths and over 20 people ...
+2026-02-24 10:22:05,186 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:05,186 - __main__ - WARNING -   No articles found for claim b91a4a12-de08-46c3-b677-26d041905192
+2026-02-24 10:22:05,186 - __main__ - INFO - 
+Processing claim 20/124: Cyclone Ditwah caused severe flooding and landslides in Sri ...
+2026-02-24 10:22:05,210 - __main__ - INFO -   Found 8 articles
+2026-02-24 10:22:05,210 - src.ditwah_claims - INFO - NLI stance: 8 articles for claim 'Cyclone Ditwah caused severe flooding and landslides in Sri …'
+2026-02-24 10:22:05,703 - src.ditwah_claims - INFO - Stored 8 stance records for claim e41c0354-f487-4303-91d2-9b677b577675
+2026-02-24 10:22:05,704 - __main__ - INFO -   ✅ Analyzed 8 articles
+2026-02-24 10:22:05,704 - __main__ - INFO - 
+Processing claim 21/124: The Cabinet approved the establishment of a 'Rebuilding Sri ...
+2026-02-24 10:22:05,734 - __main__ - INFO -   Found 16 articles
+2026-02-24 10:22:05,734 - src.ditwah_claims - INFO - NLI stance: 16 articles for claim 'The Cabinet approved the establishment of a 'Rebuilding Sri …'
+2026-02-24 10:22:06,052 - src.ditwah_claims - INFO - Stored 16 stance records for claim cd87229b-7f16-4d22-a04c-7a6266302484
+2026-02-24 10:22:06,053 - __main__ - INFO -   ✅ Analyzed 16 articles
+2026-02-24 10:22:06,053 - __main__ - INFO - 
+Processing claim 22/124: The death toll from Cyclone Ditwah rose to 69, with 34 peopl...
+2026-02-24 10:22:06,072 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:06,072 - __main__ - WARNING -   No articles found for claim 8121f3d0-f3ac-4de2-aaf9-49b26ced6328
+2026-02-24 10:22:06,072 - __main__ - INFO - 
+Processing claim 23/124: The Government established the 'Rebuilding Sri Lanka Fund' a...
+2026-02-24 10:22:06,090 - __main__ - INFO -   Found 9 articles
+2026-02-24 10:22:06,090 - src.ditwah_claims - INFO - NLI stance: 9 articles for claim 'The Government established the 'Rebuilding Sri Lanka Fund' a…'
+2026-02-24 10:22:06,387 - src.ditwah_claims - INFO - Stored 9 stance records for claim 04911a41-a614-4d7e-b398-b7c530dcd700
+2026-02-24 10:22:06,387 - __main__ - INFO -   ✅ Analyzed 9 articles
+2026-02-24 10:22:06,387 - __main__ - INFO - 
+Processing claim 24/124: Cyclone Ditwah damaged approximately 30,000 homes in Sri Lan...
+2026-02-24 10:22:06,406 - __main__ - INFO -   Found 14 articles
+2026-02-24 10:22:06,407 - src.ditwah_claims - INFO - NLI stance: 14 articles for claim 'Cyclone Ditwah damaged approximately 30,000 homes in Sri Lan…'
+2026-02-24 10:22:07,107 - src.ditwah_claims - INFO - Stored 14 stance records for claim 8c43529c-9dfb-49de-b687-7be484b580bc
+2026-02-24 10:22:07,107 - __main__ - INFO -   ✅ Analyzed 14 articles
+2026-02-24 10:22:07,107 - __main__ - INFO - 
+Processing claim 25/124: Cyclone Ditwah caused at least 40 deaths and over 20 missing...
+2026-02-24 10:22:07,127 - __main__ - INFO -   Found 33 articles
+2026-02-24 10:22:07,127 - src.ditwah_claims - INFO - NLI stance: 33 articles for claim 'Cyclone Ditwah caused at least 40 deaths and over 20 missing…'
+2026-02-24 10:22:08,690 - src.ditwah_claims - INFO - Stored 33 stance records for claim d32979bc-8e02-4bd3-9c66-4b6c20be36f7
+2026-02-24 10:22:08,691 - __main__ - INFO -   ✅ Analyzed 33 articles
+2026-02-24 10:22:08,691 - __main__ - INFO - 
+Processing claim 26/124: At least 40 people died and over 20 were reported missing du...
+2026-02-24 10:22:08,716 - __main__ - INFO -   Found 10 articles
+2026-02-24 10:22:08,716 - src.ditwah_claims - INFO - NLI stance: 10 articles for claim 'At least 40 people died and over 20 were reported missing du…'
+2026-02-24 10:22:09,075 - src.ditwah_claims - INFO - Stored 10 stance records for claim 0c4daf68-d1d8-4580-a73e-cbb20cff78d0
+2026-02-24 10:22:09,075 - __main__ - INFO -   ✅ Analyzed 10 articles
+2026-02-24 10:22:09,075 - __main__ - INFO - 
+Processing claim 27/124: Cyclone Ditwah is described as the worst flood Sri Lanka has...
+2026-02-24 10:22:09,095 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:09,095 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'Cyclone Ditwah is described as the worst flood Sri Lanka has…'
+2026-02-24 10:22:09,297 - src.ditwah_claims - INFO - Stored 5 stance records for claim ad9eb7e4-5f27-43d3-aa8e-1e831a5019ec
+2026-02-24 10:22:09,297 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:09,298 - __main__ - INFO - 
+Processing claim 28/124: The Disaster Management Centre (DMC) reported 123 deaths and...
+2026-02-24 10:22:09,319 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:09,320 - __main__ - WARNING -   No articles found for claim 49724572-963d-4cad-9f3e-621cf3bd24ea
+2026-02-24 10:22:09,320 - __main__ - INFO - 
+Processing claim 29/124: The death toll from Cyclone Ditwah rose to 69, with 34 peopl...
+2026-02-24 10:22:09,338 - __main__ - INFO -   Found 13 articles
+2026-02-24 10:22:09,338 - src.ditwah_claims - INFO - NLI stance: 13 articles for claim 'The death toll from Cyclone Ditwah rose to 69, with 34 peopl…'
+2026-02-24 10:22:09,808 - src.ditwah_claims - INFO - Stored 13 stance records for claim 336823f5-e32e-4fc1-88fe-0248da18945e
+2026-02-24 10:22:09,808 - __main__ - INFO -   ✅ Analyzed 13 articles
+2026-02-24 10:22:09,808 - __main__ - INFO - 
+Processing claim 30/124: Cyclone Ditwah affected 5,893 individuals from 1,729 familie...
+2026-02-24 10:22:09,826 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:09,827 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'Cyclone Ditwah affected 5,893 individuals from 1,729 familie…'
+2026-02-24 10:22:09,964 - src.ditwah_claims - INFO - Stored 5 stance records for claim e6f4b77f-2e82-4519-9de6-f60e070b9f8e
+2026-02-24 10:22:09,964 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:09,964 - __main__ - INFO - 
+Processing claim 31/124: Cyclone Ditwah completely destroyed 5,325 houses across Sri ...
+2026-02-24 10:22:09,982 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:09,982 - __main__ - WARNING -   No articles found for claim 0849144f-8ba8-4164-9945-f1f56a06d90c
+2026-02-24 10:22:09,982 - __main__ - INFO - 
+Processing claim 32/124: The death toll from Cyclone Ditwah reached 334, with nearly ...
+2026-02-24 10:22:10,001 - __main__ - INFO -   Found 9 articles
+2026-02-24 10:22:10,001 - src.ditwah_claims - INFO - NLI stance: 9 articles for claim 'The death toll from Cyclone Ditwah reached 334, with nearly …'
+2026-02-24 10:22:10,479 - src.ditwah_claims - INFO - Stored 9 stance records for claim 64aaee1f-1850-4344-b4a5-dbb3b352b708
+2026-02-24 10:22:10,479 - __main__ - INFO -   ✅ Analyzed 9 articles
+2026-02-24 10:22:10,479 - __main__ - INFO - 
+Processing claim 33/124: The death toll from Cyclone Ditwah in Sri Lanka rose to 69, ...
+2026-02-24 10:22:10,499 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:10,499 - __main__ - WARNING -   No articles found for claim 60e42b6e-70e3-4a10-8326-54c5b665f6c2
+2026-02-24 10:22:10,499 - __main__ - INFO - 
+Processing claim 34/124: Cyclone Ditwah displaced thousands of people, particularly i...
+2026-02-24 10:22:10,524 - __main__ - INFO -   Found 12 articles
+2026-02-24 10:22:10,524 - src.ditwah_claims - INFO - NLI stance: 12 articles for claim 'Cyclone Ditwah displaced thousands of people, particularly i…'
+2026-02-24 10:22:11,246 - src.ditwah_claims - INFO - Stored 12 stance records for claim 4f7e232f-011e-4940-8752-063cac783072
+2026-02-24 10:22:11,246 - __main__ - INFO -   ✅ Analyzed 12 articles
+2026-02-24 10:22:11,246 - __main__ - INFO - 
+Processing claim 35/124: Cyclone Ditwah left at least 159 people dead and 203 missing...
+2026-02-24 10:22:11,276 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:11,276 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'Cyclone Ditwah left at least 159 people dead and 203 missing…'
+2026-02-24 10:22:11,481 - src.ditwah_claims - INFO - Stored 5 stance records for claim d3e32087-fdb0-4044-83f8-1ae98f5defe5
+2026-02-24 10:22:11,482 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:11,482 - __main__ - INFO - 
+Processing claim 36/124: Sri Lanka's death toll from Cyclone Ditwah rose to 69, with ...
+2026-02-24 10:22:11,510 - __main__ - INFO -   Found 6 articles
+2026-02-24 10:22:11,510 - src.ditwah_claims - INFO - NLI stance: 6 articles for claim 'Sri Lanka's death toll from Cyclone Ditwah rose to 69, with …'
+2026-02-24 10:22:11,754 - src.ditwah_claims - INFO - Stored 6 stance records for claim 58d4a297-fb07-472b-b52c-a02cd64783f2
+2026-02-24 10:22:11,755 - __main__ - INFO -   ✅ Analyzed 6 articles
+2026-02-24 10:22:11,755 - __main__ - INFO - 
+Processing claim 37/124: The death toll from Cyclone Ditwah reached 153, with 191 peo...
+2026-02-24 10:22:11,774 - __main__ - INFO -   Found 10 articles
+2026-02-24 10:22:11,774 - src.ditwah_claims - INFO - NLI stance: 10 articles for claim 'The death toll from Cyclone Ditwah reached 153, with 191 peo…'
+2026-02-24 10:22:12,636 - src.ditwah_claims - INFO - Stored 10 stance records for claim 2b7bf009-a184-4059-8344-dc546fd07e2e
+2026-02-24 10:22:12,637 - __main__ - INFO -   ✅ Analyzed 10 articles
+2026-02-24 10:22:12,637 - __main__ - INFO - 
+Processing claim 38/124: Cyclone Ditwah affected 5,893 individuals from 1,729 familie...
+2026-02-24 10:22:12,661 - __main__ - INFO -   Found 24 articles
+2026-02-24 10:22:12,661 - src.ditwah_claims - INFO - NLI stance: 24 articles for claim 'Cyclone Ditwah affected 5,893 individuals from 1,729 familie…'
+2026-02-24 10:22:13,564 - src.ditwah_claims - INFO - Stored 24 stance records for claim 71f45cc2-366f-4158-992f-34d349984448
+2026-02-24 10:22:13,564 - __main__ - INFO -   ✅ Analyzed 24 articles
+2026-02-24 10:22:13,564 - __main__ - INFO - 
+Processing claim 39/124: Cyclone Ditwah caused at least 159 deaths and 203 people mis...
+2026-02-24 10:22:13,583 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:13,583 - __main__ - WARNING -   No articles found for claim 3478dd59-97a0-4430-b5c3-80918fed9156
+2026-02-24 10:22:13,583 - __main__ - INFO - 
+Processing claim 40/124: Cyclone Ditwah left 370 people missing in Sri Lanka....
+2026-02-24 10:22:13,606 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:13,606 - __main__ - WARNING -   No articles found for claim d15f18ae-ec53-4d0f-9cf8-df0553434846
+2026-02-24 10:22:13,606 - __main__ - INFO - 
+Processing claim 41/124: The death toll from Cyclone Ditwah reached 334, with nearly ...
+2026-02-24 10:22:13,625 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:13,625 - __main__ - WARNING -   No articles found for claim 55539e0e-7681-4e90-b881-63bae7e51f08
+2026-02-24 10:22:13,625 - __main__ - INFO - 
+Processing claim 42/124: Over 370 people remain missing due to Cyclone Ditwah in Sri ...
+2026-02-24 10:22:13,644 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:13,644 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'Over 370 people remain missing due to Cyclone Ditwah in Sri …'
+2026-02-24 10:22:13,792 - src.ditwah_claims - INFO - Stored 5 stance records for claim 22e782b4-4876-4a7f-af75-b2e591902a92
+2026-02-24 10:22:13,792 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:13,793 - __main__ - INFO - 
+Processing claim 43/124: Cyclone Ditwah has resulted in at least 334 deaths in Sri La...
+2026-02-24 10:22:13,812 - __main__ - INFO -   Found 34 articles
+2026-02-24 10:22:13,812 - src.ditwah_claims - INFO - NLI stance: 34 articles for claim 'Cyclone Ditwah has resulted in at least 334 deaths in Sri La…'
+2026-02-24 10:22:15,069 - src.ditwah_claims - INFO - Stored 34 stance records for claim 30515de9-fb54-420c-9fcb-254d0e691c6d
+2026-02-24 10:22:15,070 - __main__ - INFO -   ✅ Analyzed 34 articles
+2026-02-24 10:22:15,070 - __main__ - INFO - 
+Processing claim 44/124: Hundreds of thousands of people have been displaced due to C...
+2026-02-24 10:22:15,093 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:15,093 - __main__ - WARNING -   No articles found for claim f5476ff7-8390-439d-ac6d-f44e07e99a38
+2026-02-24 10:22:15,093 - __main__ - INFO - 
+Processing claim 45/124: 366 people remain missing following Cyclone Ditwah....
+2026-02-24 10:22:15,114 - __main__ - INFO -   Found 6 articles
+2026-02-24 10:22:15,114 - src.ditwah_claims - INFO - NLI stance: 6 articles for claim '366 people remain missing following Cyclone Ditwah.…'
+2026-02-24 10:22:15,386 - src.ditwah_claims - INFO - Stored 6 stance records for claim cc99b8ab-21fc-4115-a444-b9d0db15ace0
+2026-02-24 10:22:15,387 - __main__ - INFO -   ✅ Analyzed 6 articles
+2026-02-24 10:22:15,387 - __main__ - INFO - 
+Processing claim 46/124: Over 275,000 children are among the 1.4 million people affec...
+2026-02-24 10:22:15,405 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:15,405 - __main__ - WARNING -   No articles found for claim a77b182a-6b16-4acf-89b1-aafd412e0b1b
+2026-02-24 10:22:15,405 - __main__ - INFO - 
+Processing claim 47/124: Over 998,000 people have been affected by Cyclone Ditwah in ...
+2026-02-24 10:22:15,429 - __main__ - INFO -   Found 37 articles
+2026-02-24 10:22:15,429 - src.ditwah_claims - INFO - NLI stance: 37 articles for claim 'Over 998,000 people have been affected by Cyclone Ditwah in …'
+2026-02-24 10:22:16,933 - src.ditwah_claims - INFO - Stored 37 stance records for claim dd1ccac3-31db-4fd2-80a3-15ad2cdad024
+2026-02-24 10:22:16,933 - __main__ - INFO -   ✅ Analyzed 37 articles
+2026-02-24 10:22:16,933 - __main__ - INFO - 
+Processing claim 48/124: 370 people remain missing due to Cyclone Ditwah in Sri Lanka...
+2026-02-24 10:22:16,951 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:16,951 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim '370 people remain missing due to Cyclone Ditwah in Sri Lanka…'
+2026-02-24 10:22:17,179 - src.ditwah_claims - INFO - Stored 5 stance records for claim 70917ca0-60ba-41f7-b92a-a37d81ee8633
+2026-02-24 10:22:17,180 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:17,180 - __main__ - INFO - 
+Processing claim 49/124: Badulla and Kandy districts reported the highest fatalities ...
+2026-02-24 10:22:17,199 - __main__ - INFO -   Found 6 articles
+2026-02-24 10:22:17,199 - src.ditwah_claims - INFO - NLI stance: 6 articles for claim 'Badulla and Kandy districts reported the highest fatalities …'
+2026-02-24 10:22:17,350 - src.ditwah_claims - INFO - Stored 6 stance records for claim 3f2860dc-222d-4561-ac2f-f2905772e5eb
+2026-02-24 10:22:17,350 - __main__ - INFO -   ✅ Analyzed 6 articles
+2026-02-24 10:22:17,350 - __main__ - INFO - 
+Processing claim 50/124: Cyclone Ditwah disrupted the lives of over one million peopl...
+2026-02-24 10:22:17,368 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:17,368 - __main__ - WARNING -   No articles found for claim c1bd317b-a234-492c-9948-ca54bde2cfbe
+2026-02-24 10:22:17,368 - __main__ - INFO - 
+Processing claim 51/124: Badulla and Kandy districts reported the highest fatalities ...
+2026-02-24 10:22:17,387 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:17,387 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'Badulla and Kandy districts reported the highest fatalities …'
+2026-02-24 10:22:17,514 - src.ditwah_claims - INFO - Stored 5 stance records for claim e98ca197-c0f5-485a-b61b-5f44fbb6f19f
+2026-02-24 10:22:17,514 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:17,514 - __main__ - INFO - 
+Processing claim 52/124: Kandy District recorded the highest number of deaths (88) an...
+2026-02-24 10:22:17,533 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:17,533 - __main__ - WARNING -   No articles found for claim 236d7c20-cb5f-4302-b0b9-c5c6844c6bee
+2026-02-24 10:22:17,533 - __main__ - INFO - 
+Processing claim 53/124: Cyclone Ditwah resulted in 366 deaths as reported by the Dis...
+2026-02-24 10:22:17,552 - __main__ - INFO -   Found 10 articles
+2026-02-24 10:22:17,552 - src.ditwah_claims - INFO - NLI stance: 10 articles for claim 'Cyclone Ditwah resulted in 366 deaths as reported by the Dis…'
+2026-02-24 10:22:17,878 - src.ditwah_claims - INFO - Stored 10 stance records for claim 94466624-84d6-4319-a2a8-7661585c10a7
+2026-02-24 10:22:17,878 - __main__ - INFO -   ✅ Analyzed 10 articles
+2026-02-24 10:22:17,878 - __main__ - INFO - 
+Processing claim 54/124: Cyclone Ditwah has displaced hundreds of thousands of people...
+2026-02-24 10:22:17,898 - __main__ - INFO -   Found 12 articles
+2026-02-24 10:22:17,898 - src.ditwah_claims - INFO - NLI stance: 12 articles for claim 'Cyclone Ditwah has displaced hundreds of thousands of people…'
+2026-02-24 10:22:18,478 - src.ditwah_claims - INFO - Stored 12 stance records for claim 9702d6bb-11c8-4146-859e-b1228f7ad4bf
+2026-02-24 10:22:18,478 - __main__ - INFO -   ✅ Analyzed 12 articles
+2026-02-24 10:22:18,478 - __main__ - INFO - 
+Processing claim 55/124: 1.4 million people have been affected by Cyclone Ditwah....
+2026-02-24 10:22:18,510 - __main__ - INFO -   Found 7 articles
+2026-02-24 10:22:18,510 - src.ditwah_claims - INFO - NLI stance: 7 articles for claim '1.4 million people have been affected by Cyclone Ditwah.…'
+2026-02-24 10:22:18,742 - src.ditwah_claims - INFO - Stored 7 stance records for claim eb668d6f-b67b-4879-ba9e-ca25c8738697
+2026-02-24 10:22:18,742 - __main__ - INFO -   ✅ Analyzed 7 articles
+2026-02-24 10:22:18,742 - __main__ - INFO - 
+Processing claim 56/124: Over 600 people died in Sri Lanka due to Cyclone Ditwah....
+2026-02-24 10:22:18,765 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:18,765 - __main__ - WARNING -   No articles found for claim 4449246b-1e8e-4940-9c71-3a43d9c8267c
+2026-02-24 10:22:18,765 - __main__ - INFO - 
+Processing claim 57/124: 367 people were reported missing due to Cyclone Ditwah....
+2026-02-24 10:22:18,789 - __main__ - INFO -   Found 10 articles
+2026-02-24 10:22:18,789 - src.ditwah_claims - INFO - NLI stance: 10 articles for claim '367 people were reported missing due to Cyclone Ditwah.…'
+2026-02-24 10:22:19,033 - src.ditwah_claims - INFO - Stored 10 stance records for claim e0cbfb59-1d12-482f-9d1b-8b5c7902fb17
+2026-02-24 10:22:19,033 - __main__ - INFO -   ✅ Analyzed 10 articles
+2026-02-24 10:22:19,033 - __main__ - INFO - 
+Processing claim 58/124: The Government of Sri Lanka established the 'Rebuilding Sri ...
+2026-02-24 10:22:19,051 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:19,051 - __main__ - WARNING -   No articles found for claim f2f3a1bc-ab1f-430f-933a-ed1ddff3478b
+2026-02-24 10:22:19,051 - __main__ - INFO - 
+Processing claim 59/124: Over 400 lives have been lost due to Cyclone Ditwah....
+2026-02-24 10:22:19,069 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:19,069 - __main__ - WARNING -   No articles found for claim d08cb0dd-a61d-4548-b98b-4e06aa074856
+2026-02-24 10:22:19,070 - __main__ - INFO - 
+Processing claim 60/124: Cyclone Ditwah resulted in 635 deaths, with 192 individuals ...
+2026-02-24 10:22:19,088 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:19,089 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'Cyclone Ditwah resulted in 635 deaths, with 192 individuals …'
+2026-02-24 10:22:19,297 - src.ditwah_claims - INFO - Stored 5 stance records for claim a64611c2-9e04-4821-970c-ddb8d10f98fb
+2026-02-24 10:22:19,298 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:19,298 - __main__ - INFO - 
+Processing claim 61/124: Over 275,000 children are among those affected by Cyclone Di...
+2026-02-24 10:22:19,317 - __main__ - INFO -   Found 6 articles
+2026-02-24 10:22:19,317 - src.ditwah_claims - INFO - NLI stance: 6 articles for claim 'Over 275,000 children are among those affected by Cyclone Di…'
+2026-02-24 10:22:19,476 - src.ditwah_claims - INFO - Stored 6 stance records for claim 53529754-46da-4807-914e-2bc187a8565e
+2026-02-24 10:22:19,477 - __main__ - INFO -   ✅ Analyzed 6 articles
+2026-02-24 10:22:19,477 - __main__ - INFO - 
+Processing claim 62/124: Cyclone Ditwah killed more than 355 people, with the death t...
+2026-02-24 10:22:19,497 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:19,497 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'Cyclone Ditwah killed more than 355 people, with the death t…'
+2026-02-24 10:22:19,733 - src.ditwah_claims - INFO - Stored 5 stance records for claim d9015500-7371-4abc-9f9c-6894490e29c1
+2026-02-24 10:22:19,733 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:19,733 - __main__ - INFO - 
+Processing claim 63/124: Cyclone Ditwah has displaced hundreds of thousands of people...
+2026-02-24 10:22:19,752 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:19,752 - __main__ - WARNING -   No articles found for claim 824c2c3f-808e-4cb1-be7f-f5944643f54c
+2026-02-24 10:22:19,752 - __main__ - INFO - 
+Processing claim 64/124: The United States announced a $2 million aid package to supp...
+2026-02-24 10:22:19,771 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:19,771 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'The United States announced a $2 million aid package to supp…'
+2026-02-24 10:22:19,855 - src.ditwah_claims - INFO - Stored 5 stance records for claim 364ac0ac-3f21-4b0e-b505-9af8e3c407aa
+2026-02-24 10:22:19,856 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:19,856 - __main__ - INFO - 
+Processing claim 65/124: Approximately 1.4 million people were affected nationwide by...
+2026-02-24 10:22:19,876 - __main__ - INFO -   Found 7 articles
+2026-02-24 10:22:19,877 - src.ditwah_claims - INFO - NLI stance: 7 articles for claim 'Approximately 1.4 million people were affected nationwide by…'
+2026-02-24 10:22:20,224 - src.ditwah_claims - INFO - Stored 7 stance records for claim e227562b-4037-4845-b4e8-a57c3b149a9f
+2026-02-24 10:22:20,225 - __main__ - INFO -   ✅ Analyzed 7 articles
+2026-02-24 10:22:20,225 - __main__ - INFO - 
+Processing claim 66/124: Over 275,000 children have been affected by Cyclone Ditwah....
+2026-02-24 10:22:20,248 - __main__ - INFO -   Found 7 articles
+2026-02-24 10:22:20,248 - src.ditwah_claims - INFO - NLI stance: 7 articles for claim 'Over 275,000 children have been affected by Cyclone Ditwah.…'
+2026-02-24 10:22:20,450 - src.ditwah_claims - INFO - Stored 7 stance records for claim ca3968e6-767c-4473-ad11-4b5dc1155492
+2026-02-24 10:22:20,450 - __main__ - INFO -   ✅ Analyzed 7 articles
+2026-02-24 10:22:20,450 - __main__ - INFO - 
+Processing claim 67/124: The United States announced a $2 million aid package for Sri...
+2026-02-24 10:22:20,468 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:20,468 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'The United States announced a $2 million aid package for Sri…'
+2026-02-24 10:22:20,569 - src.ditwah_claims - INFO - Stored 5 stance records for claim 72718de3-3e8d-4774-ac7f-31c425732588
+2026-02-24 10:22:20,570 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:20,570 - __main__ - INFO - 
+Processing claim 68/124: A total of 1.4 million people have been affected by Cyclone ...
+2026-02-24 10:22:20,588 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:20,588 - __main__ - WARNING -   No articles found for claim 7efebb8d-dac5-4248-a3b1-130b898e73ca
+2026-02-24 10:22:20,588 - __main__ - INFO - 
+Processing claim 69/124: The death toll from Cyclone Ditwah in Sri Lanka reached 486,...
+2026-02-24 10:22:20,607 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:20,607 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'The death toll from Cyclone Ditwah in Sri Lanka reached 486,…'
+2026-02-24 10:22:20,897 - src.ditwah_claims - INFO - Stored 5 stance records for claim 6b61f7c3-d2cb-42c5-928b-9eadec21c151
+2026-02-24 10:22:20,898 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:20,898 - __main__ - INFO - 
+Processing claim 70/124: 69,861 individuals from 22,218 families are accommodated in ...
+2026-02-24 10:22:20,916 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:20,917 - __main__ - WARNING -   No articles found for claim 9bd116ae-ee9a-43e6-aa06-0640bf0610b4
+2026-02-24 10:22:20,917 - __main__ - INFO - 
+Processing claim 71/124: India provided rescue and relief assistance under Operation ...
+2026-02-24 10:22:20,935 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:20,935 - __main__ - WARNING -   No articles found for claim bb2d6010-b631-4033-9145-ff249bc03ea3
+2026-02-24 10:22:20,935 - __main__ - INFO - 
+Processing claim 72/124: Pakistan sent a 47-member search and rescue team with 6.5 to...
+2026-02-24 10:22:20,954 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:20,954 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'Pakistan sent a 47-member search and rescue team with 6.5 to…'
+2026-02-24 10:22:21,175 - src.ditwah_claims - INFO - Stored 5 stance records for claim ef55e383-e0c8-4f8b-a41f-3b1750a0001b
+2026-02-24 10:22:21,176 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:21,176 - __main__ - INFO - 
+Processing claim 73/124: The Sri Lankan government established a 'Rebuilding Sri Lank...
+2026-02-24 10:22:21,198 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:21,198 - __main__ - WARNING -   No articles found for claim c9f47f30-60f5-4bbe-b732-8a00ccb1886c
+2026-02-24 10:22:21,198 - __main__ - INFO - 
+Processing claim 74/124: INS Vikrant and INS Udaygiri delivered critical relief suppl...
+2026-02-24 10:22:21,216 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:21,216 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'INS Vikrant and INS Udaygiri delivered critical relief suppl…'
+2026-02-24 10:22:21,303 - src.ditwah_claims - INFO - Stored 5 stance records for claim c04cf5c2-fc77-4447-9fad-593715da2ed0
+2026-02-24 10:22:21,303 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:21,303 - __main__ - INFO - 
+Processing claim 75/124: Maldives organized a telethon that raised over MVR 11.4 mill...
+2026-02-24 10:22:21,324 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:21,324 - __main__ - WARNING -   No articles found for claim 235f26b4-c3d4-425c-a521-f7e2910c47ea
+2026-02-24 10:22:21,324 - __main__ - INFO - 
+Processing claim 76/124: Pakistan dispatched 200 tons of relief supplies and a 47-mem...
+2026-02-24 10:22:21,346 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:21,346 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'Pakistan dispatched 200 tons of relief supplies and a 47-mem…'
+2026-02-24 10:22:21,483 - src.ditwah_claims - INFO - Stored 5 stance records for claim 3be99d5c-4d1e-4571-87c0-e82771f1e91b
+2026-02-24 10:22:21,484 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:21,484 - __main__ - INFO - 
+Processing claim 77/124: Japan sent a 27-member Japan Disaster Relief (JDR) medical t...
+2026-02-24 10:22:21,505 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:21,506 - __main__ - WARNING -   No articles found for claim 2e2d98d3-1854-4ba1-9493-ac8de4e7d1e9
+2026-02-24 10:22:21,506 - __main__ - INFO - 
+Processing claim 78/124: The Sri Lankan government submitted a supplementary estimate...
+2026-02-24 10:22:21,537 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:21,537 - __main__ - WARNING -   No articles found for claim fa8a2cef-4562-4b46-b851-454d4a30fe7e
+2026-02-24 10:22:21,538 - __main__ - INFO - 
+Processing claim 79/124: Sri Lanka has formally requested approximately $200 million ...
+2026-02-24 10:22:21,556 - __main__ - INFO -   Found 11 articles
+2026-02-24 10:22:21,557 - src.ditwah_claims - INFO - NLI stance: 11 articles for claim 'Sri Lanka has formally requested approximately $200 million …'
+2026-02-24 10:22:21,821 - src.ditwah_claims - INFO - Stored 11 stance records for claim 3f10459b-ee4c-4fb4-95ca-15fc27dd10b4
+2026-02-24 10:22:21,821 - __main__ - INFO -   ✅ Analyzed 11 articles
+2026-02-24 10:22:21,822 - __main__ - INFO - 
+Processing claim 80/124: Two US Air Force C-130 aircraft arrived in Sri Lanka to supp...
+2026-02-24 10:22:21,846 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:21,846 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'Two US Air Force C-130 aircraft arrived in Sri Lanka to supp…'
+2026-02-24 10:22:21,978 - src.ditwah_claims - INFO - Stored 5 stance records for claim d7617199-90ad-43b1-8376-fedc6b324e1f
+2026-02-24 10:22:21,979 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:21,979 - __main__ - INFO - 
+Processing claim 81/124: India launched 'Operation Sagar Bandhu' to provide humanitar...
+2026-02-24 10:22:21,998 - __main__ - INFO -   Found 21 articles
+2026-02-24 10:22:21,998 - src.ditwah_claims - INFO - NLI stance: 21 articles for claim 'India launched 'Operation Sagar Bandhu' to provide humanitar…'
+2026-02-24 10:22:22,414 - src.ditwah_claims - INFO - Stored 21 stance records for claim 953db792-b53b-4ae0-92da-678c7eabf52c
+2026-02-24 10:22:22,414 - __main__ - INFO -   ✅ Analyzed 21 articles
+2026-02-24 10:22:22,414 - __main__ - INFO - 
+Processing claim 82/124: The United States announced a USD 2 million aid package for ...
+2026-02-24 10:22:22,435 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:22,435 - __main__ - WARNING -   No articles found for claim cc21cb98-0225-4e14-ae05-02a77961a1bb
+2026-02-24 10:22:22,435 - __main__ - INFO - 
+Processing claim 83/124: Russia delivered 35 tonnes of humanitarian aid, including a ...
+2026-02-24 10:22:22,455 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:22,456 - __main__ - WARNING -   No articles found for claim 1ce7d6d4-2cbc-435e-aedb-dfe03182b878
+2026-02-24 10:22:22,456 - __main__ - INFO - 
+Processing claim 84/124: Japan provided a $2.5 million emergency grant to Sri Lanka t...
+2026-02-24 10:22:22,476 - __main__ - INFO -   Found 7 articles
+2026-02-24 10:22:22,476 - src.ditwah_claims - INFO - NLI stance: 7 articles for claim 'Japan provided a $2.5 million emergency grant to Sri Lanka t…'
+2026-02-24 10:22:22,668 - src.ditwah_claims - INFO - Stored 7 stance records for claim e53f13a9-5f0b-47b2-a8dc-0fad78a51b22
+2026-02-24 10:22:22,668 - __main__ - INFO -   ✅ Analyzed 7 articles
+2026-02-24 10:22:22,668 - __main__ - INFO - 
+Processing claim 85/124: The Maldives organized a telethon that raised over MVR 11.4 ...
+2026-02-24 10:22:22,687 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:22,688 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'The Maldives organized a telethon that raised over MVR 11.4 …'
+2026-02-24 10:22:22,843 - src.ditwah_claims - INFO - Stored 5 stance records for claim 495b514e-238a-4ff6-8b4d-5ba5fa6c7837
+2026-02-24 10:22:22,843 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:22,843 - __main__ - INFO - 
+Processing claim 86/124: The European Union allocated over €2.35 million in humanitar...
+2026-02-24 10:22:22,862 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:22,862 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'The European Union allocated over €2.35 million in humanitar…'
+2026-02-24 10:22:22,985 - src.ditwah_claims - INFO - Stored 5 stance records for claim 3693a80c-76ad-4976-9497-7ebb27681b67
+2026-02-24 10:22:22,985 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:22,985 - __main__ - INFO - 
+Processing claim 87/124: Australia pledged AUD 1 million to support Sri Lanka’s disas...
+2026-02-24 10:22:23,005 - __main__ - INFO -   Found 8 articles
+2026-02-24 10:22:23,005 - src.ditwah_claims - INFO - NLI stance: 8 articles for claim 'Australia pledged AUD 1 million to support Sri Lanka’s disas…'
+2026-02-24 10:22:23,190 - src.ditwah_claims - INFO - Stored 8 stance records for claim bc5b064a-4890-45f9-a202-fdae6597f6e0
+2026-02-24 10:22:23,191 - __main__ - INFO -   ✅ Analyzed 8 articles
+2026-02-24 10:22:23,191 - __main__ - INFO - 
+Processing claim 88/124: The IMF approved a $206 million disbursement under the Rapid...
+2026-02-24 10:22:23,215 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:23,215 - __main__ - WARNING -   No articles found for claim ca251d3e-3c9b-410f-a0e7-0410d2d6826c
+2026-02-24 10:22:23,215 - __main__ - INFO - 
+Processing claim 89/124: Indian External Affairs Minister S. Jaishankar visited Sri L...
+2026-02-24 10:22:23,238 - __main__ - INFO -   Found 10 articles
+2026-02-24 10:22:23,238 - src.ditwah_claims - INFO - NLI stance: 10 articles for claim 'Indian External Affairs Minister S. Jaishankar visited Sri L…'
+2026-02-24 10:22:23,397 - src.ditwah_claims - INFO - Stored 10 stance records for claim 3c41f62d-6b6d-4865-b172-635feecf7280
+2026-02-24 10:22:23,397 - __main__ - INFO -   ✅ Analyzed 10 articles
+2026-02-24 10:22:23,398 - __main__ - INFO - 
+Processing claim 90/124: India provided extensive humanitarian assistance, including ...
+2026-02-24 10:22:23,417 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:23,417 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'India provided extensive humanitarian assistance, including …'
+2026-02-24 10:22:23,666 - src.ditwah_claims - INFO - Stored 5 stance records for claim de3de326-6c21-4ab4-a0f3-e3cbc6ba6089
+2026-02-24 10:22:23,667 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:23,667 - __main__ - INFO - 
+Processing claim 91/124: The UK provided $890,000 (£675,000) in urgent humanitarian s...
+2026-02-24 10:22:23,690 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:23,690 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'The UK provided $890,000 (£675,000) in urgent humanitarian s…'
+2026-02-24 10:22:23,781 - src.ditwah_claims - INFO - Stored 5 stance records for claim 6f8df7b1-df7c-4732-ad19-0c5901733b2c
+2026-02-24 10:22:23,781 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:23,781 - __main__ - INFO - 
+Processing claim 92/124: Indian External Affairs Minister S. Jaishankar visited Sri L...
+2026-02-24 10:22:23,799 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:23,799 - __main__ - WARNING -   No articles found for claim af71f567-6091-4add-a8fe-7a57fb5ccb0b
+2026-02-24 10:22:23,799 - __main__ - INFO - 
+Processing claim 93/124: Japan dispatched a 27-member Japan Disaster Relief (JDR) Med...
+2026-02-24 10:22:23,819 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:23,819 - __main__ - WARNING -   No articles found for claim 3a1d7737-021e-4532-8ae7-1d07646aa8e8
+2026-02-24 10:22:23,819 - __main__ - INFO - 
+Processing claim 94/124: Pakistan deployed a 47-member search and rescue team along w...
+2026-02-24 10:22:23,838 - __main__ - INFO -   Found 6 articles
+2026-02-24 10:22:23,838 - src.ditwah_claims - INFO - NLI stance: 6 articles for claim 'Pakistan deployed a 47-member search and rescue team along w…'
+2026-02-24 10:22:24,076 - src.ditwah_claims - INFO - Stored 6 stance records for claim 1767fd73-014b-4e4f-ac5e-c39dd8a3d389
+2026-02-24 10:22:24,076 - __main__ - INFO -   ✅ Analyzed 6 articles
+2026-02-24 10:22:24,076 - __main__ - INFO - 
+Processing claim 95/124: Sri Lanka has formally requested approximately $200 million ...
+2026-02-24 10:22:24,106 - __main__ - INFO -   Found 7 articles
+2026-02-24 10:22:24,106 - src.ditwah_claims - INFO - NLI stance: 7 articles for claim 'Sri Lanka has formally requested approximately $200 million …'
+2026-02-24 10:22:24,273 - src.ditwah_claims - INFO - Stored 7 stance records for claim bc13ccb4-32e8-4b09-a2a7-054d306295d9
+2026-02-24 10:22:24,273 - __main__ - INFO -   ✅ Analyzed 7 articles
+2026-02-24 10:22:24,273 - __main__ - INFO - 
+Processing claim 96/124: India provided a $450 million assistance package to Sri Lank...
+2026-02-24 10:22:24,293 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:24,293 - __main__ - WARNING -   No articles found for claim 5f2802c6-de13-46c4-9bba-bdea47816021
+2026-02-24 10:22:24,293 - __main__ - INFO - 
+Processing claim 97/124: The US deployed specialized personnel and capabilities to st...
+2026-02-24 10:22:24,314 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:24,314 - __main__ - WARNING -   No articles found for claim a6234f44-4311-4e01-af00-5fedd33311c4
+2026-02-24 10:22:24,314 - __main__ - INFO - 
+Processing claim 98/124: Hutch Sri Lanka donated Rs. 60 million to the 'Rebuilding Sr...
+2026-02-24 10:22:24,332 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:24,332 - __main__ - WARNING -   No articles found for claim 9a70184d-487f-4043-8021-37f7957bfae9
+2026-02-24 10:22:24,332 - __main__ - INFO - 
+Processing claim 99/124: The European Union allocated over €2.35 million in humanitar...
+2026-02-24 10:22:24,362 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:24,362 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'The European Union allocated over €2.35 million in humanitar…'
+2026-02-24 10:22:24,501 - src.ditwah_claims - INFO - Stored 5 stance records for claim ab312dc6-8eb5-4a98-ac77-88a0c16b4477
+2026-02-24 10:22:24,502 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:24,502 - __main__ - INFO - 
+Processing claim 100/124: The 'Rebuilding Sri Lanka' fund received Rs. 1,893 million i...
+2026-02-24 10:22:24,521 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:24,521 - __main__ - WARNING -   No articles found for claim bdf57f46-f96c-4201-a413-874209c21be2
+2026-02-24 10:22:24,521 - __main__ - INFO - 
+Processing claim 101/124: The Rebuilding Sri Lanka Fund received over Rs. 3.4 billion ...
+2026-02-24 10:22:24,543 - __main__ - INFO -   Found 9 articles
+2026-02-24 10:22:24,544 - src.ditwah_claims - INFO - NLI stance: 9 articles for claim 'The Rebuilding Sri Lanka Fund received over Rs. 3.4 billion …'
+2026-02-24 10:22:24,716 - src.ditwah_claims - INFO - Stored 9 stance records for claim 6c598eb9-e740-4069-a4d3-490ee0f6b082
+2026-02-24 10:22:24,717 - __main__ - INFO -   ✅ Analyzed 9 articles
+2026-02-24 10:22:24,717 - __main__ - INFO - 
+Processing claim 102/124: India’s External Affairs Minister S. Jaishankar visited Sri ...
+2026-02-24 10:22:24,736 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:24,736 - __main__ - WARNING -   No articles found for claim 2ab08e46-5a8b-44aa-a91a-9f8986b48a2e
+2026-02-24 10:22:24,736 - __main__ - INFO - 
+Processing claim 103/124: Japan provided a $2.5 million emergency grant to Sri Lanka f...
+2026-02-24 10:22:24,756 - __main__ - INFO -   Found 7 articles
+2026-02-24 10:22:24,756 - src.ditwah_claims - INFO - NLI stance: 7 articles for claim 'Japan provided a $2.5 million emergency grant to Sri Lanka f…'
+2026-02-24 10:22:24,947 - src.ditwah_claims - INFO - Stored 7 stance records for claim 6ca5d93a-df60-4127-99a6-2950227865a0
+2026-02-24 10:22:24,947 - __main__ - INFO -   ✅ Analyzed 7 articles
+2026-02-24 10:22:24,947 - __main__ - INFO - 
+Processing claim 104/124: The 'Rebuilding Sri Lanka' Fund received contributions total...
+2026-02-24 10:22:24,965 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:24,966 - __main__ - WARNING -   No articles found for claim 04a383ea-ce26-43e1-9017-e708948dbd55
+2026-02-24 10:22:24,966 - __main__ - INFO - 
+Processing claim 105/124: India provided a $450 million assistance package for Sri Lan...
+2026-02-24 10:22:24,984 - __main__ - INFO -   Found 9 articles
+2026-02-24 10:22:24,984 - src.ditwah_claims - INFO - NLI stance: 9 articles for claim 'India provided a $450 million assistance package for Sri Lan…'
+2026-02-24 10:22:25,307 - src.ditwah_claims - INFO - Stored 9 stance records for claim a7bf7411-01b9-45b5-adb9-2e568a78c580
+2026-02-24 10:22:25,307 - __main__ - INFO -   ✅ Analyzed 9 articles
+2026-02-24 10:22:25,307 - __main__ - INFO - 
+Processing claim 106/124: Indian External Affairs Minister S. Jaishankar visited Sri L...
+2026-02-24 10:22:25,326 - __main__ - INFO -   Found 12 articles
+2026-02-24 10:22:25,326 - src.ditwah_claims - INFO - NLI stance: 12 articles for claim 'Indian External Affairs Minister S. Jaishankar visited Sri L…'
+2026-02-24 10:22:25,516 - src.ditwah_claims - INFO - Stored 12 stance records for claim c2fb6d13-4f6c-413c-84c9-a86de54e5f8a
+2026-02-24 10:22:25,517 - __main__ - INFO -   ✅ Analyzed 12 articles
+2026-02-24 10:22:25,517 - __main__ - INFO - 
+Processing claim 107/124: HUTCH Sri Lanka donated Rs. 60 million to the 'Rebuilding Sr...
+2026-02-24 10:22:25,541 - __main__ - INFO -   Found 6 articles
+2026-02-24 10:22:25,541 - src.ditwah_claims - INFO - NLI stance: 6 articles for claim 'HUTCH Sri Lanka donated Rs. 60 million to the 'Rebuilding Sr…'
+2026-02-24 10:22:25,638 - src.ditwah_claims - INFO - Stored 6 stance records for claim 9102648d-9e4b-4418-b191-34968d11cb96
+2026-02-24 10:22:25,639 - __main__ - INFO -   ✅ Analyzed 6 articles
+2026-02-24 10:22:25,639 - __main__ - INFO - 
+Processing claim 108/124: The Government of Sri Lanka established a 'Rebuilding Sri La...
+2026-02-24 10:22:25,665 - __main__ - INFO -   Found 10 articles
+2026-02-24 10:22:25,665 - src.ditwah_claims - INFO - NLI stance: 10 articles for claim 'The Government of Sri Lanka established a 'Rebuilding Sri La…'
+2026-02-24 10:22:25,824 - src.ditwah_claims - INFO - Stored 10 stance records for claim 9ad4f0da-d6e0-4d9d-8f47-cf21a4d500ac
+2026-02-24 10:22:25,824 - __main__ - INFO -   ✅ Analyzed 10 articles
+2026-02-24 10:22:25,824 - __main__ - INFO - 
+Processing claim 109/124: The International Labour Organization (ILO) estimates that 3...
+2026-02-24 10:22:25,850 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:25,850 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'The International Labour Organization (ILO) estimates that 3…'
+2026-02-24 10:22:25,981 - src.ditwah_claims - INFO - Stored 5 stance records for claim 486eeb3a-0d7c-4c08-8bd4-8bed6d42b6c9
+2026-02-24 10:22:25,981 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:25,982 - __main__ - INFO - 
+Processing claim 110/124: Sri Lanka Cricket donated Rs. 300 million to the 'Rebuilding...
+2026-02-24 10:22:26,000 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:26,000 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'Sri Lanka Cricket donated Rs. 300 million to the 'Rebuilding…'
+2026-02-24 10:22:26,092 - src.ditwah_claims - INFO - Stored 5 stance records for claim bb1cdae5-1fd2-4ce9-98cc-6ae31bdb7dd4
+2026-02-24 10:22:26,093 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:26,093 - __main__ - INFO - 
+Processing claim 111/124: China donated humanitarian aid worth Rs. 400 million, includ...
+2026-02-24 10:22:26,111 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:26,112 - __main__ - WARNING -   No articles found for claim 5ad7f2ba-9f8e-476a-884f-790199c2aa2d
+2026-02-24 10:22:26,112 - __main__ - INFO - 
+Processing claim 112/124: The Rebuilding Sri Lanka Fund received over Rs. 3.4 billion ...
+2026-02-24 10:22:26,129 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:26,130 - __main__ - WARNING -   No articles found for claim 32684b77-7b80-42fc-81c3-7fac9409ced8
+2026-02-24 10:22:26,130 - __main__ - INFO - 
+Processing claim 113/124: China donated humanitarian aid worth Rs. 400 million, includ...
+2026-02-24 10:22:26,148 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:26,148 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'China donated humanitarian aid worth Rs. 400 million, includ…'
+2026-02-24 10:22:26,233 - src.ditwah_claims - INFO - Stored 5 stance records for claim 479a4100-6bf0-42c9-833f-0bfa6fe68e1f
+2026-02-24 10:22:26,233 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:26,233 - __main__ - INFO - 
+Processing claim 114/124: The ‘Rebuilding Sri Lanka’ Fund received contributions total...
+2026-02-24 10:22:26,256 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:26,256 - __main__ - WARNING -   No articles found for claim 150fdbc4-4601-45d4-8fa9-22af6324a46f
+2026-02-24 10:22:26,256 - __main__ - INFO - 
+Processing claim 115/124: The 'Rebuilding Sri Lanka' fund received Rs. 1,893 million i...
+2026-02-24 10:22:26,275 - __main__ - INFO -   Found 9 articles
+2026-02-24 10:22:26,276 - src.ditwah_claims - INFO - NLI stance: 9 articles for claim 'The 'Rebuilding Sri Lanka' fund received Rs. 1,893 million i…'
+2026-02-24 10:22:26,456 - src.ditwah_claims - INFO - Stored 9 stance records for claim 33f14d18-70b9-44c5-82e2-4688349c94f2
+2026-02-24 10:22:26,456 - __main__ - INFO -   ✅ Analyzed 9 articles
+2026-02-24 10:22:26,456 - __main__ - INFO - 
+Processing claim 116/124: The 'Rebuilding Sri Lanka' Fund received contributions from ...
+2026-02-24 10:22:26,476 - __main__ - INFO -   Found 6 articles
+2026-02-24 10:22:26,476 - src.ditwah_claims - INFO - NLI stance: 6 articles for claim 'The 'Rebuilding Sri Lanka' Fund received contributions from …'
+2026-02-24 10:22:26,574 - src.ditwah_claims - INFO - Stored 6 stance records for claim 08e9e928-d927-41f6-bd6c-0071afbf2832
+2026-02-24 10:22:26,574 - __main__ - INFO -   ✅ Analyzed 6 articles
+2026-02-24 10:22:26,574 - __main__ - INFO - 
+Processing claim 117/124: Sri Lanka Insurance distributed dry ration packs to 1,000 fa...
+2026-02-24 10:22:26,596 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:26,596 - __main__ - WARNING -   No articles found for claim bb8684e5-4f80-4991-b4ec-2ac7bfde53d6
+2026-02-24 10:22:26,596 - __main__ - INFO - 
+Processing claim 118/124: Cyclone Ditwah caused economic losses estimated at USD 6-7 b...
+2026-02-24 10:22:26,620 - __main__ - INFO -   Found 0 articles
+2026-02-24 10:22:26,620 - __main__ - WARNING -   No articles found for claim a9f380ec-068d-4064-9177-44125d95acc7
+2026-02-24 10:22:26,620 - __main__ - INFO - 
+Processing claim 119/124: The Sri Lankan government established a 'Rebuilding Sri Lank...
+2026-02-24 10:22:26,638 - __main__ - INFO -   Found 8 articles
+2026-02-24 10:22:26,638 - src.ditwah_claims - INFO - NLI stance: 8 articles for claim 'The Sri Lankan government established a 'Rebuilding Sri Lank…'
+2026-02-24 10:22:26,754 - src.ditwah_claims - INFO - Stored 8 stance records for claim b9327a7a-1372-4e91-9faf-45dc7765d81b
+2026-02-24 10:22:26,754 - __main__ - INFO -   ✅ Analyzed 8 articles
+2026-02-24 10:22:26,755 - __main__ - INFO - 
+Processing claim 120/124: Sri Lanka Insurance provided dry ration packs to 1,000 famil...
+2026-02-24 10:22:26,778 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:26,779 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'Sri Lanka Insurance provided dry ration packs to 1,000 famil…'
+2026-02-24 10:22:26,868 - src.ditwah_claims - INFO - Stored 5 stance records for claim 05f1ca3e-99b5-4bf5-9b03-de61007f45fd
+2026-02-24 10:22:26,869 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:26,869 - __main__ - INFO - 
+Processing claim 121/124: Cyclone Ditwah caused an estimated $6.7 billion in damages a...
+2026-02-24 10:22:26,898 - __main__ - INFO -   Found 6 articles
+2026-02-24 10:22:26,898 - src.ditwah_claims - INFO - NLI stance: 6 articles for claim 'Cyclone Ditwah caused an estimated $6.7 billion in damages a…'
+2026-02-24 10:22:27,154 - src.ditwah_claims - INFO - Stored 6 stance records for claim 475c9c88-3628-4888-83a1-61e74eae55e5
+2026-02-24 10:22:27,154 - __main__ - INFO -   ✅ Analyzed 6 articles
+2026-02-24 10:22:27,154 - __main__ - INFO - 
+Processing claim 122/124: Cyclone Ditwah caused economic losses estimated at USD 6–7 b...
+2026-02-24 10:22:27,174 - __main__ - INFO -   Found 6 articles
+2026-02-24 10:22:27,174 - src.ditwah_claims - INFO - NLI stance: 6 articles for claim 'Cyclone Ditwah caused economic losses estimated at USD 6–7 b…'
+2026-02-24 10:22:27,497 - src.ditwah_claims - INFO - Stored 6 stance records for claim 32bd2d13-186a-46fd-a423-221159927286
+2026-02-24 10:22:27,497 - __main__ - INFO -   ✅ Analyzed 6 articles
+2026-02-24 10:22:27,498 - __main__ - INFO - 
+Processing claim 123/124: Cyclone Ditwah disrupted a total of 16,476 businesses nation...
+2026-02-24 10:22:27,526 - __main__ - INFO -   Found 5 articles
+2026-02-24 10:22:27,526 - src.ditwah_claims - INFO - NLI stance: 5 articles for claim 'Cyclone Ditwah disrupted a total of 16,476 businesses nation…'
+2026-02-24 10:22:27,634 - src.ditwah_claims - INFO - Stored 5 stance records for claim 1485a545-eaa1-4242-bc3f-b109621f244d
+2026-02-24 10:22:27,634 - __main__ - INFO -   ✅ Analyzed 5 articles
+2026-02-24 10:22:27,634 - __main__ - INFO - 
+Processing claim 124/124: The International Labour Organization (ILO) estimates that 3...
+2026-02-24 10:22:27,654 - __main__ - INFO -   Found 6 articles
+2026-02-24 10:22:27,654 - src.ditwah_claims - INFO - NLI stance: 6 articles for claim 'The International Labour Organization (ILO) estimates that 3…'
+2026-02-24 10:22:27,818 - src.ditwah_claims - INFO - Stored 6 stance records for claim 01925c7f-3e2a-4f1b-bd46-52ad66afac56
+2026-02-24 10:22:27,818 - __main__ - INFO -   ✅ Analyzed 6 articles
+2026-02-24 10:22:27,818 - __main__ - INFO - 
+✅ Total stance records created: 726
+2026-02-24 10:22:27,836 - __main__ - INFO - 
+================================================================================
+2026-02-24 10:22:27,836 - __main__ - INFO - SUMMARY
+2026-02-24 10:22:27,836 - __main__ - INFO - ================================================================================
+2026-02-24 10:22:27,836 - __main__ - INFO - General claims: 124
+2026-02-24 10:22:27,836 - __main__ - INFO - Sentiment records: 726
+2026-02-24 10:22:27,836 - __main__ - INFO - Stance records: 726
+2026-02-24 10:22:27,836 - __main__ - INFO - 
+2026-02-24 10:22:27,836 - __main__ - INFO - ✅ Sentiment & stance analysis complete!
+2026-02-24 10:22:27,836 - __main__ - INFO - 
+2026-02-24 10:22:27,836 - __main__ - INFO - The pipeline is now complete. View results in the dashboard:
+2026-02-24 10:22:27,836 - __main__ - INFO -   streamlit run dashboard/app.py
+2026-02-24 10:22:27,836 - __main__ - INFO - 
+2026-02-24 10:22:27,836 - __main__ - INFO - Navigate to the 'Ditwah Claims' tab and select this version.

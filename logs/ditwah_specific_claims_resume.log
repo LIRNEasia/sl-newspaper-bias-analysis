@@ -1,0 +1,304 @@
+2026-02-17 14:19:07,201 - INFO - Version: specific-claims-v1
+2026-02-17 14:19:07,201 - INFO - Description: 22 specific debatable claims with improved prompt and 200-article sampling
+2026-02-17 14:19:07,201 - INFO - Analysis type: ditwah_claims
+2026-02-17 14:19:07,201 - INFO - Min articles per claim: 5
+2026-02-17 14:19:07,201 - INFO - LLM provider: local
+2026-02-17 14:19:07,201 - INFO - LLM model: llama3.1:latest
+2026-02-17 14:19:07,201 - INFO - 
+Starting BATCHED claims generation pipeline...
+2026-02-17 14:19:07,201 - INFO - This will:
+2026-02-17 14:19:07,201 - INFO -   1. Process articles in batches of 50
+2026-02-17 14:19:07,201 - INFO -   2. Generate claims from each batch
+2026-02-17 14:19:07,201 - INFO -   3. Merge and deduplicate claims
+2026-02-17 14:19:07,201 - INFO -   4. Filter claims with < 5 articles
+2026-02-17 14:19:07,201 - INFO -   5. Analyze sentiment and stance for all claims
+2026-02-17 14:19:07,201 - INFO -   6. Keep only claims with BOTH sentiment and stance data
+
+2026-02-17 14:19:07,208 - INFO - Starting batched Ditwah claims pipeline for version ec3a12d5-983d-46fe-bdce-e79a7509fe51
+2026-02-17 14:19:07,278 - INFO - Found 1657 Ditwah articles
+2026-02-17 14:19:07,280 - INFO - Processing 1657 Ditwah articles in batches
+2026-02-17 14:19:07,280 - INFO - Processing batch 1/34 (50 articles)...
+2026-02-17 14:19:14,577 - INFO -   Batch 1: Extracted 10 claims
+2026-02-17 14:19:14,577 - INFO - Processing batch 2/34 (50 articles)...
+2026-02-17 14:19:19,557 - INFO -   Batch 2: Extracted 10 claims
+2026-02-17 14:19:19,557 - INFO - Processing batch 3/34 (50 articles)...
+2026-02-17 14:19:24,700 - ERROR - Error generating claims from batch 3: Expecting value: line 1 column 1 (char 0)
+2026-02-17 14:19:24,701 - INFO - Processing batch 4/34 (50 articles)...
+2026-02-17 14:19:29,543 - INFO -   Batch 4: Extracted 10 claims
+2026-02-17 14:19:29,543 - INFO - Processing batch 5/34 (50 articles)...
+2026-02-17 14:19:34,327 - INFO -   Batch 5: Extracted 10 claims
+2026-02-17 14:19:34,327 - INFO - Processing batch 6/34 (50 articles)...
+2026-02-17 14:19:39,040 - INFO -   Batch 6: Extracted 10 claims
+2026-02-17 14:19:39,040 - INFO - Processing batch 7/34 (50 articles)...
+2026-02-17 14:19:43,925 - INFO -   Batch 7: Extracted 10 claims
+2026-02-17 14:19:43,925 - INFO - Processing batch 8/34 (50 articles)...
+2026-02-17 14:19:48,481 - INFO -   Batch 8: Extracted 10 claims
+2026-02-17 14:19:48,481 - INFO - Processing batch 9/34 (50 articles)...
+2026-02-17 14:19:54,274 - INFO -   Batch 9: Extracted 10 claims
+2026-02-17 14:19:54,274 - INFO - Processing batch 10/34 (50 articles)...
+2026-02-17 14:19:59,219 - INFO -   Batch 10: Extracted 10 claims
+2026-02-17 14:19:59,219 - INFO - Processing batch 11/34 (50 articles)...
+2026-02-17 14:20:04,194 - INFO -   Batch 11: Extracted 10 claims
+2026-02-17 14:20:04,194 - INFO - Processing batch 12/34 (50 articles)...
+2026-02-17 14:20:09,304 - INFO -   Batch 12: Extracted 10 claims
+2026-02-17 14:20:09,304 - INFO - Processing batch 13/34 (50 articles)...
+2026-02-17 14:20:14,288 - INFO -   Batch 13: Extracted 10 claims
+2026-02-17 14:20:14,288 - INFO - Processing batch 14/34 (50 articles)...
+2026-02-17 14:20:19,273 - INFO -   Batch 14: Extracted 10 claims
+2026-02-17 14:20:19,273 - INFO - Processing batch 15/34 (50 articles)...
+2026-02-17 14:20:24,165 - INFO -   Batch 15: Extracted 10 claims
+2026-02-17 14:20:24,165 - INFO - Processing batch 16/34 (50 articles)...
+2026-02-17 14:20:29,104 - INFO -   Batch 16: Extracted 10 claims
+2026-02-17 14:20:29,104 - INFO - Processing batch 17/34 (50 articles)...
+2026-02-17 14:20:34,506 - INFO -   Batch 17: Extracted 10 claims
+2026-02-17 14:20:34,506 - INFO - Processing batch 18/34 (50 articles)...
+2026-02-17 14:20:39,878 - INFO -   Batch 18: Extracted 10 claims
+2026-02-17 14:20:39,878 - INFO - Processing batch 19/34 (50 articles)...
+2026-02-17 14:20:44,559 - INFO -   Batch 19: Extracted 10 claims
+2026-02-17 14:20:44,559 - INFO - Processing batch 20/34 (50 articles)...
+2026-02-17 14:20:49,598 - INFO -   Batch 20: Extracted 10 claims
+2026-02-17 14:20:49,598 - INFO - Processing batch 21/34 (50 articles)...
+2026-02-17 14:20:54,198 - INFO -   Batch 21: Extracted 10 claims
+2026-02-17 14:20:54,198 - INFO - Processing batch 22/34 (50 articles)...
+2026-02-17 14:20:59,238 - INFO -   Batch 22: Extracted 10 claims
+2026-02-17 14:20:59,238 - INFO - Processing batch 23/34 (50 articles)...
+2026-02-17 14:21:04,935 - INFO -   Batch 23: Extracted 10 claims
+2026-02-17 14:21:04,936 - INFO - Processing batch 24/34 (50 articles)...
+2026-02-17 14:21:10,277 - INFO -   Batch 24: Extracted 10 claims
+2026-02-17 14:21:10,277 - INFO - Processing batch 25/34 (50 articles)...
+2026-02-17 14:21:15,653 - INFO -   Batch 25: Extracted 10 claims
+2026-02-17 14:21:15,653 - INFO - Processing batch 26/34 (50 articles)...
+2026-02-17 14:21:21,487 - INFO -   Batch 26: Extracted 10 claims
+2026-02-17 14:21:21,488 - INFO - Processing batch 27/34 (50 articles)...
+2026-02-17 14:21:26,383 - INFO -   Batch 27: Extracted 10 claims
+2026-02-17 14:21:26,383 - INFO - Processing batch 28/34 (50 articles)...
+2026-02-17 14:21:31,438 - INFO -   Batch 28: Extracted 10 claims
+2026-02-17 14:21:31,439 - INFO - Processing batch 29/34 (50 articles)...
+2026-02-17 14:21:37,241 - INFO -   Batch 29: Extracted 10 claims
+2026-02-17 14:21:37,241 - INFO - Processing batch 30/34 (50 articles)...
+2026-02-17 14:21:42,952 - INFO -   Batch 30: Extracted 10 claims
+2026-02-17 14:21:42,952 - INFO - Processing batch 31/34 (50 articles)...
+2026-02-17 14:21:48,167 - INFO -   Batch 31: Extracted 10 claims
+2026-02-17 14:21:48,167 - INFO - Processing batch 32/34 (50 articles)...
+2026-02-17 14:21:53,506 - INFO -   Batch 32: Extracted 10 claims
+2026-02-17 14:21:53,506 - INFO - Processing batch 33/34 (50 articles)...
+2026-02-17 14:21:58,825 - INFO -   Batch 33: Extracted 10 claims
+2026-02-17 14:21:58,825 - INFO - Processing batch 34/34 (7 articles)...
+2026-02-17 14:22:03,313 - INFO -   Batch 34: Extracted 10 claims
+2026-02-17 14:22:03,313 - INFO - ✅ Generated 330 raw claims from 34 batches
+2026-02-17 14:22:03,313 - INFO - Merging 330 claims...
+2026-02-17 14:22:03,315 - INFO - Merged to 321 unique claims
+2026-02-17 14:22:05,385 - INFO - Note: NumExpr detected 12 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+2026-02-17 14:22:05,385 - INFO - NumExpr defaulting to 8 threads.
+2026-02-17 14:22:06,820 - INFO - Deduplicating 321 claims with embeddings (threshold=0.85)...
+2026-02-17 14:22:06,862 - INFO - Use pytorch device_name: cuda:0
+2026-02-17 14:22:06,862 - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-02-17 14:22:12,001 - INFO - Processing 45 claims in category: Event
+2026-02-17 14:22:12,305 - INFO -   Category Event: 45 → 30 claims
+2026-02-17 14:22:12,305 - INFO - Processing 6 claims in category: Death Toll
+2026-02-17 14:22:12,315 - INFO -   Category Death Toll: 6 → 6 claims
+2026-02-17 14:22:12,315 - INFO - Processing 2 claims in category: Missing Persons
+2026-02-17 14:22:12,323 - INFO -   Category Missing Persons: 2 → 2 claims
+2026-02-17 14:22:12,323 - INFO - Processing 1 claims in category: Affected Population
+2026-02-17 14:22:12,323 - INFO - Processing 1 claims in category: Fatalities by Location
+2026-02-17 14:22:12,323 - INFO - Processing 2 claims in category: Weather Conditions
+2026-02-17 14:22:12,331 - INFO -   Category Weather Conditions: 2 → 2 claims
+2026-02-17 14:22:12,331 - INFO - Processing 1 claims in category: River Flooding
+2026-02-17 14:22:12,331 - INFO - Processing 15 claims in category: Government Response
+2026-02-17 14:22:12,340 - INFO -   Category Government Response: 15 → 15 claims
+2026-02-17 14:22:12,341 - INFO - Processing 15 claims in category: International Aid
+2026-02-17 14:22:12,351 - INFO -   Category International Aid: 15 → 15 claims
+2026-02-17 14:22:12,352 - INFO - Processing 1 claims in category: Forecast
+2026-02-17 14:22:12,352 - INFO - Processing 14 claims in category: Impact
+2026-02-17 14:22:12,361 - INFO -   Category Impact: 14 → 12 claims
+2026-02-17 14:22:12,361 - INFO - Processing 11 claims in category: International Response
+2026-02-17 14:22:12,369 - INFO -   Category International Response: 11 → 11 claims
+2026-02-17 14:22:12,369 - INFO - Processing 4 claims in category: Domestic Response
+2026-02-17 14:22:12,377 - INFO -   Category Domestic Response: 4 → 4 claims
+2026-02-17 14:22:12,377 - INFO - Processing 10 claims in category: Assistance
+2026-02-17 14:22:12,385 - INFO -   Category Assistance: 10 → 10 claims
+2026-02-17 14:22:12,385 - INFO - Processing 3 claims in category: Damage
+2026-02-17 14:22:12,392 - INFO -   Category Damage: 3 → 3 claims
+2026-02-17 14:22:12,392 - INFO - Processing 1 claims in category: Politics
+2026-02-17 14:22:12,392 - INFO - Processing 1 claims in category: Consequence
+2026-02-17 14:22:12,392 - INFO - Processing 8 claims in category: Response
+2026-02-17 14:22:12,400 - INFO -   Category Response: 8 → 8 claims
+2026-02-17 14:22:12,400 - INFO - Processing 4 claims in category: International Assistance
+2026-02-17 14:22:12,407 - INFO -   Category International Assistance: 4 → 4 claims
+2026-02-17 14:22:12,407 - INFO - Processing 2 claims in category: Domestic Assistance
+2026-02-17 14:22:12,413 - INFO -   Category Domestic Assistance: 2 → 2 claims
+2026-02-17 14:22:12,414 - INFO - Processing 1 claims in category: Impact on Education
+2026-02-17 14:22:12,414 - INFO - Processing 6 claims in category: Donation
+2026-02-17 14:22:12,421 - INFO -   Category Donation: 6 → 6 claims
+2026-02-17 14:22:12,421 - INFO - Processing 9 claims in category: Support
+2026-02-17 14:22:12,429 - INFO -   Category Support: 9 → 9 claims
+2026-02-17 14:22:12,429 - INFO - Processing 1 claims in category: Partnership
+2026-02-17 14:22:12,429 - INFO - Processing 4 claims in category: Economic Impact
+2026-02-17 14:22:12,436 - INFO -   Category Economic Impact: 4 → 4 claims
+2026-02-17 14:22:12,436 - INFO - Processing 1 claims in category: Military Assistance
+2026-02-17 14:22:12,436 - INFO - Processing 6 claims in category: Infrastructure Damage
+2026-02-17 14:22:12,443 - INFO -   Category Infrastructure Damage: 6 → 6 claims
+2026-02-17 14:22:12,443 - INFO - Processing 1 claims in category: Casualty
+2026-02-17 14:22:12,443 - INFO - Processing 1 claims in category: Fundraising
+2026-02-17 14:22:12,443 - INFO - Processing 1 claims in category: Infrastructure
+2026-02-17 14:22:12,443 - INFO - Processing 1 claims in category: Recovery Efforts
+2026-02-17 14:22:12,443 - INFO - Processing 4 claims in category: International Support
+2026-02-17 14:22:12,452 - INFO -   Category International Support: 4 → 4 claims
+2026-02-17 14:22:12,452 - INFO - Processing 1 claims in category: Domestic Aid
+2026-02-17 14:22:12,452 - INFO - Processing 2 claims in category: Government Request
+2026-02-17 14:22:12,459 - INFO -   Category Government Request: 2 → 1 claims
+2026-02-17 14:22:12,459 - INFO - Processing 2 claims in category: Government Action
+2026-02-17 14:22:12,466 - INFO -   Category Government Action: 2 → 2 claims
+2026-02-17 14:22:12,467 - INFO - Processing 1 claims in category: Essential Goods Availability
+2026-02-17 14:22:12,467 - INFO - Processing 1 claims in category: Financial Assistance Requested
+2026-02-17 14:22:12,467 - INFO - Processing 1 claims in category: Power Supply Restoration
+2026-02-17 14:22:12,467 - INFO - Processing 1 claims in category: Communications Architecture Changes
+2026-02-17 14:22:12,467 - INFO - Processing 1 claims in category: Relocation Requests
+2026-02-17 14:22:12,467 - INFO - Processing 1 claims in category: Dam Rehabilitation Funding
+2026-02-17 14:22:12,467 - INFO - Processing 1 claims in category: Grid Issues Highlighted
+2026-02-17 14:22:12,467 - INFO - Processing 5 claims in category: Policy
+2026-02-17 14:22:12,474 - INFO -   Category Policy: 5 → 5 claims
+2026-02-17 14:22:12,474 - INFO - Processing 1 claims in category: Social Issue
+2026-02-17 14:22:12,474 - INFO - Processing 1 claims in category: natural_disaster
+2026-02-17 14:22:12,474 - INFO - Processing 4 claims in category: economic_impact
+2026-02-17 14:22:12,481 - INFO -   Category economic_impact: 4 → 4 claims
+2026-02-17 14:22:12,481 - INFO - Processing 1 claims in category: international_response
+2026-02-17 14:22:12,481 - INFO - Processing 1 claims in category: humanitarian_assistance
+2026-02-17 14:22:12,481 - INFO - Processing 4 claims in category: infrastructure_damage
+2026-02-17 14:22:12,488 - INFO -   Category infrastructure_damage: 4 → 3 claims
+2026-02-17 14:22:12,488 - INFO - Processing 2 claims in category: government_response
+2026-02-17 14:22:12,495 - INFO -   Category government_response: 2 → 2 claims
+2026-02-17 14:22:12,495 - INFO - Processing 1 claims in category: private_sector_response
+2026-02-17 14:22:12,495 - INFO - Processing 1 claims in category: tea_industry_recovery
+2026-02-17 14:22:12,495 - INFO - Processing 1 claims in category: economic_development
+2026-02-17 14:22:12,495 - INFO - Processing 1 claims in category: international_support
+2026-02-17 14:22:12,495 - INFO - Processing 1 claims in category: Specific Damage
+2026-02-17 14:22:12,495 - INFO - Processing 1 claims in category: Environmental Impact
+2026-02-17 14:22:12,495 - INFO - Processing 2 claims in category: Recovery
+2026-02-17 14:22:12,501 - INFO -   Category Recovery: 2 → 2 claims
+2026-02-17 14:22:12,501 - INFO - Processing 1 claims in category: Criticism
+2026-02-17 14:22:12,501 - INFO - Processing 1 claims in category: Precaution
+2026-02-17 14:22:12,501 - INFO - Processing 1 claims in category: Industry Impact
+2026-02-17 14:22:12,501 - INFO - Processing 1 claims in category: Donations and Support
+2026-02-17 14:22:12,501 - INFO - Processing 1 claims in category: Government Criticism
+2026-02-17 14:22:12,501 - INFO - Processing 2 claims in category: Reconstruction Efforts
+2026-02-17 14:22:12,508 - INFO -   Category Reconstruction Efforts: 2 → 2 claims
+2026-02-17 14:22:12,508 - INFO - Processing 1 claims in category: Government Decisions
+2026-02-17 14:22:12,509 - INFO - Processing 1 claims in category: Disaster
+2026-02-17 14:22:12,509 - INFO - Processing 1 claims in category: Disaster Management
+2026-02-17 14:22:12,509 - INFO - Processing 5 claims in category: Domestic Support
+2026-02-17 14:22:12,517 - INFO -   Category Domestic Support: 5 → 5 claims
+2026-02-17 14:22:12,517 - INFO - Processing 1 claims in category: Human Cost
+2026-02-17 14:22:12,517 - INFO - Processing 1 claims in category: Government Directive
+2026-02-17 14:22:12,517 - INFO - Processing 1 claims in category: Disaster Impact
+2026-02-17 14:22:12,517 - INFO - Processing 1 claims in category: Support for Affected Communities
+2026-02-17 14:22:12,517 - INFO - Processing 1 claims in category: Education Response
+2026-02-17 14:22:12,517 - INFO - Processing 1 claims in category: Industry Revival
+2026-02-17 14:22:12,517 - INFO - Processing 1 claims in category: Health Response
+2026-02-17 14:22:12,517 - INFO - Processing 1 claims in category: Child Protection
+2026-02-17 14:22:12,517 - INFO - Processing 1 claims in category: Economic Support
+2026-02-17 14:22:12,517 - INFO - Processing 1 claims in category: Tourism Recovery
+2026-02-17 14:22:12,517 - INFO - Processing 1 claims in category: Displacement
+2026-02-17 14:22:12,517 - INFO - Processing 7 claims in category: Humanitarian Aid
+2026-02-17 14:22:12,523 - INFO -   Category Humanitarian Aid: 7 → 7 claims
+2026-02-17 14:22:12,523 - INFO - Processing 1 claims in category: Relief Efforts
+2026-02-17 14:22:12,523 - INFO - Processing 1 claims in category: Economy
+2026-02-17 14:22:12,523 - INFO - Processing 1 claims in category: Reconstruction
+2026-02-17 14:22:12,523 - INFO - Processing 1 claims in category: Cause
+2026-02-17 14:22:12,523 - INFO - Processing 2 claims in category: Financial Assistance
+2026-02-17 14:22:12,532 - INFO -   Category Financial Assistance: 2 → 2 claims
+2026-02-17 14:22:12,532 - INFO - Processing 1 claims in category: Social Support
+2026-02-17 14:22:12,532 - INFO - Processing 1 claims in category: International Cooperation
+2026-02-17 14:22:12,532 - INFO - Processing 1 claims in category: Budget Allocation
+2026-02-17 14:22:12,532 - INFO - Processing 1 claims in category: Location
+2026-02-17 14:22:12,532 - INFO - Processing 1 claims in category: Impact on Insurers
+2026-02-17 14:22:12,532 - INFO - Processing 1 claims in category: Financial Support
+2026-02-17 14:22:12,532 - INFO - Processing 1 claims in category: Impact on Export Businesses
+2026-02-17 14:22:12,532 - INFO - Processing 1 claims in category: Legislation
+2026-02-17 14:22:12,532 - INFO - Processing 1 claims in category: Impact on Manufacturing Sector
+2026-02-17 14:22:12,532 - INFO - Processing 1 claims in category: Impact on Wildlife Tourism
+2026-02-17 14:22:12,532 - INFO - Processing 1 claims in category: Donations
+2026-02-17 14:22:12,532 - INFO - Processing 5 claims in category: Economic Aid
+2026-02-17 14:22:12,540 - INFO -   Category Economic Aid: 5 → 5 claims
+2026-02-17 14:22:12,540 - INFO - Processing 1 claims in category: Food Shortage
+2026-02-17 14:22:12,540 - INFO - Processing 1 claims in category: Recovery Timeframe
+2026-02-17 14:22:12,540 - INFO - Processing 1 claims in category: Impact on Population
+2026-02-17 14:22:12,540 - INFO - Processing 1 claims in category: Damage and Destruction
+2026-02-17 14:22:12,540 - INFO - Processing 2 claims in category: Government Response and Funding
+2026-02-17 14:22:12,548 - INFO -   Category Government Response and Funding: 2 → 2 claims
+2026-02-17 14:22:12,548 - INFO - Processing 1 claims in category: Health and Disease Outbreaks
+2026-02-17 14:22:12,548 - INFO - Processing 1 claims in category: Humanitarian Assistance
+2026-02-17 14:22:12,548 - INFO - Processing 1 claims in category: Environmental Conservation
+2026-02-17 14:22:12,548 - INFO - Processing 1 claims in category: Government Accountability
+2026-02-17 14:22:12,548 - INFO - Processing 3 claims in category: Economic Development
+2026-02-17 14:22:12,554 - INFO -   Category Economic Development: 3 → 3 claims
+2026-02-17 14:22:12,554 - INFO - Processing 2 claims in category: International Relations
+2026-02-17 14:22:12,560 - INFO -   Category International Relations: 2 → 2 claims
+2026-02-17 14:22:12,560 - INFO - Processing 1 claims in category: Disaster Risk Reduction
+2026-02-17 14:22:12,560 - INFO - Processing 2 claims in category: Initiative
+2026-02-17 14:22:12,567 - INFO -   Category Initiative: 2 → 2 claims
+2026-02-17 14:22:12,567 - INFO - Processing 1 claims in category: Loan
+2026-02-17 14:22:12,567 - INFO - Processing 3 claims in category: damage
+2026-02-17 14:22:12,573 - INFO -   Category damage: 3 → 3 claims
+2026-02-17 14:22:12,573 - INFO - Processing 2 claims in category: impact
+2026-02-17 14:22:12,579 - INFO -   Category impact: 2 → 2 claims
+2026-02-17 14:22:12,579 - INFO - Processing 1 claims in category: visit
+2026-02-17 14:22:12,579 - INFO - Processing 1 claims in category: support
+2026-02-17 14:22:12,579 - INFO - Processing 1 claims in category: aid
+2026-02-17 14:22:12,579 - INFO - Processing 1 claims in category: donation
+2026-02-17 14:22:12,579 - INFO - Processing 1 claims in category: appointment
+2026-02-17 14:22:12,579 - INFO - Processing 1 claims in category: Labor Market Impact
+2026-02-17 14:22:12,579 - INFO - Processing 1 claims in category: Community Support
+2026-02-17 14:22:12,579 - INFO - Processing 2 claims in category: Government Policy
+2026-02-17 14:22:12,585 - INFO -   Category Government Policy: 2 → 2 claims
+2026-02-17 14:22:12,585 - INFO - Processing 1 claims in category: Recommendations
+2026-02-17 14:22:12,585 - INFO - Processing 1 claims in category: Humanitarian Crisis
+2026-02-17 14:22:12,585 - INFO - Processing 2 claims in category: Education
+2026-02-17 14:22:12,590 - INFO -   Category Education: 2 → 2 claims
+2026-02-17 14:22:12,590 - INFO - Processing 1 claims in category: Impact on Colombo
+2026-02-17 14:22:12,590 - INFO - Processing 1 claims in category: Tourism
+2026-02-17 14:22:12,590 - INFO - Processing 1 claims in category: Infrastructure Restoration
+2026-02-17 14:22:12,590 - INFO - Processing 1 claims in category: Charitable Efforts
+2026-02-17 14:22:12,590 - INFO - Processing 1 claims in category: relief_operations
+2026-02-17 14:22:12,590 - INFO - Processing 1 claims in category: weather_warnings
+2026-02-17 14:22:12,590 - INFO - Processing 1 claims in category: casualties_and_displacement
+2026-02-17 14:22:12,590 - INFO - Deduplicated to 302 unique claims
+2026-02-17 14:22:12,591 - INFO - Filtered 302 claims to 4 claims with >=5 articles
+2026-02-17 14:22:12,591 - INFO - ✅ 4 claims passed filters
+2026-02-17 14:22:12,615 - INFO - Stored 4 claims
+2026-02-17 14:22:12,641 - INFO - Analyzing claim 1/4: Cyclone Ditwah caused widespread destruction in Sri Lanka....
+2026-02-17 14:22:12,709 - INFO -   Sentiment: 47 records
+2026-02-17 14:22:59,875 - ERROR - Error analyzing stance: Expecting value: line 4 column 21 (char 84)
+2026-02-17 14:23:01,766 - INFO -   Stance: 44 records
+2026-02-17 14:23:01,766 - INFO - Analyzing claim 2/4: The cyclone affected over 1 million people across all distri...
+2026-02-17 14:23:01,813 - INFO -   Sentiment: 5 records
+2026-02-17 14:23:06,691 - INFO -   Stance: 5 records
+2026-02-17 14:23:06,691 - INFO - Analyzing claim 3/4: The cyclone affected over 2 million people, with many left h...
+2026-02-17 14:23:06,745 - INFO -   Sentiment: 5 records
+2026-02-17 14:23:11,919 - INFO -   Stance: 5 records
+2026-02-17 14:23:11,919 - INFO - Analyzing claim 4/4: Cyclone Ditwah caused significant damage and loss of life in...
+2026-02-17 14:23:11,965 - INFO -   Sentiment: 5 records
+2026-02-17 14:23:17,887 - INFO -   Stance: 5 records
+2026-02-17 14:23:17,887 - INFO - 
+============================================================
+2026-02-17 14:23:17,887 - INFO - ✅ Pipeline complete!
+2026-02-17 14:23:17,887 - INFO -    Claims with both sentiment & stance: 4/4
+2026-02-17 14:23:17,887 - INFO -    Total sentiment records: 62
+2026-02-17 14:23:17,887 - INFO -    Total stance records: 59
+2026-02-17 14:23:17,887 - INFO - ============================================================
+2026-02-17 14:23:17,888 - INFO - 
+============================================================
+2026-02-17 14:23:17,888 - INFO - PIPELINE SUMMARY
+2026-02-17 14:23:17,888 - INFO - ============================================================
+2026-02-17 14:23:17,888 - INFO - Total Ditwah articles: 1657
+2026-02-17 14:23:17,888 - INFO - Batches processed: 34
+2026-02-17 14:23:17,888 - INFO - Raw claims generated: 330
+2026-02-17 14:23:17,888 - INFO - After merging duplicates: 321
+2026-02-17 14:23:17,888 - INFO - After LLM deduplication: 302
+2026-02-17 14:23:17,888 - INFO - After filtering (≥5 articles): 4
+2026-02-17 14:23:17,888 - INFO - Claims with sentiment & stance: 4
+2026-02-17 14:23:17,888 - INFO - Total sentiment records: 62
+2026-02-17 14:23:17,888 - INFO - Total stance records: 59
+2026-02-17 14:23:17,888 - INFO - ============================================================
+2026-02-17 14:23:17,908 - INFO - 
+✅ Pipeline complete! Version ec3a12d5-983d-46fe-bdce-e79a7509fe51 is ready.

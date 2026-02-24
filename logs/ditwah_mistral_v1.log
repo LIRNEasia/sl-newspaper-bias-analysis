@@ -1,0 +1,384 @@
+2026-02-17 14:25:17,567 - INFO - Version: specific-claims-mistral-v1
+2026-02-17 14:25:17,567 - INFO - Description: 22 specific debatable claims using Mistral large
+2026-02-17 14:25:17,567 - INFO - Analysis type: ditwah_claims
+2026-02-17 14:25:17,567 - INFO - Min articles per claim: 5
+2026-02-17 14:25:17,567 - INFO - LLM provider: mistral
+2026-02-17 14:25:17,567 - INFO - LLM model: mistral-large-latest
+2026-02-17 14:25:17,567 - INFO - 
+Starting BATCHED claims generation pipeline...
+2026-02-17 14:25:17,567 - INFO - This will:
+2026-02-17 14:25:17,567 - INFO -   1. Process articles in batches of 50
+2026-02-17 14:25:17,567 - INFO -   2. Generate claims from each batch
+2026-02-17 14:25:17,567 - INFO -   3. Merge and deduplicate claims
+2026-02-17 14:25:17,568 - INFO -   4. Filter claims with < 5 articles
+2026-02-17 14:25:17,568 - INFO -   5. Analyze sentiment and stance for all claims
+2026-02-17 14:25:17,568 - INFO -   6. Keep only claims with BOTH sentiment and stance data
+
+2026-02-17 14:25:17,576 - INFO - Starting batched Ditwah claims pipeline for version 576210ba-c5b1-4a12-9faa-640a09d94912
+2026-02-17 14:25:17,648 - INFO - Found 1657 Ditwah articles
+2026-02-17 14:25:17,649 - INFO - Processing 1657 Ditwah articles in batches
+2026-02-17 14:25:18,422 - INFO - Processing batch 1/34 (50 articles)...
+2026-02-17 14:26:11,908 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:26:11,918 - INFO -   Batch 1: Extracted 33 claims
+2026-02-17 14:26:11,918 - INFO - Processing batch 2/34 (50 articles)...
+2026-02-17 14:26:51,190 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:26:51,192 - INFO -   Batch 2: Extracted 30 claims
+2026-02-17 14:26:51,193 - INFO - Processing batch 3/34 (50 articles)...
+2026-02-17 14:27:33,244 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:27:33,247 - INFO -   Batch 3: Extracted 29 claims
+2026-02-17 14:27:33,247 - INFO - Processing batch 4/34 (50 articles)...
+2026-02-17 14:28:04,844 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:28:04,851 - INFO -   Batch 4: Extracted 25 claims
+2026-02-17 14:28:04,851 - INFO - Processing batch 5/34 (50 articles)...
+2026-02-17 14:28:38,950 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:28:38,952 - INFO -   Batch 5: Extracted 28 claims
+2026-02-17 14:28:38,953 - INFO - Processing batch 6/34 (50 articles)...
+2026-02-17 14:29:22,000 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:29:22,006 - INFO -   Batch 6: Extracted 29 claims
+2026-02-17 14:29:22,006 - INFO - Processing batch 7/34 (50 articles)...
+2026-02-17 14:29:51,264 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:29:51,266 - INFO -   Batch 7: Extracted 26 claims
+2026-02-17 14:29:51,266 - INFO - Processing batch 8/34 (50 articles)...
+2026-02-17 14:30:31,626 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:30:31,630 - INFO -   Batch 8: Extracted 35 claims
+2026-02-17 14:30:31,630 - INFO - Processing batch 9/34 (50 articles)...
+2026-02-17 14:31:10,076 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:31:10,091 - INFO -   Batch 9: Extracted 28 claims
+2026-02-17 14:31:10,091 - INFO - Processing batch 10/34 (50 articles)...
+2026-02-17 14:31:52,184 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:31:52,186 - INFO -   Batch 10: Extracted 25 claims
+2026-02-17 14:31:52,186 - INFO - Processing batch 11/34 (50 articles)...
+2026-02-17 14:32:20,580 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:32:20,583 - INFO -   Batch 11: Extracted 24 claims
+2026-02-17 14:32:20,583 - INFO - Processing batch 12/34 (50 articles)...
+2026-02-17 14:33:06,070 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:33:06,073 - INFO -   Batch 12: Extracted 34 claims
+2026-02-17 14:33:06,073 - INFO - Processing batch 13/34 (50 articles)...
+2026-02-17 14:33:52,892 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:33:52,895 - INFO -   Batch 13: Extracted 31 claims
+2026-02-17 14:33:52,895 - INFO - Processing batch 14/34 (50 articles)...
+2026-02-17 14:34:40,139 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:34:40,142 - INFO -   Batch 14: Extracted 30 claims
+2026-02-17 14:34:40,142 - INFO - Processing batch 15/34 (50 articles)...
+2026-02-17 14:35:16,824 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:35:16,840 - INFO -   Batch 15: Extracted 34 claims
+2026-02-17 14:35:16,840 - INFO - Processing batch 16/34 (50 articles)...
+2026-02-17 14:35:49,355 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:35:49,357 - INFO -   Batch 16: Extracted 28 claims
+2026-02-17 14:35:49,357 - INFO - Processing batch 17/34 (50 articles)...
+2026-02-17 14:36:25,925 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:36:25,928 - INFO -   Batch 17: Extracted 32 claims
+2026-02-17 14:36:25,928 - INFO - Processing batch 18/34 (50 articles)...
+2026-02-17 14:37:01,603 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:37:01,607 - INFO -   Batch 18: Extracted 33 claims
+2026-02-17 14:37:01,607 - INFO - Processing batch 19/34 (50 articles)...
+2026-02-17 14:37:33,051 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:37:33,054 - INFO -   Batch 19: Extracted 25 claims
+2026-02-17 14:37:33,054 - INFO - Processing batch 20/34 (50 articles)...
+2026-02-17 14:38:03,548 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:38:03,551 - INFO -   Batch 20: Extracted 28 claims
+2026-02-17 14:38:03,551 - INFO - Processing batch 21/34 (50 articles)...
+2026-02-17 14:38:39,855 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:38:39,859 - INFO -   Batch 21: Extracted 32 claims
+2026-02-17 14:38:39,859 - INFO - Processing batch 22/34 (50 articles)...
+2026-02-17 14:39:13,137 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:39:13,139 - INFO -   Batch 22: Extracted 28 claims
+2026-02-17 14:39:13,139 - INFO - Processing batch 23/34 (50 articles)...
+2026-02-17 14:39:42,926 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:39:42,937 - INFO -   Batch 23: Extracted 25 claims
+2026-02-17 14:39:42,938 - INFO - Processing batch 24/34 (50 articles)...
+2026-02-17 14:40:19,129 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:40:19,132 - INFO -   Batch 24: Extracted 34 claims
+2026-02-17 14:40:19,132 - INFO - Processing batch 25/34 (50 articles)...
+2026-02-17 14:40:52,299 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:40:52,302 - INFO -   Batch 25: Extracted 29 claims
+2026-02-17 14:40:52,302 - INFO - Processing batch 26/34 (50 articles)...
+2026-02-17 14:41:18,008 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:41:18,010 - INFO -   Batch 26: Extracted 25 claims
+2026-02-17 14:41:18,010 - INFO - Processing batch 27/34 (50 articles)...
+2026-02-17 14:41:49,045 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:41:49,049 - INFO -   Batch 27: Extracted 29 claims
+2026-02-17 14:41:49,049 - INFO - Processing batch 28/34 (50 articles)...
+2026-02-17 14:42:20,078 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:42:20,080 - INFO -   Batch 28: Extracted 24 claims
+2026-02-17 14:42:20,080 - INFO - Processing batch 29/34 (50 articles)...
+2026-02-17 14:42:48,923 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:42:48,926 - INFO -   Batch 29: Extracted 25 claims
+2026-02-17 14:42:48,927 - INFO - Processing batch 30/34 (50 articles)...
+2026-02-17 14:43:16,019 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:43:16,023 - INFO -   Batch 30: Extracted 24 claims
+2026-02-17 14:43:16,024 - INFO - Processing batch 31/34 (50 articles)...
+2026-02-17 14:43:43,396 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:43:43,400 - INFO -   Batch 31: Extracted 24 claims
+2026-02-17 14:43:43,400 - INFO - Processing batch 32/34 (50 articles)...
+2026-02-17 14:44:17,846 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:44:17,859 - INFO -   Batch 32: Extracted 30 claims
+2026-02-17 14:44:17,859 - INFO - Processing batch 33/34 (50 articles)...
+2026-02-17 14:44:54,472 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:44:54,474 - INFO -   Batch 33: Extracted 32 claims
+2026-02-17 14:44:54,474 - INFO - Processing batch 34/34 (7 articles)...
+2026-02-17 14:45:05,211 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:45:05,214 - INFO -   Batch 34: Extracted 15 claims
+2026-02-17 14:45:05,214 - INFO - ✅ Generated 963 raw claims from 34 batches
+2026-02-17 14:45:05,215 - INFO - Merging 963 claims...
+2026-02-17 14:45:05,219 - INFO - Merged to 961 unique claims
+2026-02-17 14:45:07,427 - INFO - Note: NumExpr detected 12 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+2026-02-17 14:45:07,427 - INFO - NumExpr defaulting to 8 threads.
+2026-02-17 14:45:08,892 - INFO - Deduplicating 961 claims with embeddings (threshold=0.85)...
+2026-02-17 14:45:08,937 - INFO - Use pytorch device_name: cuda:0
+2026-02-17 14:45:08,937 - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-02-17 14:45:13,845 - INFO - Processing 45 claims in category: weather_warnings
+2026-02-17 14:45:14,120 - INFO -   Category weather_warnings: 45 → 33 claims
+2026-02-17 14:45:14,120 - INFO - Processing 138 claims in category: casualties_and_displacement
+2026-02-17 14:45:14,165 - INFO -   Category casualties_and_displacement: 138 → 68 claims
+2026-02-17 14:45:14,165 - INFO - Processing 114 claims in category: government_response
+2026-02-17 14:45:14,205 - INFO -   Category government_response: 114 → 100 claims
+2026-02-17 14:45:14,205 - INFO - Processing 142 claims in category: infrastructure_damage
+2026-02-17 14:45:14,255 - INFO -   Category infrastructure_damage: 142 → 102 claims
+2026-02-17 14:45:14,255 - INFO - Processing 113 claims in category: economic_impact
+2026-02-17 14:45:14,297 - INFO -   Category economic_impact: 113 → 97 claims
+2026-02-17 14:45:14,297 - INFO - Processing 225 claims in category: international_response
+2026-02-17 14:45:14,391 - INFO -   Category international_response: 225 → 157 claims
+2026-02-17 14:45:14,391 - INFO - Processing 146 claims in category: relief_operations
+2026-02-17 14:45:14,445 - INFO -   Category relief_operations: 146 → 123 claims
+2026-02-17 14:45:14,445 - INFO - Processing 38 claims in category: recovery
+2026-02-17 14:45:14,464 - INFO -   Category recovery: 38 → 35 claims
+2026-02-17 14:45:14,464 - INFO - Deduplicated to 715 unique claims
+2026-02-17 14:45:14,464 - INFO - Filtered 715 claims to 41 claims with >=5 articles
+2026-02-17 14:45:14,464 - INFO - ✅ 41 claims passed filters
+2026-02-17 14:45:14,494 - INFO - Stored 41 claims
+2026-02-17 14:45:14,516 - INFO - Analyzing claim 1/41: Cyclone Ditwah was expected to move north-northwestwards and...
+2026-02-17 14:45:14,567 - INFO -   Sentiment: 8 records
+2026-02-17 14:45:25,177 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:45:32,105 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:45:32,141 - INFO -   Stance: 8 records
+2026-02-17 14:45:32,142 - INFO - Analyzing claim 2/41: Cyclone Ditwah caused very heavy rainfall exceeding 200 mm i...
+2026-02-17 14:45:32,193 - INFO -   Sentiment: 8 records
+2026-02-17 14:45:43,190 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:45:50,826 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:45:50,865 - INFO -   Stance: 8 records
+2026-02-17 14:45:50,865 - INFO - Analyzing claim 3/41: Strong winds of 60 to 70 km/h, gusting up to 80–90 km/h, wer...
+2026-02-17 14:45:50,921 - INFO -   Sentiment: 5 records
+2026-02-17 14:46:00,658 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:46:00,700 - INFO -   Stance: 5 records
+2026-02-17 14:46:00,701 - INFO - Analyzing claim 4/41: Cyclone Ditwah struck Sri Lanka on 27 November 2025....
+2026-02-17 14:46:00,762 - INFO -   Sentiment: 20 records
+2026-02-17 14:46:12,422 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:46:22,376 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:46:31,252 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:46:42,118 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:46:42,158 - INFO -   Stance: 20 records
+2026-02-17 14:46:42,158 - INFO - Analyzing claim 5/41: Death toll due to Cyclone Ditwah reached 153, with 191 missi...
+2026-02-17 14:46:42,203 - INFO -   Sentiment: 6 records
+2026-02-17 14:46:53,312 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:46:56,476 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:46:56,511 - INFO -   Stance: 6 records
+2026-02-17 14:46:56,511 - INFO - Analyzing claim 6/41: Death toll due to Cyclone Ditwah reached 334, with nearly 40...
+2026-02-17 14:46:56,562 - INFO -   Sentiment: 5 records
+2026-02-17 14:47:06,553 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:47:06,590 - INFO -   Stance: 5 records
+2026-02-17 14:47:06,590 - INFO - Analyzing claim 7/41: Cyclone Ditwah resulted in at least 334 deaths in Sri Lanka....
+2026-02-17 14:47:06,652 - INFO -   Sentiment: 24 records
+2026-02-17 14:47:16,743 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:47:26,478 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:47:36,975 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:47:47,386 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:47:47,388 - WARNING - LLM returned invalid article_id: a26620e3-fcab-433c-b2b5-7c52b3585ece, skipping
+2026-02-17 14:47:54,906 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:47:54,946 - INFO -   Stance: 23 records
+2026-02-17 14:47:54,946 - INFO - Analyzing claim 8/41: 370 people remain missing due to Cyclone Ditwah in Sri Lanka...
+2026-02-17 14:47:54,994 - INFO -   Sentiment: 7 records
+2026-02-17 14:48:06,851 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:48:11,181 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:48:11,216 - INFO -   Stance: 7 records
+2026-02-17 14:48:11,217 - INFO - Analyzing claim 9/41: Over 998,000 people were affected by Cyclone Ditwah in Sri L...
+2026-02-17 14:48:11,287 - INFO -   Sentiment: 36 records
+2026-02-17 14:48:19,996 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:48:29,680 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:48:40,515 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:48:51,739 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:49:01,245 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:49:01,248 - WARNING - LLM returned invalid article_id: c253bf49-e103-43e8-9689-42dcfb525c0c, skipping
+2026-02-17 14:49:12,214 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:49:23,045 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:49:26,035 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:49:26,073 - INFO -   Stance: 35 records
+2026-02-17 14:49:26,073 - INFO - Analyzing claim 10/41: Cyclone Ditwah resulted in 366 deaths and 367 missing person...
+2026-02-17 14:49:26,124 - INFO -   Sentiment: 11 records
+2026-02-17 14:49:36,801 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:49:49,145 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:49:52,634 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:49:52,680 - INFO -   Stance: 11 records
+2026-02-17 14:49:52,680 - INFO - Analyzing claim 11/41: Over 275,000 children have been affected by Cyclone Ditwah....
+2026-02-17 14:49:52,729 - INFO -   Sentiment: 7 records
+2026-02-17 14:50:02,585 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:50:08,209 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:50:08,241 - INFO -   Stance: 7 records
+2026-02-17 14:50:08,241 - INFO - Analyzing claim 12/41: At least 192 individuals remain missing following Cyclone Di...
+2026-02-17 14:50:08,298 - INFO -   Sentiment: 5 records
+2026-02-17 14:50:17,797 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:50:17,833 - INFO -   Stance: 5 records
+2026-02-17 14:50:17,833 - INFO - Analyzing claim 13/41: 69,861 individuals from 22,218 families were displaced and h...
+2026-02-17 14:50:17,877 - INFO -   Sentiment: 6 records
+2026-02-17 14:50:28,314 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:50:31,664 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:50:31,702 - INFO -   Stance: 6 records
+2026-02-17 14:50:31,702 - INFO - Analyzing claim 14/41: The International Labour Organization (ILO) estimates that 3...
+2026-02-17 14:50:31,746 - INFO -   Sentiment: 5 records
+2026-02-17 14:50:42,053 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:50:42,103 - INFO -   Stance: 5 records
+2026-02-17 14:50:42,103 - INFO - Analyzing claim 15/41: The 'Rebuilding Sri Lanka' Fund was established to provide r...
+2026-02-17 14:50:42,152 - INFO -   Sentiment: 12 records
+2026-02-17 14:50:53,169 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:51:03,859 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:51:09,140 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:51:09,183 - INFO -   Stance: 12 records
+2026-02-17 14:51:09,183 - INFO - Analyzing claim 16/41: Three houses were completely damaged and 431 houses partiall...
+2026-02-17 14:51:09,234 - INFO -   Sentiment: 6 records
+2026-02-17 14:51:19,179 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:51:22,244 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:51:22,281 - INFO -   Stance: 6 records
+2026-02-17 14:51:22,281 - INFO - Analyzing claim 17/41: Cyclone Ditwah caused destruction to roads, bridges, railway...
+2026-02-17 14:51:22,334 - INFO -   Sentiment: 9 records
+2026-02-17 14:51:33,716 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:51:43,801 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:51:43,835 - INFO -   Stance: 9 records
+2026-02-17 14:51:43,835 - INFO - Analyzing claim 18/41: Floods and landslides caused major disruptions to infrastruc...
+2026-02-17 14:51:43,895 - INFO -   Sentiment: 5 records
+2026-02-17 14:51:55,424 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:51:55,462 - INFO -   Stance: 5 records
+2026-02-17 14:51:55,462 - INFO - Analyzing claim 19/41: Cyclone Ditwah damaged approximately 30,000 homes in Sri Lan...
+2026-02-17 14:51:55,512 - INFO -   Sentiment: 9 records
+2026-02-17 14:52:06,449 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:52:15,427 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:52:15,461 - INFO -   Stance: 9 records
+2026-02-17 14:52:15,462 - INFO - Analyzing claim 20/41: Cyclone Ditwah disrupted a total of 16,476 businesses nation...
+2026-02-17 14:52:15,511 - INFO -   Sentiment: 5 records
+2026-02-17 14:52:29,744 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:52:29,796 - INFO -   Stance: 5 records
+2026-02-17 14:52:29,797 - INFO - Analyzing claim 21/41: Potential income losses for workers affected by Cyclone Ditw...
+2026-02-17 14:52:29,844 - INFO -   Sentiment: 5 records
+2026-02-17 14:52:40,054 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:52:40,084 - INFO -   Stance: 5 records
+2026-02-17 14:52:40,084 - INFO - Analyzing claim 22/41: India launched 'Operation Sagar Bandhu,' a humanitarian reli...
+2026-02-17 14:52:40,138 - INFO -   Sentiment: 18 records
+2026-02-17 14:52:52,491 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:53:05,303 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:53:17,389 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:53:25,481 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:53:25,526 - INFO -   Stance: 18 records
+2026-02-17 14:53:25,526 - INFO - Analyzing claim 23/41: The United States announced a $2 million aid package to supp...
+2026-02-17 14:53:25,582 - INFO -   Sentiment: 5 records
+2026-02-17 14:53:38,153 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:53:38,190 - INFO -   Stance: 5 records
+2026-02-17 14:53:38,190 - INFO - Analyzing claim 24/41: Australia pledged AUD 1 million to support Sri Lanka’s disas...
+2026-02-17 14:53:38,247 - INFO -   Sentiment: 8 records
+2026-02-17 14:53:48,858 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:53:56,551 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:53:56,582 - INFO -   Stance: 8 records
+2026-02-17 14:53:56,582 - INFO - Analyzing claim 25/41: China donated $100,000 in emergency assistance to the Sri La...
+2026-02-17 14:53:56,630 - INFO -   Sentiment: 5 records
+2026-02-17 14:54:07,261 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:54:07,301 - INFO -   Stance: 5 records
+2026-02-17 14:54:07,301 - INFO - Analyzing claim 26/41: Pakistan dispatched 200 tons of emergency relief items, incl...
+2026-02-17 14:54:07,350 - INFO -   Sentiment: 6 records
+2026-02-17 14:54:17,654 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:54:21,689 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:54:21,721 - INFO -   Stance: 6 records
+2026-02-17 14:54:21,721 - INFO - Analyzing claim 27/41: Sri Lanka formally requested USD 200 million in emergency IM...
+2026-02-17 14:54:21,764 - INFO -   Sentiment: 6 records
+2026-02-17 14:54:35,679 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:54:39,113 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:54:39,146 - INFO -   Stance: 6 records
+2026-02-17 14:54:39,146 - INFO - Analyzing claim 28/41: The United States deployed two C-130J Super Hercules aircraf...
+2026-02-17 14:54:39,196 - INFO -   Sentiment: 7 records
+2026-02-17 14:54:53,220 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:55:00,488 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:55:00,526 - INFO -   Stance: 7 records
+2026-02-17 14:55:00,526 - INFO - Analyzing claim 29/41: The IMF is considering Sri Lanka’s request for $200 million ...
+2026-02-17 14:55:00,576 - INFO -   Sentiment: 5 records
+2026-02-17 14:55:13,313 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:55:13,351 - INFO -   Stance: 5 records
+2026-02-17 14:55:13,351 - INFO - Analyzing claim 30/41: China donated humanitarian aid worth Rs. 400 million, includ...
+2026-02-17 14:55:13,401 - INFO -   Sentiment: 5 records
+2026-02-17 14:55:26,603 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:55:26,630 - INFO -   Stance: 5 records
+2026-02-17 14:55:26,631 - INFO - Analyzing claim 31/41: Russia delivered 35 tonnes of humanitarian aid, including fo...
+2026-02-17 14:55:26,683 - INFO -   Sentiment: 6 records
+2026-02-17 14:55:41,690 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:55:45,006 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:55:45,048 - INFO -   Stance: 6 records
+2026-02-17 14:55:45,049 - INFO - Analyzing claim 32/41: Japan extended a $2.5 million emergency grant to Sri Lanka t...
+2026-02-17 14:55:45,100 - INFO -   Sentiment: 7 records
+2026-02-17 14:55:57,859 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:56:04,139 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:56:04,171 - INFO -   Stance: 7 records
+2026-02-17 14:56:04,171 - INFO - Analyzing claim 33/41: The European Union allocated over €2.35 million in humanitar...
+2026-02-17 14:56:04,221 - INFO -   Sentiment: 5 records
+2026-02-17 14:56:17,995 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:56:18,033 - INFO -   Stance: 5 records
+2026-02-17 14:56:18,033 - INFO - Analyzing claim 34/41: The IMF approved an emergency disbursement of SDR 150.5 mill...
+2026-02-17 14:56:18,091 - INFO -   Sentiment: 6 records
+2026-02-17 14:56:32,613 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:56:36,188 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:56:36,228 - INFO -   Stance: 6 records
+2026-02-17 14:56:36,228 - INFO - Analyzing claim 35/41: Indian External Affairs Minister S. Jaishankar visited Sri L...
+2026-02-17 14:56:36,280 - INFO -   Sentiment: 12 records
+2026-02-17 14:56:48,149 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:57:00,779 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:57:06,429 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:57:06,464 - INFO -   Stance: 12 records
+2026-02-17 14:57:06,464 - INFO - Analyzing claim 36/41: India provided a $450 million assistance package for Sri Lan...
+2026-02-17 14:57:06,513 - INFO -   Sentiment: 10 records
+2026-02-17 14:57:17,614 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:57:30,615 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:57:30,662 - INFO -   Stance: 10 records
+2026-02-17 14:57:30,662 - INFO - Analyzing claim 37/41: HUTCH Sri Lanka donated Rs. 60 million to the 'Rebuilding Sr...
+2026-02-17 14:57:30,711 - INFO -   Sentiment: 6 records
+2026-02-17 14:57:42,275 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:57:45,643 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:57:45,677 - INFO -   Stance: 6 records
+2026-02-17 14:57:45,678 - INFO - Analyzing claim 38/41: The Rebuilding Sri Lanka Fund received over Rs. 3.4 billion ...
+2026-02-17 14:57:45,729 - INFO -   Sentiment: 9 records
+2026-02-17 14:57:55,884 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:58:05,081 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:58:05,123 - INFO -   Stance: 9 records
+2026-02-17 14:58:05,123 - INFO - Analyzing claim 39/41: The ‘Rebuilding Sri Lanka’ Fund received contributions from ...
+2026-02-17 14:58:05,170 - INFO -   Sentiment: 8 records
+2026-02-17 14:58:14,675 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:58:24,036 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:58:24,038 - WARNING - LLM returned invalid article_id: hypothetical_hnb_article, skipping
+2026-02-17 14:58:24,070 - INFO -   Stance: 8 records
+2026-02-17 14:58:24,070 - INFO - Analyzing claim 40/41: The 'Rebuilding Sri Lanka' Fund was established to restore l...
+2026-02-17 14:58:24,122 - INFO -   Sentiment: 6 records
+2026-02-17 14:58:36,161 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:58:39,319 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:58:39,360 - INFO -   Stance: 6 records
+2026-02-17 14:58:39,360 - INFO - Analyzing claim 41/41: The remaining subjects of the GCE Advanced Level Examination...
+2026-02-17 14:58:39,418 - INFO -   Sentiment: 6 records
+2026-02-17 14:58:49,915 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:58:52,524 - INFO - HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-17 14:58:52,568 - INFO -   Stance: 6 records
+2026-02-17 14:58:52,569 - INFO - 
+============================================================
+2026-02-17 14:58:52,569 - INFO - ✅ Pipeline complete!
+2026-02-17 14:58:52,569 - INFO -    Claims with both sentiment & stance: 41/41
+2026-02-17 14:58:52,569 - INFO -    Total sentiment records: 350
+2026-02-17 14:58:52,569 - INFO -    Total stance records: 348
+2026-02-17 14:58:52,569 - INFO - ============================================================
+2026-02-17 14:58:52,570 - INFO - 
+============================================================
+2026-02-17 14:58:52,570 - INFO - PIPELINE SUMMARY
+2026-02-17 14:58:52,570 - INFO - ============================================================
+2026-02-17 14:58:52,570 - INFO - Total Ditwah articles: 1657
+2026-02-17 14:58:52,570 - INFO - Batches processed: 34
+2026-02-17 14:58:52,571 - INFO - Raw claims generated: 963
+2026-02-17 14:58:52,571 - INFO - After merging duplicates: 961
+2026-02-17 14:58:52,571 - INFO - After LLM deduplication: 715
+2026-02-17 14:58:52,571 - INFO - After filtering (≥5 articles): 41
+2026-02-17 14:58:52,571 - INFO - Claims with sentiment & stance: 41
+2026-02-17 14:58:52,571 - INFO - Total sentiment records: 350
+2026-02-17 14:58:52,571 - INFO - Total stance records: 348
+2026-02-17 14:58:52,571 - INFO - ============================================================
+2026-02-17 14:58:52,593 - INFO - 
+✅ Pipeline complete! Version 576210ba-c5b1-4a12-9faa-640a09d94912 is ready.

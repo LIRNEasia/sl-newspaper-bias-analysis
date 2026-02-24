@@ -44,7 +44,7 @@ def filter_ditwah_articles() -> List[Dict]:
 
 def generate_individual_claim_for_article(llm, article: Dict, config: Dict) -> Optional[str]:
     """
-    Generate ONE specific claim for a single article.
+    Generate ONE specific, debatable claim for a single article that can be clustered effectively.
 
     Args:
         llm: LLM client instance
@@ -177,24 +177,30 @@ def store_individual_claims(
 def cluster_individual_claims(
     version_id: UUID,
     config: Dict,
-    max_clusters: int = 40
+    max_clusters: int = 60,
+    target_cluster_size: int = 35,
+    min_articles: int = 20,
 ) -> List[List[str]]:
     """
     Cluster individual claims into groups using embeddings.
 
+    n_clusters is computed dynamically from target_cluster_size so each cluster
+    has approximately that many articles rather than using a fixed maximum.
+    Clusters that fall below min_articles are merged into the nearest valid cluster
+    so every article stays assigned to a claim.
+
     Args:
         version_id: Result version ID
         config: Configuration dict with clustering settings
-        max_clusters: Maximum number of clusters (general claims) to create
+        max_clusters: Hard upper bound on number of clusters (safety cap)
+        target_cluster_size: Desired average articles per cluster (default 25)
+        min_articles: Minimum articles a cluster must have; smaller ones are merged
 
     Returns:
-        List of lists, where each inner list contains individual claim IDs in that cluster
+        List of lists, where each inner list contains individual claim IDs
     """
     from src.llm import get_embeddings_client
     import numpy as np
-    from sklearn.cluster import AgglomerativeClustering
-
-    logger.info(f"Clustering individual claims (target: max {max_clusters} clusters)...")
 
     # Fetch individual claims
     with get_db() as db:
@@ -212,49 +218,111 @@ def cluster_individual_claims(
         logger.warning("No individual claims found to cluster")
         return []
 
-    logger.info(f"Found {len(claims)} individual claims to cluster")
+    total = len(claims)
+    logger.info(f"Found {total} individual claims to cluster")
 
-    # Generate embeddings
+    # Generate embeddings for all individual claim texts
     embedding_config = config.get('embeddings', {})
     embeddings_client = get_embeddings_client(embedding_config)
 
     claim_texts = [c['claim_text'] for c in claims]
-    claim_ids = [str(c['id']) for c in claims]
+    claim_ids   = [str(c['id'])   for c in claims]
 
-    logger.info("Generating embeddings for claims...")
-    embeddings = embeddings_client.embed(claim_texts)
+    logger.info("Generating embeddings for individual claims...")
+    embeddings       = embeddings_client.embed(claim_texts)
     embeddings_array = np.array(embeddings)
 
-    # Cluster using Agglomerative Clustering
-    # This produces a hierarchical clustering that we can cut at different levels
-    n_clusters = min(max_clusters, len(claims))  # Don't create more clusters than claims
+    # -----------------------------------------------------------------------
+    # Compute n_clusters dynamically based on target cluster size.
+    # E.g. 1657 claims, target_size=25 → 1657//25 = 66 clusters
+    # Hard-bounded by max_clusters from above.
+    # -----------------------------------------------------------------------
+    n_clusters = max(10, total // target_cluster_size)
+    n_clusters = min(n_clusters, max_clusters, total)
 
-    logger.info(f"Running hierarchical clustering (target {n_clusters} clusters)...")
-    clustering = AgglomerativeClustering(
-        n_clusters=n_clusters,
-        metric='cosine',
-        linkage='average'
+    logger.info(
+        f"Running KMeans clustering: {total} claims → {n_clusters} clusters "
+        f"(target size ≈{target_cluster_size}, min ≥{min_articles})"
     )
-    cluster_labels = clustering.fit_predict(embeddings_array)
 
-    # Group claim IDs by cluster
-    clusters = {}
-    for claim_id, label in zip(claim_ids, cluster_labels):
-        if label not in clusters:
-            clusters[label] = []
-        clusters[label].append(claim_id)
+    # Normalise embeddings → KMeans on unit vectors ≡ spherical k-means
+    from sklearn.cluster import KMeans
+    from sklearn.preprocessing import normalize as sk_normalize
+    normed = sk_normalize(embeddings_array, norm='l2')
+    rng = config.get('random_seed', 42)
+    km = KMeans(n_clusters=n_clusters, random_state=rng, n_init=10, max_iter=300)
+    labels = km.fit_predict(normed)
 
-    # Convert to list of lists
-    cluster_list = list(clusters.values())
+    # Map label → list of indices
+    raw_clusters: Dict[int, List[int]] = {}
+    for idx, label in enumerate(labels):
+        raw_clusters.setdefault(label, []).append(idx)
 
-    # Filter out very small clusters (noise)
-    min_cluster_size = config.get('min_cluster_size', 2)
-    filtered_clusters = [c for c in cluster_list if len(c) >= min_cluster_size]
+    # -----------------------------------------------------------------------
+    # Merge clusters that are below min_articles into their nearest neighbour.
+    # "Nearest" = smallest cosine distance between cluster centroids.
+    # Cap: a target cluster may not grow beyond max_merge_size to prevent
+    # one cluster from absorbing everything.
+    # -----------------------------------------------------------------------
+    max_merge_size = max(target_cluster_size * 3, min_articles * 4)
 
-    logger.info(f"Created {len(filtered_clusters)} clusters (filtered from {len(cluster_list)})")
-    logger.info(f"Cluster sizes: {[len(c) for c in filtered_clusters]}")
+    def centroid(indices):
+        return embeddings_array[indices].mean(axis=0)
 
-    return filtered_clusters
+    def cosine_dist(a, b):
+        na = np.linalg.norm(a)
+        nb = np.linalg.norm(b)
+        if na == 0 or nb == 0:
+            return 1.0
+        return 1.0 - float(np.dot(a, b) / (na * nb))
+
+    # Iteratively merge small clusters until all remaining meet min_articles
+    changed = True
+    while changed:
+        changed = False
+        small = [k for k, v in raw_clusters.items() if len(v) < min_articles]
+        if not small:
+            break
+
+        # Pick the smallest cluster to merge first
+        small.sort(key=lambda k: len(raw_clusters[k]))
+        victim = small[0]
+        victim_centroid = centroid(raw_clusters[victim])
+
+        # Find candidate targets: other clusters that aren't over the size cap
+        candidates = [
+            k for k in raw_clusters
+            if k != victim and len(raw_clusters[k]) <= max_merge_size
+        ]
+        # Fall back to all others if all are over cap (edge case)
+        if not candidates:
+            candidates = [k for k in raw_clusters if k != victim]
+        if not candidates:
+            break  # Only one cluster left
+
+        nearest = min(
+            candidates,
+            key=lambda k: cosine_dist(victim_centroid, centroid(raw_clusters[k]))
+        )
+
+        # Merge victim into nearest
+        raw_clusters[nearest].extend(raw_clusters.pop(victim))
+        changed = True
+
+    # Convert index lists → claim_id lists
+    final_clusters = [
+        [claim_ids[i] for i in indices]
+        for indices in raw_clusters.values()
+    ]
+
+    sizes = sorted([len(c) for c in final_clusters], reverse=True)
+    logger.info(
+        f"Final: {len(final_clusters)} clusters | "
+        f"min={min(sizes)} max={max(sizes)} avg={sum(sizes)/len(sizes):.1f}"
+    )
+    logger.info(f"Size distribution: {sizes}")
+
+    return final_clusters
 
 
 def generate_general_claim_from_cluster(
@@ -266,6 +334,9 @@ def generate_general_claim_from_cluster(
     """
     Generate a general claim from a cluster of individual claims.
 
+    Fetches article titles and content excerpts alongside the per-article claims so
+    the LLM has richer context when synthesising the general claim.
+
     Args:
         llm: LLM client instance
         individual_claim_ids: List of individual claim IDs in this cluster
@@ -275,13 +346,16 @@ def generate_general_claim_from_cluster(
     Returns:
         Dict with keys: claim_text, claim_category or None if generation fails
     """
-    # Fetch the individual claims
+    # Fetch individual claims AND article context (title + excerpt)
     with get_db() as db:
         schema = db.config["schema"]
         with db.cursor() as cur:
             placeholders = ','.join(['%s'] * len(individual_claim_ids))
             cur.execute(f"""
-                SELECT ac.claim_text, n.source_id
+                SELECT ac.claim_text,
+                       n.source_id,
+                       n.title        AS article_title,
+                       LEFT(n.content, 400) AS content_excerpt
                 FROM {schema}.ditwah_article_claims ac
                 JOIN {schema}.news_articles n ON ac.article_id = n.id
                 WHERE ac.id IN ({placeholders})
@@ -292,9 +366,27 @@ def generate_general_claim_from_cluster(
         logger.warning("No claims found for cluster")
         return None
 
-    # Prepare claims for LLM
-    individual_claims = [c['claim_text'] for c in claims_data]
     sources = list(set(c['source_id'] for c in claims_data))
+
+    # All per-article claims — these are short (1-2 sentences) so include every one
+    all_claims_block = '\n'.join(
+        f"• [{row['source_id']}] {row['claim_text']}"
+        for row in claims_data
+    )
+
+    # Article excerpts for richer context — show up to 20 articles with full text
+    article_summaries = []
+    for row in claims_data[:20]:
+        excerpt = (row['content_excerpt'] or '').strip().replace('\n', ' ')
+        article_summaries.append(
+            f"• [{row['source_id']}] {row['article_title']}\n"
+            f"  Excerpt: {excerpt[:300]}"
+        )
+    article_block = '\n\n'.join(article_summaries)
+    extra = (
+        f'\n\n(+ {len(claims_data) - 20} more articles not shown above)'
+        if len(claims_data) > 20 else ''
+    )
 
     categories = config.get('categories', [
         "government_response",
@@ -302,9 +394,14 @@ def generate_general_claim_from_cluster(
         "infrastructure_damage",
         "economic_impact",
         "international_response",
-        "casualties_and_displacement"
+        "casualties_and_displacement",
+        "relief_operations",
+        "evacuation_and_displacement",
+        "weather_warnings",
+        "preparation_measures"
     ])
 
+    individual_claims = [row['claim_text'] for row in claims_data]
     overflow_text = (
         f'... and {len(individual_claims) - 10} more' if len(individual_claims) > 10 else ''
     )
@@ -430,23 +527,46 @@ def generate_claims_from_articles(llm, articles: List[Dict], config: Dict) -> Li
     """
     logger.info(f"Generating claims from {len(articles)} articles...")
 
-    num_claims = config.get('num_claims', 15)
+    num_claims = config.get('num_claims', 22)
+    max_articles = config.get('max_articles_for_generation', 200)
     categories = config.get('categories', [
         "government_response",
-        "humanitarian_aid",
-        "infrastructure_damage",
-        "economic_impact",
         "international_response",
-        "casualties_and_displacement"
+        "infrastructure_damage",
+        "casualties_and_displacement",
+        "economic_impact",
+        "relief_operations",
+        "weather_warnings",
+        "recovery"
     ])
 
-    # Prepare article summaries for LLM (title + first 500 chars)
+    # Sample articles evenly across sources to stay within LLM context limits
+    if len(articles) > max_articles:
+        import random
+        from collections import defaultdict
+        by_source = defaultdict(list)
+        for a in articles:
+            by_source[a['source_id']].append(a)
+        sampled = []
+        per_source = max_articles // max(len(by_source), 1)
+        for source_articles in by_source.values():
+            random.shuffle(source_articles)
+            sampled.extend(source_articles[:per_source])
+        # Top up to max_articles if needed
+        remaining = [a for a in articles if a not in sampled]
+        random.shuffle(remaining)
+        sampled.extend(remaining[:max_articles - len(sampled)])
+        articles_to_use = sampled[:max_articles]
+        logger.info(f"Sampled {len(articles_to_use)} articles (from {len(articles)}) spread across {len(by_source)} sources")
+    else:
+        articles_to_use = articles
+
+    # Prepare article summaries for LLM (title + first 400 chars)
     article_summaries = []
-    for article in articles:
+    for article in articles_to_use:
         summary = {
             'title': article['title'],
-            'excerpt': article['content'][:500] if article['content'] else '',
-            'date': str(article['date_posted']),
+            'excerpt': article['content'][:400] if article['content'] else '',
             'source_id': article['source_id']
         }
         article_summaries.append(summary)
@@ -467,19 +587,38 @@ def generate_claims_from_articles(llm, articles: List[Dict], config: Dict) -> Li
             json_mode=True
         )
 
+        # Clean response content (remove markdown code blocks if present)
+        content = response.content.strip()
+        if content.startswith('```json'):
+            content = content[7:]  # Remove ```json
+        if content.startswith('```'):
+            content = content[3:]  # Remove ```
+        if content.endswith('```'):
+            content = content[:-3]  # Remove trailing ```
+        content = content.strip()
+
         # Parse JSON response
-        claims = json.loads(response.content)
+        claims = json.loads(content)
 
         if not isinstance(claims, list):
             logger.error("LLM response is not a list")
             return []
+
+        # Normalize key names — LLMs sometimes return "category" instead of "claim_category"
+        for claim in claims:
+            if 'category' in claim and 'claim_category' not in claim:
+                claim['claim_category'] = claim.pop('category')
+            if 'claim_category' not in claim:
+                claim['claim_category'] = 'other'
+            if 'claim_text' not in claim and 'text' in claim:
+                claim['claim_text'] = claim.pop('text')
 
         logger.info(f"Generated {len(claims)} claims")
         return claims
 
     except json.JSONDecodeError as e:
         logger.error(f"Failed to parse LLM response as JSON: {e}")
-        logger.error(f"Response: {response[:500]}...")
+        logger.error(f"Response: {response.content[:500]}...")
         return []
     except Exception as e:
         logger.error(f"Error generating claims: {e}")
@@ -611,6 +750,8 @@ def store_claim_stance(claim_id: UUID, stance_records: List[Dict]) -> int:
                         confidence = EXCLUDED.confidence,
                         reasoning = EXCLUDED.reasoning,
                         supporting_quotes = EXCLUDED.supporting_quotes,
+                        llm_provider = EXCLUDED.llm_provider,
+                        llm_model = EXCLUDED.llm_model,
                         processed_at = NOW()
                 """, (
                     str(claim_id),
@@ -1002,6 +1143,59 @@ def analyze_claim_stance(
     return count
 
 
+def analyze_claim_stance_nli(
+    analyzer,
+    claim_id: UUID,
+    claim_text: str,
+    articles: List[Dict],
+) -> int:
+    """
+    NLI-based stance detection using a pre-loaded NLIStanceAnalyzer.
+
+    Uses roberta-large-mnli with overlapping token chunks to handle articles
+    longer than the model's 512-token limit.  No LLM calls are made.
+
+    Args:
+        analyzer:   Pre-instantiated NLIStanceAnalyzer (reused across claims).
+        claim_id:   UUID of the general claim.
+        claim_text: The claim text (used as NLI hypothesis).
+        articles:   List of article dicts with keys: id, title, content, source_id.
+
+    Returns:
+        Number of stance records stored.
+    """
+    if not articles:
+        return 0
+
+    logger.info(
+        f"NLI stance: {len(articles)} articles for claim '{claim_text[:60]}…'"
+    )
+
+    # Build premises: title + full content
+    premises = [
+        f"{a['title']}\n{(a['content'] or '').strip()}"
+        for a in articles
+    ]
+
+    nli_results = analyzer.predict_batch(premises, claim_text)
+
+    stance_records = []
+    for article, result in zip(articles, nli_results):
+        stance_records.append({
+            "article_id": str(article["id"]),
+            "source_id": article["source_id"],
+            "stance_score": result["stance_score"],
+            "stance_label": result["stance_label"],
+            "confidence": result["confidence"],
+            "reasoning": result["reasoning"],
+            "supporting_quotes": "[]",   # NLI does not extract quotes
+            "llm_provider": "local",
+            "llm_model": analyzer.MODEL_NAME,
+        })
+
+    return store_claim_stance(claim_id, stance_records)
+
+
 def update_claim_article_counts(version_id: UUID) -> None:
     """
     Update article_count for all general claims in a version.
@@ -1040,7 +1234,10 @@ def update_claim_article_counts(version_id: UUID) -> None:
 
 def get_articles_for_general_claim(claim_id: UUID) -> List[Dict]:
     """
-    Get all articles linked to a general claim (via individual claims).
+    Get all articles linked to a general claim.
+
+    Primary path: ditwah_article_claims (newer pipeline).
+    Fallback: claim_sentiment (older pipeline that lacks ditwah_article_claims rows).
 
     Args:
         claim_id: General claim ID
@@ -1056,6 +1253,20 @@ def get_articles_for_general_claim(claim_id: UUID) -> List[Dict]:
                 FROM {schema}.ditwah_article_claims ac
                 JOIN {schema}.news_articles n ON ac.article_id = n.id
                 WHERE ac.general_claim_id = %s
+                ORDER BY n.date_posted DESC
+            """, (str(claim_id),))
+            rows = cur.fetchall()
+
+        if rows:
+            return rows
+
+        # Fallback for versions that used claim_sentiment as article linkage
+        with db.cursor() as cur:
+            cur.execute(f"""
+                SELECT DISTINCT n.id, n.title, n.content, n.source_id, n.date_posted, n.url
+                FROM {schema}.claim_sentiment cs
+                JOIN {schema}.news_articles n ON cs.article_id = n.id
+                WHERE cs.claim_id = %s
                 ORDER BY n.date_posted DESC
             """, (str(claim_id),))
             return cur.fetchall()
