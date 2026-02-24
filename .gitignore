@@ -7,7 +7,6 @@ config.yaml.local
 *.secret
 *.key
 .claude/
-
 # Internal documentation (not for public repo)
 PLAN.md
 
