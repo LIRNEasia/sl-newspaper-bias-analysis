@@ -129,6 +129,7 @@ class EmbeddingMixin:
 
     def semantic_search(self, query_embedding: List[float], embedding_model: str,
                         limit: int = 20, source_ids: List[str] = None,
+                        min_similarity: float = None,
                         filters: list = None) -> List[Dict]:
         """Search articles by semantic similarity using pgvector cosine distance.
 
@@ -137,6 +138,7 @@ class EmbeddingMixin:
             embedding_model: Name of the embedding model to search against
             limit: Maximum number of results to return
             source_ids: Optional list of source_id values to filter by
+            min_similarity: Optional minimum cosine similarity threshold (0-1)
             filters: Optional list of ArticleFilter conditions (applied to article table)
         """
         schema = self.config["schema"]
@@ -151,6 +153,11 @@ class EmbeddingMixin:
         if source_ids:
             base_conditions.append("a.source_id = ANY(%s)")
             params.append(source_ids)
+
+        if min_similarity is not None:
+            # cosine distance <= (1 - min_similarity) is equivalent to similarity >= min_similarity
+            base_conditions.append("(e.embedding <=> %s::vector) <= %s")
+            params.extend([str(query_embedding), 1.0 - min_similarity])
 
         where = " AND ".join(base_conditions)
         query = f"""
@@ -168,8 +175,6 @@ class EmbeddingMixin:
             ORDER BY e.embedding <=> %s::vector
             LIMIT %s
         """
-        # The vector param appears 3 times: SELECT similarity, WHERE (via first param), ORDER BY
-        # First %s::vector in SELECT is the initial param, last two are for ORDER BY and LIMIT
         params.extend([str(query_embedding), limit])
 
         with self.cursor() as cur:

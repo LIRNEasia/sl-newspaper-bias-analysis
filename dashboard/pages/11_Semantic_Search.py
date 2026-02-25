@@ -7,29 +7,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import streamlit as st
 
-from data.loaders import semantic_search_articles
+from data.loaders import embed_and_search
 from components.source_mapping import SOURCE_NAMES, SOURCE_COLORS
 from components.styling import apply_page_style
-
-# BGE-base requires this prefix for retrieval queries (documents were embedded without it)
-BGE_QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
-BGE_MODEL_NAME = "BAAI/bge-base-en-v1.5"
 
 apply_page_style()
 
 st.title("Semantic Search")
 st.caption("Find articles by meaning using BGE embeddings and pgvector similarity search")
-
-# --- Embedding Client (cached in session_state to avoid reloading ~420MB model) ---
-if "search_embed_client" not in st.session_state:
-    with st.spinner("Loading embedding model (first time only)..."):
-        from src.llm import EmbeddingClient
-        st.session_state.search_embed_client = EmbeddingClient(
-            provider="local",
-            model=BGE_MODEL_NAME
-        )
-
-embed_client = st.session_state.search_embed_client
 
 # --- Search Controls ---
 query = st.text_input(
@@ -56,12 +41,8 @@ if not query or len(query.strip()) < 3:
     st.stop()
 
 with st.spinner("Searching..."):
-    prefixed_query = BGE_QUERY_PREFIX + query
-    query_embedding = embed_client.embed_single(prefixed_query)
-
-    results = semantic_search_articles(
-        query_embedding=query_embedding,
-        embedding_model=BGE_MODEL_NAME,
+    results = embed_and_search(
+        query=query,
         limit=num_results,
         source_ids=selected_sources if selected_sources else None,
     )
