@@ -2292,3 +2292,17 @@ def load_entity_stance_overview(version_id):
                 WHERE result_version_id = %s
             """, (version_id,))
             return dict(cur.fetchone())
+
+
+# ============================================================================
+# Semantic Search
+# ============================================================================
+
+def semantic_search_articles(query_embedding: list, embedding_model: str = "BAAI/bge-base-en-v1.5",
+                             limit: int = 20, source_ids: list = None):
+    """Search articles by semantic similarity. Not cached — queries are unique."""
+    with get_db() as db:
+        return db.semantic_search(
+            query_embedding, embedding_model, limit, source_ids,
+            filters=ditwah_filters()
+        )
