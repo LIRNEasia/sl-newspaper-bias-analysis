@@ -2292,3 +2292,75 @@ def load_entity_stance_overview(version_id):
                 WHERE result_version_id = %s
             """, (version_id,))
             return dict(cur.fetchone())
+
+
+# ============================================================================
+# Semantic Search
+# ============================================================================
+
+# BGE-base requires this prefix for retrieval queries; documents are embedded without it.
+BGE_QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
+
+
+def get_query_prefix(model_name: str) -> str:
+    """Return the query prefix required by a given embedding model.
+
+    BGE models need a retrieval prefix for queries. Other models return empty string.
+    """
+    if "bge" in model_name.lower():
+        return BGE_QUERY_PREFIX
+    return ""
+
+
+@st.cache_resource(show_spinner="Loading embedding model...")
+def _load_embed_client(model_name: str):
+    """Load and cache a sentence-transformer embedding client."""
+    from src.llm import EmbeddingClient
+    is_gemma = "embeddinggemma" in model_name.lower()
+    return EmbeddingClient(
+        provider="local",
+        model=model_name,
+        task="retrieval" if is_gemma else None,
+    )
+
+
+def semantic_search_articles(query_embedding: list, embedding_model: str = "BAAI/bge-base-en-v1.5",
+                             limit: int = 20, source_ids: list = None,
+                             min_similarity: float = None):
+    """Search articles by semantic similarity. Not cached — queries are unique."""
+    with get_db() as db:
+        return db.semantic_search(
+            query_embedding, embedding_model, limit, source_ids,
+            min_similarity=min_similarity, filters=ditwah_filters()
+        )
+
+
+def embed_and_search(
+    query: str,
+    embedding_model: str = "BAAI/bge-base-en-v1.5",
+    limit: int = 20,
+    source_ids: list = None,
+    min_similarity: float = None,
+) -> list:
+    """Embed a text query with correct model-specific prefixing and search for similar articles.
+
+    Handles BGE query prefixing internally so callers don't need to worry about it.
+    Not cached — search queries are unique.
+
+    Args:
+        query: Raw text query (prefix applied automatically based on model)
+        embedding_model: Name of the embedding model to search against
+        limit: Maximum number of results (top-k)
+        source_ids: Optional list of source_id values to filter by
+        min_similarity: Optional minimum cosine similarity threshold (0.0-1.0)
+    """
+    prefix = get_query_prefix(embedding_model)
+    embed_client = _load_embed_client(embedding_model)
+    query_embedding = embed_client.embed_single(prefix + query)
+    return semantic_search_articles(
+        query_embedding=query_embedding,
+        embedding_model=embedding_model,
+        limit=limit,
+        source_ids=source_ids,
+        min_similarity=min_similarity,
+    )

@@ -127,6 +127,60 @@ class EmbeddingMixin:
                 })
             return result
 
+    def semantic_search(self, query_embedding: List[float], embedding_model: str,
+                        limit: int = 20, source_ids: List[str] = None,
+                        min_similarity: float = None,
+                        filters: list = None) -> List[Dict]:
+        """Search articles by semantic similarity using pgvector cosine distance.
+
+        Args:
+            query_embedding: The query embedding vector as a list of floats
+            embedding_model: Name of the embedding model to search against
+            limit: Maximum number of results to return
+            source_ids: Optional list of source_id values to filter by
+            min_similarity: Optional minimum cosine similarity threshold (0-1)
+            filters: Optional list of ArticleFilter conditions (applied to article table)
+        """
+        schema = self.config["schema"]
+
+        base_conditions = ["e.embedding_model = %s"]
+        params: list = [str(query_embedding), embedding_model]
+
+        filter_clauses, filter_params = self._build_filters(filters, table_alias="a")
+        base_conditions.extend(filter_clauses)
+        params.extend(filter_params)
+
+        if source_ids:
+            base_conditions.append("a.source_id = ANY(%s)")
+            params.append(source_ids)
+
+        if min_similarity is not None:
+            # cosine distance <= (1 - min_similarity) is equivalent to similarity >= min_similarity
+            base_conditions.append("(e.embedding <=> %s::vector) <= %s")
+            params.extend([str(query_embedding), 1.0 - min_similarity])
+
+        where = " AND ".join(base_conditions)
+        query = f"""
+            SELECT
+                a.id,
+                a.title,
+                a.content,
+                a.source_id,
+                a.date_posted,
+                a.url,
+                1 - (e.embedding <=> %s::vector) AS similarity_score
+            FROM {schema}.embeddings e
+            JOIN {schema}.news_articles a ON e.article_id = a.id
+            WHERE {where}
+            ORDER BY e.embedding <=> %s::vector
+            LIMIT %s
+        """
+        params.extend([str(query_embedding), limit])
+
+        with self.cursor() as cur:
+            cur.execute(query, params)
+            return cur.fetchall()
+
     def get_embedding_count(self, embedding_model: str = None) -> int:
         """Get count of articles with embeddings, optionally filtered by model.
 
