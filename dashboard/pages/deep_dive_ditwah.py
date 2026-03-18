@@ -330,10 +330,19 @@ else:
 st.divider()
 
 # ============================================================================
-# Section 4: Sentiment vs Topic
+# Section 4: Sentiment Analysis
 # ============================================================================
 
-st.header("4 Sentiment vs Topic")
+st.header("4 Sentiment Analysis")
+
+st.info(
+    "**Sentiment score** ranges from **−5 (very negative)** to **+5 (very positive)**, "
+    "with 0 as neutral. Scores reflect the average emotional tone of article headlines and "
+    "body text as measured by the selected sentiment model.\n\n"
+    "**Examples:** *'Devastating floods destroy homes'* → −4 · "
+    "*'Government announces infrastructure plan'* → 0 · "
+    "*'Economy recovers as exports rise'* → +3"
+)
 
 if not topics_version_id or not sentiment_model:
     st.info("Select a Topics version and Sentiment Model in ⚙️ Settings to view this section.")
@@ -350,26 +359,40 @@ else:
             aggfunc="mean",
         )
 
-        topic_counts = ts_df.groupby("topic")["article_count"].sum().sort_values(ascending=False)
-        top_topics = topic_counts.head(15).index
-        pivot = pivot.loc[pivot.index.isin(top_topics)]
+        # Select top 8 topics by sentiment spread across sources
+        pivot_multi = pivot.dropna(thresh=2)
+        spread = pivot_multi.max(axis=1) - pivot_multi.min(axis=1)
+        top_topics = spread.nlargest(8).index.tolist()
 
-        fig = go.Figure(data=go.Heatmap(
-            z=pivot.values,
-            x=pivot.columns,
-            y=pivot.index,
-            colorscale="RdYlGn",
-            zmid=0,
-            zmin=-5,
-            zmax=5,
-            colorbar=dict(title="Sentiment"),
-        ))
-        fig.update_layout(
-            height=600,
-            xaxis_title="News Source",
-            yaxis_title="Topic",
-        )
-        st.plotly_chart(fig, use_container_width=True)
+        st.caption("Top 8 topics by sentiment divergence across sources")
+
+        for i in range(0, len(top_topics), 2):
+            col_left, col_right = st.columns(2)
+            for col, topic in zip([col_left, col_right], top_topics[i:i+2]):
+                topic_data = ts_df[ts_df["topic"] == topic].copy()
+                topic_title = topic if len(topic) <= 60 else topic[:57] + "..."
+                topic_spread = spread[topic]
+
+                fig = px.bar(
+                    topic_data,
+                    x="source_name",
+                    y="avg_sentiment",
+                    color="source_name",
+                    color_discrete_map=SOURCE_COLORS,
+                    title=topic_title,
+                    labels={"source_name": "Source", "avg_sentiment": "Avg Sentiment"},
+                )
+                fig.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.6)
+                fig.update_layout(
+                    yaxis=dict(range=[-5, 5], title="Avg Sentiment"),
+                    xaxis_title="",
+                    showlegend=False,
+                    height=300,
+                    margin=dict(t=40, b=20),
+                )
+                with col:
+                    st.plotly_chart(fig, use_container_width=True)
+
     else:
         st.info("No topic-sentiment data found for this model and version.")
 
