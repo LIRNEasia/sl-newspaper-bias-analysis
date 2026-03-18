@@ -510,8 +510,8 @@ def load_topic_by_source(version_id=None):
 
 
 @st.cache_data(ttl=300)
-def load_topics_with_keywords(version_id, limit=15):
-    """Load top topics with keywords.
+def load_topics_with_keywords(version_id, limit=None):
+    """Load topics with keywords.
 
     Returns:
         List of dicts with keys: id, topic_id, name, description, keywords, article_count
@@ -522,13 +522,17 @@ def load_topics_with_keywords(version_id, limit=15):
     with get_db() as db:
         schema = db.config["schema"]
         with db.cursor() as cur:
-            cur.execute(f"""
+            query = f"""
                 SELECT id, topic_id, name, description, keywords, article_count
                 FROM {schema}.topics
                 WHERE topic_id NOT IN (-1, -2) AND result_version_id = %s
                 ORDER BY article_count DESC
-                LIMIT %s
-            """, (version_id, limit))
+            """
+            params = [version_id]
+            if limit is not None:
+                query += " LIMIT %s"
+                params.append(limit)
+            cur.execute(query, params)
             return cur.fetchall()
 
 

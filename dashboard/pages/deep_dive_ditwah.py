@@ -45,7 +45,7 @@ OUTLETS = ["dailynews_en", "themorning_en", "ft_en", "island_en"]
 with st.popover("⚙️ Settings"):
     st.markdown("**Version Selectors**")
     chunk_topics_version_id = render_version_selector("chunk_topics")
-    topics_version_id = render_version_selector("topics")
+    topics_version_id = render_version_selector("topics", default_name="v0130-1438")
     claims_version_id = render_version_selector("ditwah_claims")
     entity_stance_version_id = render_version_selector("entity_stance")
 
@@ -359,6 +359,21 @@ else:
             aggfunc="mean",
         )
 
+        # Build topic name → aspect label map
+        topic_label_map = {}
+        topics_kw = load_topics_with_keywords(topics_version_id, limit=100)
+        if topics_kw:
+            for t in topics_kw:
+                label = t["name"]
+                try:
+                    if t.get("description"):
+                        desc_data = json.loads(t["description"])
+                        if desc_data.get("aspect"):
+                            label = desc_data["aspect"]
+                except (ValueError, TypeError):
+                    pass
+                topic_label_map[t["name"]] = label
+
         # Select top 8 topics by sentiment spread across sources
         pivot_multi = pivot.dropna(thresh=2)
         spread = pivot_multi.max(axis=1) - pivot_multi.min(axis=1)
@@ -370,7 +385,8 @@ else:
             col_left, col_right = st.columns(2)
             for col, topic in zip([col_left, col_right], top_topics[i:i+2]):
                 topic_data = ts_df[ts_df["topic"] == topic].copy()
-                topic_title = topic if len(topic) <= 60 else topic[:57] + "..."
+                label = topic_label_map.get(topic, topic)
+                topic_title = label if len(label) <= 60 else label[:57] + "..."
                 topic_spread = spread[topic]
 
                 fig = px.bar(
