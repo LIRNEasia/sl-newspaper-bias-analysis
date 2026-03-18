@@ -579,6 +579,18 @@ def load_outlet_totals():
         return {r['source_id']: r['count'] for r in rows}
 
 
+@st.cache_data(ttl=300)
+def load_all_outlet_totals():
+    """Load total article counts per outlet applying only date filters (no Ditwah filter).
+
+    Returns:
+        Dict mapping source_id to article count.
+    """
+    with get_db() as db:
+        rows = db.get_article_counts_by_source(date_range_filters())
+        return {r['source_id']: r['count'] for r in rows}
+
+
 def generate_topic_aspects(version_id, topics_with_keywords, force=False):
     """Generate LLM aspect labels for topics and store in DB.
 

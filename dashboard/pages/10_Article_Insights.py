@@ -609,7 +609,7 @@ if ner_version_id:
             if entity_type in excluded_types:
                 continue
             entity_list = entities_by_type[entity_type]
-            st.markdown(f"**{entity_type}** ({len(entity_list)})")
+            st.markdown(f"**{entity_type}**")
 
             # Create tags for entities (deduplicated)
             unique_entities = set()
