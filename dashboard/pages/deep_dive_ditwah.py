@@ -23,6 +23,10 @@ from data.loaders import (
     load_chunk_topics,
     load_stance_polarization_matrix,
     load_entity_stance_summary,
+    load_topics_with_keywords,
+    load_topic_by_source,
+    load_outlet_totals,
+    load_all_outlet_totals,
 )
 from components.source_mapping import SOURCE_NAMES, SOURCE_COLORS
 from components.version_selector import render_version_selector
@@ -30,7 +34,7 @@ from components.styling import apply_page_style
 
 apply_page_style()
 
-st.title("🌀 Ditwah Cyclone — Deep Dive")
+st.title("Ditwah Cyclone — Deep Dive")
 
 # ============================================================================
 # Settings Popover
@@ -77,38 +81,114 @@ stats = load_overview_stats()
 ditwah_df = pd.DataFrame(stats["ditwah_by_source"])
 if not ditwah_df.empty:
     ditwah_df["source_name"] = ditwah_df["source_id"].map(SOURCE_NAMES)
-    fig = px.bar(
-        ditwah_df,
-        x="source_name",
-        y="count",
-        color="source_name",
-        color_discrete_map=SOURCE_COLORS,
-        labels={"count": "Articles", "source_name": "Source"},
-        text="count",
-    )
-    fig.update_traces(textposition="outside")
-    fig.update_layout(showlegend=False, height=450, xaxis_title="Source", yaxis_title="Articles")
-    st.plotly_chart(fig, use_container_width=True)
+
+    col_cov1, _spacer, col_cov2 = st.columns([5, 1, 5])
+
+    with col_cov1:
+        st.caption("Article count")
+        fig = px.bar(
+            ditwah_df,
+            x="source_name",
+            y="count",
+            color="source_name",
+            color_discrete_map=SOURCE_COLORS,
+            labels={"count": "Articles", "source_name": "Source"},
+            text="count",
+        )
+        fig.update_traces(textposition="outside", width=0.4)
+        fig.update_layout(showlegend=False, height=400, xaxis_title="Source", yaxis_title="Articles",
+                          yaxis=dict(range=[0, ditwah_df["count"].max() * 1.15]))
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col_cov2:
+        st.caption("% of each outlet's total articles")
+        outlet_totals = load_all_outlet_totals()
+        if outlet_totals:
+            ditwah_df["total"] = ditwah_df["source_id"].map(outlet_totals)
+            ditwah_df["pct"] = ditwah_df["count"] / ditwah_df["total"] * 100
+            fig2 = px.bar(
+                ditwah_df,
+                x="source_name",
+                y="pct",
+                color="source_name",
+                color_discrete_map=SOURCE_COLORS,
+                labels={"pct": "% of Total Articles", "source_name": "Source"},
+                text=ditwah_df["pct"].round(1).astype(str) + "%",
+            )
+            fig2.update_traces(textposition="outside", width=0.4)
+            fig2.update_layout(showlegend=False, height=400, xaxis_title="Source", yaxis_title="% of Total Articles",
+                               yaxis=dict(range=[0, ditwah_df["pct"].max() * 1.15]))
+            st.plotly_chart(fig2, use_container_width=True)
+        else:
+            st.info("Outlet totals not available.")
 else:
     st.info("No Ditwah Cyclone articles found.")
 
-# Timeline
-ditwah_timeline = load_ditwah_timeline()
-if ditwah_timeline:
-    timeline_df = pd.DataFrame(ditwah_timeline)
-    timeline_df["source_name"] = timeline_df["source_id"].map(SOURCE_NAMES)
-    fig = px.line(
-        timeline_df,
-        x="date",
-        y="count",
-        color="source_name",
-        color_discrete_map=SOURCE_COLORS,
-        labels={"count": "Articles", "date": "Date", "source_name": "Source"},
-    )
-    fig.update_layout(height=380)
-    st.plotly_chart(fig, use_container_width=True)
+
+
+# Topic coverage table
+if not topics_version_id:
+    st.info("Select a Topics version in ⚙️ Settings to view topic coverage analysis.")
 else:
-    st.info("No Ditwah timeline data available.")
+    import json as _json_cov
+
+    topics_with_kw = load_topics_with_keywords(topics_version_id, limit=15)
+    topic_source_data = load_topic_by_source(topics_version_id)
+    outlet_totals = load_outlet_totals()
+
+    if topics_with_kw and topic_source_data and outlet_totals:
+        st.subheader("Topic Coverage by Source")
+        st.markdown("Which topics show the largest coverage differences between outlets?")
+
+        ts_df_bias = pd.DataFrame(topic_source_data)
+        all_outlets = [sid for sid in SOURCE_NAMES.keys() if sid in outlet_totals]
+        top_names = [t["name"] for t in topics_with_kw]
+        ts_bias_filtered = ts_df_bias[ts_df_bias["topic"].isin(top_names)]
+
+        bias_rows = []
+        for t in topics_with_kw:
+            tname = t["name"]
+            proportions = {}
+            for sid in all_outlets:
+                count = ts_bias_filtered[
+                    (ts_bias_filtered["topic"] == tname) & (ts_bias_filtered["source_id"] == sid)
+                ]["count"].sum()
+                total = outlet_totals.get(sid, 1)
+                proportions[sid] = (count / total) * 100
+
+            vals = list(proportions.values())
+            spread = max(vals) - min(vals)
+            max_outlet = SOURCE_NAMES[max(proportions, key=proportions.get)]
+            min_outlet = SOURCE_NAMES[min(proportions, key=proportions.get)]
+
+            aspect = tname
+            try:
+                if t.get("description"):
+                    desc_data = _json_cov.loads(t["description"])
+                    if desc_data.get("aspect"):
+                        aspect = desc_data["aspect"]
+            except (ValueError, TypeError):
+                pass
+
+            row = {"Aspect": aspect, "Topic": tname}
+            for sid in all_outlets:
+                row[SOURCE_NAMES[sid]] = round(proportions[sid], 1)
+            row["Spread"] = round(spread, 1)
+            row["Most"] = max_outlet
+            row["Least"] = min_outlet
+            bias_rows.append(row)
+
+        bias_df = pd.DataFrame(bias_rows)
+        display_cols = ["Aspect"] + [SOURCE_NAMES[s] for s in all_outlets] + ["Spread", "Most", "Least"]
+        st.dataframe(
+            bias_df[display_cols],
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Spread": st.column_config.NumberColumn(format="%.1f pp"),
+                **{SOURCE_NAMES[s]: st.column_config.NumberColumn(format="%.1f%%") for s in all_outlets},
+            },
+        )
 
 st.divider()
 
@@ -139,31 +219,46 @@ else:
                     parsed = json.loads(desc) if isinstance(desc, str) else desc
                     claim = parsed.get("claim")
                     if claim:
-                        return f"T{t['topic_id']}: {claim}"
+                        return f"{claim}"
                 except (json.JSONDecodeError, TypeError, AttributeError):
                     pass
             keywords = t.get("keywords") or []
-            return f"T{t['topic_id']}: {', '.join(keywords[:5]).title()}"
+            return f"{', '.join(keywords[:5]).title()}"
 
         bias_rows = []
         for t in topics:
             tname = t["name"]
-            row = {"Topic": f"T{t['topic_id']}", "Label": _topic_label(t)}
+            proportions = {}
             for o in all_outlets:
                 count = ts_df[
                     (ts_df["topic_name"] == tname) & (ts_df["source_id"] == o)
                 ]["count"].sum()
-                row[SOURCE_NAMES[o]] = int(count)
-            total = sum(row[SOURCE_NAMES[o]] for o in all_outlets)
-            row["Total"] = total
+                total = outlet_totals.get(o, 1)
+                proportions[o] = (count / total) * 100
+
+            vals = list(proportions.values())
+            spread = max(vals) - min(vals)
+            max_outlet = SOURCE_NAMES[max(proportions, key=proportions.get)]
+            min_outlet = SOURCE_NAMES[min(proportions, key=proportions.get)]
+
+            row = {"Topic": f"T{t['topic_id']}", "Label": _topic_label(t)}
+            for o in all_outlets:
+                row[SOURCE_NAMES[o]] = round(proportions[o], 1)
+            row["Spread"] = round(spread, 1)
+            row["Most"] = max_outlet
+            row["Least"] = min_outlet
             bias_rows.append(row)
 
-        bias_df = pd.DataFrame(bias_rows).sort_values("Total", ascending=False)
-        display_cols = ["Topic", "Label"] + outlet_names + ["Total"]
+        bias_df = pd.DataFrame(bias_rows).sort_values("Spread", ascending=False)
+        display_cols = ["Topic", "Label"] + outlet_names + ["Spread", "Most", "Least"]
         st.dataframe(
             bias_df[display_cols],
             use_container_width=True,
             hide_index=True,
+            column_config={
+                "Spread": st.column_config.NumberColumn(format="%.1f pp"),
+                **{name: st.column_config.NumberColumn(format="%.1f%%") for name in outlet_names},
+            },
         )
 
 st.divider()
