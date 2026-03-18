@@ -40,7 +40,7 @@ if not topics:
     st.stop()
 
 # Load topics with keywords for aspect label generation
-topics_with_kw = load_topics_with_keywords(version_id, limit=15)
+topics_with_kw = load_topics_with_keywords(version_id)
 
 # Aspect label generation button at the top
 if topics_with_kw:
@@ -58,12 +58,12 @@ if topics_with_kw:
         except (ValueError, TypeError):
             pass
 
-    btn_label = "Regenerate Topic Labels" if has_aspects else "Generate Topic Labels"
-    btn_help = "Uses the configured LLM to generate short aspect phrases for each topic (using random article samples)"
+    btn_label = "Generate Topic Labels" if not has_aspects else "Generate Remaining Topic Labels"
+    btn_help = "Uses the configured LLM to generate short aspect phrases for topics that don't yet have labels"
 
     if st.button(btn_label, help=btn_help):
         with st.spinner("Generating aspect labels via LLM... This may take a minute."):
-            count = generate_topic_aspects(version_id, topics_with_kw, force=has_aspects)
+            count = generate_topic_aspects(version_id, topics_with_kw, force=False)
             st.success(f"Generated aspect labels for {count} topics.")
             st.rerun()
 

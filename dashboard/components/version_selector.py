@@ -19,11 +19,12 @@ from src.versions import (
 )
 
 
-def render_version_selector(analysis_type):
+def render_version_selector(analysis_type, default_name=None):
     """Render version selector for a specific analysis type.
 
     Args:
         analysis_type: 'topics', 'clustering', or 'word_frequency'
+        default_name: Optional version name to pre-select (e.g. 'v0130-1438')
 
     Returns:
         version_id of selected version or None
@@ -45,10 +46,18 @@ def render_version_selector(analysis_type):
     # Format analysis type for display
     display_name = analysis_type.replace('_', ' ').title()
 
+    # Compute default index
+    default_index = 0
+    if default_name:
+        for i, label in enumerate(version_options.keys()):
+            if label.startswith(default_name + " ("):
+                default_index = i
+                break
+
     selected_label = st.selectbox(
         f"Select {display_name} Version",
         options=list(version_options.keys()),
-        index=0,
+        index=default_index,
         key=f"{analysis_type}_version_selector"
     )
 
